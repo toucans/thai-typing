@@ -54,7 +54,13 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
   static app, lists `media/` + `texts/`, streams media with Range support, and
   appends finished runs to `data/runs.jsonl`.
 - `web/` — vanilla HTML/CSS/JS ES modules. No framework, no build step, no npm.
-  Key clicks and chimes are synthesized with WebAudio — no sound assets.
+  Key clicks and chimes are synthesized with WebAudio — no sound assets. So is the
+  background music (`music.js`): one generative ambient soundscape per 10 levels,
+  seeded by the decade — pentatonic plucks and pads over a nature layer that
+  follows the region (waves, rain, stream, wind, cave drips). 100 deterministic
+  "tracks", zero audio files. Toggle with 🎵.
+- Dark mode ("forest at night") follows the system preference, toggleable with
+  🌙/☀️, persisted in localStorage.
 - `data/runs.jsonl` — append-only, one JSON object per finished run. **The single
   source of truth**: unlocked levels, stars, PBs, streaks and the graph are all
   derived from it. Gitignored (machine data), but it is your entire history —

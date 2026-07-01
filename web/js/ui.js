@@ -1,5 +1,6 @@
 // Shared UI helpers: view switching, regions, modal, confetti — plus Thai word
 // segmentation, which every mode needs.
+import { music } from './music.js';
 
 export const $ = (sel) => document.querySelector(sel);
 
@@ -33,6 +34,7 @@ export function show(view) {
   for (const b of document.querySelectorAll('#nav button')) {
     b.classList.toggle('active', b.dataset.view === view);
   }
+  if (view !== 'play') music.stop(); // ambience belongs to the typing flow only
   window.scrollTo(0, 0);
 }
 

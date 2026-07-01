@@ -6,6 +6,11 @@
 <title>พิมพ์ไทย · Thai Typing</title>
 <link rel="stylesheet" href="style.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
+<script>
+  // before first paint, so a dark room never gets a white flash
+  document.documentElement.dataset.theme = localStorage.getItem('tt.theme')
+    || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+</script>
 </head>
 <body>
 
@@ -22,7 +27,9 @@
     <button data-view="texts">เรื่องอ่าน</button>
     <button data-view="stats">สถิติ</button>
   </nav>
+  <button id="music-toggle" title="เพลงประกอบ">🎵</button>
   <button id="sound-toggle" title="เปิด/ปิดเสียง">🔊</button>
+  <button id="theme-toggle" title="สลับโหมดมืด/สว่าง">🌙</button>
 </header>
 
 <div class="hero" aria-hidden="true">

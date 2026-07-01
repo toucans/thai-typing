@@ -19,6 +19,22 @@
   --region-hue: 172;
 }
 
+/* forest at night: same greens and gold, taken down to embers */
+html[data-theme="dark"] {
+  --paper: #131a15;
+  --card: #1b2620;
+  --ink: #e8e2d1;
+  --ink-soft: #9b937e;
+  --green-900: #9fd3b4;   /* headings/accents flip to pale leaf-green */
+  --green-700: #2f7a58;
+  --green-500: #58b183;
+  --green-100: #24352b;
+  --gold: #d2a52e;
+  --gold-soft: #4a3d17;
+  --red: #e08080;
+  --red-soft: #4a2624;
+}
+
 * { box-sizing: border-box; }
 
 html, body { margin: 0; }
@@ -54,8 +70,10 @@ nav button {
 }
 nav button:hover { background: var(--green-100); color: var(--green-900); }
 nav button.active { background: var(--green-900); color: var(--paper); }
-#sound-toggle { border: none; background: none; font-size: 1.1rem; cursor: pointer; opacity: .8; }
-#sound-toggle.off { opacity: .35; filter: grayscale(1); }
+#sound-toggle, #music-toggle, #theme-toggle {
+  border: none; background: none; font-size: 1.1rem; cursor: pointer; opacity: .8;
+}
+#sound-toggle.off, #music-toggle.off { opacity: .35; filter: grayscale(1); }
 
 /* ---- hero landscape ---- */
 .hero { position: relative; overflow: hidden; }
@@ -242,6 +260,39 @@ code { background: var(--green-100); padding: .05em .35em; border-radius: 5px; f
 .modal-card .play-actions { margin-top: 1.2rem; }
 
 #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 60; }
+
+/* ---- chart colors (per theme) ---- */
+.c-grid { stroke: #1b4332; stroke-opacity: .08; }
+.c-lab { fill: var(--ink-soft); }
+.c-dot { fill: var(--gold); fill-opacity: .45; }
+.c-pb { stroke: var(--green-700); }
+.c-pbdot { fill: var(--green-700); }
+html[data-theme="dark"] .c-grid { stroke: #9fd3b4; stroke-opacity: .12; }
+html[data-theme="dark"] .c-pb { stroke: var(--green-500); }
+html[data-theme="dark"] .c-pbdot { fill: var(--green-500); }
+
+/* ---- dark-theme fixups for colors that aren't variables ---- */
+html[data-theme="dark"] body {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cpath d='M36 118 Q16 88 36 56 Q56 88 36 118Z' fill='%239fd3b4' fill-opacity='0.03'/%3E%3Cpath d='M116 74 Q98 46 116 16 Q134 46 116 74Z' fill='%2358b183' fill-opacity='0.025'/%3E%3C/svg%3E");
+}
+html[data-theme="dark"] #hero-art {
+  background: linear-gradient(hsl(var(--region-hue) 30% 15%), hsl(var(--region-hue) 32% 8%));
+}
+html[data-theme="dark"] #hero-art .sun { fill: hsl(48 45% 82% / .85); } /* the moon */
+html[data-theme="dark"] #hero-art .m1 { fill: hsl(var(--region-hue) 25% 20%); }
+html[data-theme="dark"] #hero-art .m2 { fill: hsl(var(--region-hue) 28% 12%); }
+html[data-theme="dark"] #hero-art .bird { stroke: hsl(var(--region-hue) 20% 65%); }
+html[data-theme="dark"] #hero-art .wave { stroke: hsl(var(--region-hue) 35% 60% / .3); }
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .lvl,
+html[data-theme="dark"] .mediacard,
+html[data-theme="dark"] .stat { border-color: rgb(255 255 255 / .09); }
+html[data-theme="dark"] .btn,
+html[data-theme="dark"] .lvl.done { color: #f2eddd; }
+html[data-theme="dark"] nav button.active { color: #10160f; }
+html[data-theme="dark"] .modal { background: rgb(0 0 0 / .6); }
+html[data-theme="dark"] .modal-stars .star { color: #3d463c; }
+html[data-theme="dark"] .modal-stars .star.on { color: var(--gold); }
 
 @media (max-width: 640px) {
   header { flex-wrap: wrap; }

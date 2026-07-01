@@ -21,14 +21,13 @@ export function renderChart(el, runs) {
   let grid = '';
   for (let i = 1; i <= 4; i++) {
     const c = (maxC / 5) * i;
-    grid += `<line x1="${PAD.l}" y1="${y(c)}" x2="${W - PAD.r}" y2="${y(c)}"
-      stroke="#1b4332" stroke-opacity=".08"/>
-      <text x="${PAD.l - 8}" y="${y(c) + 4}" text-anchor="end" font-size="11"
-      fill="#7a7261">${Math.round(c)}</text>`;
+    grid += `<line class="c-grid" x1="${PAD.l}" y1="${y(c)}" x2="${W - PAD.r}" y2="${y(c)}"/>
+      <text class="c-lab" x="${PAD.l - 8}" y="${y(c) + 4}" text-anchor="end"
+      font-size="11">${Math.round(c)}</text>`;
   }
 
   const dots = speed.map((r) =>
-    `<circle cx="${x(r.t)}" cy="${y(r.cpm)}" r="3" fill="#b8860b" fill-opacity=".45"/>`).join('');
+    `<circle class="c-dot" cx="${x(r.t)}" cy="${y(r.cpm)}" r="3"/>`).join('');
 
   // running PB (>=95% accuracy, same rule as everywhere else)
   let pb = 0;
@@ -43,16 +42,16 @@ export function renderChart(el, runs) {
       d += ` H ${x(pts[i].t)} V ${y(pts[i].cpm)}`;
     }
     d += ` H ${W - PAD.r}`;
-    line = `<path d="${d}" fill="none" stroke="#2d6a4f" stroke-width="2.5"
+    line = `<path class="c-pb" d="${d}" fill="none" stroke-width="2.5"
       stroke-linejoin="round"/>` +
-      pts.map((r) => `<circle cx="${x(r.t)}" cy="${y(r.cpm)}" r="4.5" fill="#2d6a4f"/>`).join('');
+      pts.map((r) => `<circle class="c-pbdot" cx="${x(r.t)}" cy="${y(r.cpm)}" r="4.5"/>`).join('');
   }
 
   const fmt = new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short' });
   const ticks = [0, 0.5, 1].map((f) => {
     const t = t0 + f * span;
-    return `<text x="${PAD.l + f * (W - PAD.l - PAD.r)}" y="${H - 8}" font-size="11"
-      fill="#7a7261" text-anchor="${f === 0 ? 'start' : f === 1 ? 'end' : 'middle'}">${fmt.format(t)}</text>`;
+    return `<text class="c-lab" x="${PAD.l + f * (W - PAD.l - PAD.r)}" y="${H - 8}" font-size="11"
+      text-anchor="${f === 0 ? 'start' : f === 1 ? 'end' : 'middle'}">${fmt.format(t)}</text>`;
   }).join('');
 
   el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img"

@@ -5,6 +5,7 @@ import { startLevel, startText, initSpeed } from './speed.js';
 import { initDictation, initDictationInput } from './dictation.js';
 import { renderChart } from './chart.js';
 import { sound } from './audio.js';
+import { music } from './music.js';
 import { $, show, setRegion, segmentThai, REGIONS, REGION_SIZE, TOTAL_LEVELS } from './ui.js';
 
 let selRegion = null; // region the user is browsing (defaults to where they are)
@@ -121,6 +122,21 @@ for (const b of document.querySelectorAll('#nav button')) {
 const soundBtn = $('#sound-toggle');
 soundBtn.classList.toggle('off', !sound.enabled);
 soundBtn.addEventListener('click', () => soundBtn.classList.toggle('off', !sound.toggle()));
+
+const musicBtn = $('#music-toggle');
+musicBtn.classList.toggle('off', !music.enabled);
+musicBtn.addEventListener('click', () => musicBtn.classList.toggle('off', !music.toggle()));
+
+// theme was applied before first paint by the inline <head> script
+const themeBtn = $('#theme-toggle');
+function themeIcon() { themeBtn.textContent = document.documentElement.dataset.theme === 'dark' ? '☀️' : '🌙'; }
+themeIcon();
+themeBtn.addEventListener('click', () => {
+  const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem('tt.theme', next);
+  themeIcon();
+});
 
 document.addEventListener('runs-changed', () => { loadRuns(); renderJourney(); });
 

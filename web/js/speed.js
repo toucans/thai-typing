@@ -7,6 +7,7 @@
 import { WORDS } from './data/words.js';
 import { SENTENCES } from './data/sentences.js';
 import { sound } from './audio.js';
+import { music } from './music.js';
 import { loadRuns, saveRun, stats } from './records.js';
 import { $, show, modal, closeModal, confetti, setRegion, segmentThai, REGION_SIZE, TOTAL_LEVELS } from './ui.js';
 
@@ -80,6 +81,8 @@ function begin(cfg) {
   });
   S.spans[0].classList.add('cur');
   show('play');
+  if (S.mode === 'speed') music.playForLevel(S.level);
+  else music.playForName(S.name || S.title);
   const box = $('#typebox');
   box.value = '';
   box.focus();

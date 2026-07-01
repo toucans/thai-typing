@@ -6,7 +6,7 @@ let master = null;
 let noiseBuf = null;
 let enabled = localStorage.getItem('tt.sound') !== 'off';
 
-function ac() {
+export function ac() { // shared context; music.js builds its own graph on it
   if (!ctx) {
     ctx = new AudioContext();
     master = ctx.createGain();
