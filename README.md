@@ -54,11 +54,17 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
   static app, lists `media/` + `texts/`, streams media with Range support, and
   appends finished runs to `data/runs.jsonl`.
 - `web/` — vanilla HTML/CSS/JS ES modules. No framework, no build step, no npm.
-  Key clicks and chimes are synthesized with WebAudio — no sound assets. So is the
-  background music (`music.js`): one generative ambient soundscape per 10 levels,
-  seeded by the decade — pentatonic plucks and pads over a nature layer that
-  follows the region (waves, rain, stream, wind, cave drips). 100 deterministic
-  "tracks", zero audio files. Toggle with 🎵.
+  Key clicks and chimes are synthesized with WebAudio — no sound assets.
+- Background music (`music.js` + `instruments.js`): one generated track per 10
+  levels, seeded by the decade, played on **real sampled instruments** —
+  no free ranat ek recordings exist, so the voice is VCSL's rosewood xylophone
+  (hard mallets) and balafon (CC0, `web/assets/ranat/`, rebuilt from source by
+  `tools/build-assets.py`), made Thai by *how* they're played: near-7-TET tuning
+  with a per-track ±8¢ bar-tuning table, octave doubling with mallet flams, kro
+  tremolo rolls at cadences, ching-chap timekeeping (real finger cymbals) and a
+  soft gong at section starts. Each track generates two motifs and repeats them
+  with variation — phrase, answer, cadence, rest — over a curated chord cycle,
+  with a nature bed per region (waves/rain/stream/wind/cave drips). Toggle 🎵.
 - Dark mode ("forest at night") follows the system preference, toggleable with
   🌙/☀️, persisted in localStorage.
 - `data/runs.jsonl` — append-only, one JSON object per finished run. **The single

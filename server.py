@@ -54,7 +54,7 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def send_file(self, path, ranged=False):
+    def send_file(self, path, ranged=False, cache=False):
         if not (path and os.path.isfile(path)):
             return self.send_json({"error": "not found"}, 404)
         ctype = mimetypes.guess_type(path)[0] or "application/octet-stream"
@@ -83,6 +83,8 @@ class Handler(BaseHTTPRequestHandler):
                 status = 206
         self.send_response(status)
         self.send_header("Content-Type", ctype)
+        if cache:  # instrument samples et al: sizable, effectively immutable
+            self.send_header("Cache-Control", "max-age=86400")
         self.send_header("Accept-Ranges", "bytes")
         if status == 206:
             self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
@@ -149,7 +151,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_file(safe_join(TEXTS, path[len("/texts/"):]))
 
         rel = path.lstrip("/") or "index.html"
-        return self.send_file(safe_join(WEB, rel))
+        return self.send_file(safe_join(WEB, rel), cache=rel.startswith("assets/"))
 
     def do_POST(self):
         path = unquote(urlparse(self.path).path)

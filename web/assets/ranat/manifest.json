@@ -1,0 +1,169 @@
+{
+ "source": "VCSL (github.com/sgossner/VCSL), CC0",
+ "notes": [
+  {
+   "file": "x_pp_G3.wav",
+   "set": "xylo",
+   "layer": "pp",
+   "freq": 196.0
+  },
+  {
+   "file": "x_ff_G3.wav",
+   "set": "xylo",
+   "layer": "ff",
+   "freq": 196.0
+  },
+  {
+   "file": "x_pp_C4.wav",
+   "set": "xylo",
+   "layer": "pp",
+   "freq": 261.63
+  },
+  {
+   "file": "x_ff_C4.wav",
+   "set": "xylo",
+   "layer": "ff",
+   "freq": 261.63
+  },
+  {
+   "file": "x_pp_G4.wav",
+   "set": "xylo",
+   "layer": "pp",
+   "freq": 392.0
+  },
+  {
+   "file": "x_ff_G4.wav",
+   "set": "xylo",
+   "layer": "ff",
+   "freq": 392.0
+  },
+  {
+   "file": "x_pp_C5.wav",
+   "set": "xylo",
+   "layer": "pp",
+   "freq": 523.25
+  },
+  {
+   "file": "x_ff_C5.wav",
+   "set": "xylo",
+   "layer": "ff",
+   "freq": 523.25
+  },
+  {
+   "file": "x_pp_G5.wav",
+   "set": "xylo",
+   "layer": "pp",
+   "freq": 783.99
+  },
+  {
+   "file": "x_ff_G5.wav",
+   "set": "xylo",
+   "layer": "ff",
+   "freq": 783.99
+  },
+  {
+   "file": "x_pp_C6.wav",
+   "set": "xylo",
+   "layer": "pp",
+   "freq": 1046.5
+  },
+  {
+   "file": "x_ff_C6.wav",
+   "set": "xylo",
+   "layer": "ff",
+   "freq": 1046.5
+  },
+  {
+   "file": "x_pp_G6.wav",
+   "set": "xylo",
+   "layer": "pp",
+   "freq": 1567.98
+  },
+  {
+   "file": "x_ff_G6.wav",
+   "set": "xylo",
+   "layer": "ff",
+   "freq": 1567.98
+  },
+  {
+   "file": "b_vl1_Cs3.wav",
+   "set": "bala",
+   "layer": "pp",
+   "freq": 138.59
+  },
+  {
+   "file": "b_vl3_Cs3.wav",
+   "set": "bala",
+   "layer": "ff",
+   "freq": 138.59
+  },
+  {
+   "file": "b_vl1_F3.wav",
+   "set": "bala",
+   "layer": "pp",
+   "freq": 174.61
+  },
+  {
+   "file": "b_vl3_F3.wav",
+   "set": "bala",
+   "layer": "ff",
+   "freq": 174.61
+  },
+  {
+   "file": "b_vl1_C4.wav",
+   "set": "bala",
+   "layer": "pp",
+   "freq": 261.63
+  },
+  {
+   "file": "b_vl3_C4.wav",
+   "set": "bala",
+   "layer": "ff",
+   "freq": 261.63
+  },
+  {
+   "file": "b_vl1_F4.wav",
+   "set": "bala",
+   "layer": "pp",
+   "freq": 349.23
+  },
+  {
+   "file": "b_vl3_F4.wav",
+   "set": "bala",
+   "layer": "ff",
+   "freq": 349.23
+  },
+  {
+   "file": "b_vl1_C5.wav",
+   "set": "bala",
+   "layer": "pp",
+   "freq": 523.25
+  },
+  {
+   "file": "b_vl3_C5.wav",
+   "set": "bala",
+   "layer": "ff",
+   "freq": 523.25
+  },
+  {
+   "file": "b_vl1_F5.wav",
+   "set": "bala",
+   "layer": "pp",
+   "freq": 698.46
+  },
+  {
+   "file": "b_vl3_F5.wav",
+   "set": "bala",
+   "layer": "ff",
+   "freq": 698.46
+  },
+  {
+   "file": "ching.wav",
+   "set": "ching"
+  },
+  {
+   "file": "gong.wav",
+   "set": "gong"
+  }
+ ]
+}
