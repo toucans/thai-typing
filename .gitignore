@@ -1,0 +1,6 @@
+# Machine data and big binaries stay out of git (see README). texts/ IS tracked:
+# plain-text stories are content, not data.
+data/
+media/*
+!media/.gitkeep
+__pycache__/

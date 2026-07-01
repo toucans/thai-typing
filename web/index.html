@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>พิมพ์ไทย · Thai Typing</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+      <path d="M12 21c-5-2-8-6-8-11 3 0 5 1 6 2 0-3 1-6 2-8 1 2 2 5 2 8 1-1 3-2 6-2 0 5-3 9-8 11z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+    </svg>
+    <h1>พิมพ์ไทย</h1>
+  </div>
+  <nav id="nav">
+    <button data-view="journey" class="active">เส้นทาง</button>
+    <button data-view="dictation">ฟัง–พิมพ์</button>
+    <button data-view="texts">เรื่องอ่าน</button>
+    <button data-view="stats">สถิติ</button>
+  </nav>
+  <button id="sound-toggle" title="เปิด/ปิดเสียง">🔊</button>
+</header>
+
+<div class="hero" aria-hidden="true">
+  <svg id="hero-art" viewBox="0 0 1200 220" preserveAspectRatio="xMidYMax slice">
+    <circle class="sun" cx="950" cy="72" r="40"/>
+    <path class="m1" d="M0,220 L0,150 L180,70 L360,155 L540,95 L720,170 L900,85 L1080,150 L1200,115 L1200,220 Z"/>
+    <path class="m2" d="M0,220 L0,180 L140,125 L320,195 L520,135 L720,205 L930,145 L1200,185 L1200,220 Z"/>
+    <path class="bird" d="M300,62 q9,-9 18,0 M330,50 q9,-9 18,0 M262,48 q7,-7 14,0"/>
+    <path class="wave" d="M0,204 Q60,196 120,204 T240,204 T360,204 T480,204 T600,204 T720,204 T840,204 T960,204 T1080,204 T1200,204"/>
+    <path class="wave w2" d="M0,213 Q60,206 120,213 T240,213 T360,213 T480,213 T600,213 T720,213 T840,213 T960,213 T1080,213 T1200,213"/>
+  </svg>
+  <div class="hero-title">
+    <span id="region-name">เกาะทะเลใต้</span>
+    <span id="region-en">Southern Isles</span>
+  </div>
+</div>
+
+<main>
+  <section id="view-journey" class="view">
+    <div class="journey-bar">
+      <div id="journey-stats"></div>
+      <button class="btn gold" id="journey-play">เริ่มเส้นทาง</button>
+    </div>
+    <div class="region-chips" id="region-chips"></div>
+    <div class="level-grid" id="level-grid"></div>
+  </section>
+
+  <section id="view-play" class="view" hidden>
+    <div class="play-head">
+      <span id="play-title" class="play-title"></span>
+      <div class="live"><b id="live-cpm">0</b> ตัวอักษร/นาที · ความแม่นยำ <b id="live-acc">100%</b></div>
+    </div>
+    <div class="progressbar"><div id="play-progress"></div></div>
+    <div class="wordstream card" id="wordstream"></div>
+    <input id="typebox" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="พิมพ์คำ แล้วเคาะวรรคเพื่อส่ง…">
+    <div class="play-actions"><button class="btn ghost" id="play-quit">ออกจากด่าน</button></div>
+  </section>
+
+  <section id="view-dictation" class="view" hidden>
+    <div id="dict-setup">
+      <p class="hint">วางไฟล์เสียงหรือวิดีโอพร้อมซับ <code>.srt</code> ชื่อเดียวกันไว้ในโฟลเดอร์
+        <code>media/</code> บนเครื่อง แล้วรีเฟรชหน้านี้ — ระบบตัดคำอัตโนมัติ
+        (แก้จุดที่ตัดผิดได้ด้วยเครื่องหมาย <code>|</code> ในไฟล์ซับ)</p>
+      <div id="media-list" class="cardlist"></div>
+    </div>
+    <div id="dict-session" hidden>
+      <video id="dict-media" playsinline></video>
+      <div class="dict-head">
+        <span id="dict-cue-no"></span>
+        <span class="dict-keys">
+          <span class="kbd">Tab</span> ฟังซ้ำ · <span class="kbd">Shift+Tab</span> ช้าลง · <span class="kbd">Esc</span> เฉลยคำ
+        </span>
+      </div>
+      <div class="dict-words card" id="dict-words"></div>
+      <div id="dict-ghost" class="dict-ghost"></div>
+      <input id="dict-typebox" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ฟังแล้วพิมพ์…">
+      <div class="play-actions">
+        <button class="btn" id="dict-replay">▶ ฟังซ้ำ</button>
+        <button class="btn ghost" id="dict-finish">จบรอบนี้</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-texts" class="view" hidden>
+    <p class="hint">วางเรื่องสั้นหรือบทความภาษาไทยเป็นไฟล์ <code>.txt</code> ในโฟลเดอร์
+      <code>texts/</code> (บรรทัดแรกคือชื่อเรื่อง) แล้วพิมพ์ตามได้ทั้งเรื่อง</p>
+    <div id="texts-list" class="cardlist"></div>
+  </section>
+
+  <section id="view-stats" class="view" hidden>
+    <div class="stat-cards" id="stat-cards"></div>
+    <div class="card chart-card">
+      <h2>ความเร็วพิมพ์ตามเวลา</h2>
+      <div id="chart"></div>
+    </div>
+  </section>
+</main>
+
+<div id="modal" class="modal" hidden><div class="modal-card" id="modal-card"></div></div>
+<canvas id="confetti"></canvas>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
