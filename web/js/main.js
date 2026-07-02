@@ -6,6 +6,7 @@ import { initDictation, initDictationInput } from './dictation.js';
 import { renderChart } from './chart.js';
 import { sound } from './audio.js';
 import { music } from './music.js';
+import { fx } from './fx.js';
 import { $, show, setRegion, segmentThai, REGIONS, REGION_SIZE, TOTAL_LEVELS } from './ui.js';
 
 let selRegion = null; // region the user is browsing (defaults to where they are)
@@ -52,6 +53,7 @@ async function renderJourney() {
     if (level <= next) cell.onclick = () => startLevel(level);
     grid.appendChild(cell);
   }
+  fx.gridIn(grid);
 }
 
 function countDone(st, region) {
@@ -142,4 +144,6 @@ document.addEventListener('runs-changed', () => { loadRuns(); renderJourney(); }
 
 initSpeed();
 initDictationInput();
+fx.init();
 renderJourney();
+music.playHome(); // the front page's own theme; starts on the first gesture

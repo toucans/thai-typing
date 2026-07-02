@@ -55,6 +55,24 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
   appends finished runs to `data/runs.jsonl`.
 - `web/` — vanilla HTML/CSS/JS ES modules. No framework, no build step, no npm.
   Key clicks and chimes are synthesized with WebAudio — no sound assets.
+- **Design** — Thai and nature throughout, hand-made rather than themed:
+  - Type is **Srisakdi** (traditional Thai manuscript style) for display and
+    **Sarabun** for text — self-hosted woff2 in `web/assets/fonts/` (SIL OFL,
+    from Google Fonts), so nothing is fetched from third parties at runtime.
+  - The hero is one layered SVG landscape recolored per region, and each of the
+    ten regions gets its own hand-drawn foreground scene — karsts and a
+    long-tail boat in the south, mangrove roots, rice terraces with a sala, a
+    stilt house, orchards, rainforest vines, a waterfall, cave stalactites,
+    misty ridges, and the twin chedis at the summit. Clouds drift, stars
+    twinkle at night, petals fall by day and fireflies wander after dark.
+  - Ornament is drawn in code: dok-phikun star-flower dividers, a
+    lai-kruay-chœng petal band along the water, kranok flame flourishes on the
+    results card.
+  - Motion (parallax, staggered entrances, modal pops) is choreographed with
+    **GSAP**, the one third-party library — a single vendored file
+    (`web/vendor/gsap.min.js`, pinned 3.13.0, GreenSock standard license), no
+    package manager. Without it, or under `prefers-reduced-motion`, the page
+    is simply still; nothing breaks.
 - Background music (`music.js` + `instruments.js`): one generated track per 10
   levels, seeded by the decade, played on **real sampled instruments** —
   no free ranat ek recordings exist, so the voice is VCSL's rosewood xylophone
@@ -65,6 +83,9 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
   soft gong at section starts. Each track generates two motifs and repeats them
   with variation — phrase, answer, cadence, rest — over a curated chord cycle,
   with a nature bed per region (waves/rain/stream/wind/cave drips). Toggle 🎵.
+  The front page has the one piece that is *composed by hand*, not generated —
+  a fixed welcome theme (`HOME_BARS` in `music.js`) that starts on the first
+  click or keypress (browsers require a gesture before audio).
 - Dark mode ("forest at night") follows the system preference, toggleable with
   🌙/☀️, persisted in localStorage.
 - `data/runs.jsonl` — append-only, one JSON object per finished run. **The single

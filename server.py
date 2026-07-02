@@ -151,7 +151,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_file(safe_join(TEXTS, path[len("/texts/"):]))
 
         rel = path.lstrip("/") or "index.html"
-        return self.send_file(safe_join(WEB, rel), cache=rel.startswith("assets/"))
+        return self.send_file(safe_join(WEB, rel),
+                              cache=rel.startswith(("assets/", "vendor/")))
 
     def do_POST(self):
         path = unquote(urlparse(self.path).path)

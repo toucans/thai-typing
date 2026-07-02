@@ -1,6 +1,7 @@
 // Shared UI helpers: view switching, regions, modal, confetti — plus Thai word
 // segmentation, which every mode needs.
 import { music } from './music.js';
+import { fx } from './fx.js';
 
 export const $ = (sel) => document.querySelector(sel);
 
@@ -22,19 +23,29 @@ export const REGION_SIZE = 100;
 export const TOTAL_LEVELS = REGIONS.length * REGION_SIZE;
 
 export function setRegion(idx) {
-  const r = REGIONS[Math.max(0, Math.min(REGIONS.length - 1, idx))];
+  idx = Math.max(0, Math.min(REGIONS.length - 1, idx));
+  const r = REGIONS[idx];
   document.documentElement.style.setProperty('--region-hue', r.hue);
+  const hero = $('#hero');
+  if (hero.dataset.region !== String(idx)) {
+    hero.dataset.region = idx; // picks the region's foreground scene in the hero
+    fx.heroRegion();
+  }
   $('#region-name').textContent = r.th;
   $('#region-en').textContent = r.en;
 }
 
 export function show(view) {
   for (const s of document.querySelectorAll('.view')) s.hidden = true;
-  $(`#view-${view}`).hidden = false;
+  const section = $(`#view-${view}`);
+  section.hidden = false;
+  fx.viewIn(section);
   for (const b of document.querySelectorAll('#nav button')) {
     b.classList.toggle('active', b.dataset.view === view);
   }
-  if (view !== 'play') music.stop(); // ambience belongs to the typing flow only
+  // the front page has its own theme; levels bring their own; elsewhere, quiet
+  if (view === 'journey') music.playHome();
+  else if (view !== 'play') music.stop();
   window.scrollTo(0, 0);
 }
 
@@ -65,6 +76,7 @@ export function segmentThai(text) {
 export function modal(html) {
   $('#modal-card').innerHTML = html;
   $('#modal').hidden = false;
+  fx.modalIn($('#modal-card'));
   return $('#modal-card');
 }
 export function closeModal() { $('#modal').hidden = true; }

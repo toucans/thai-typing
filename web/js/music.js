@@ -28,6 +28,32 @@ const PROGRESSIONS = [
   [0, 3, 4, 0], [0, 2, 3, 0], [0, 4, 3, 4], [0, 3, 2, 4], [0, 2, 4, 3],
 ];
 
+// The front page's own theme — the one piece that is composed by hand, not
+// generated: a kro shimmer opens, a rising four-bar phrase answers itself,
+// and everything settles back onto the tonic. Same bar format as the engine.
+const N = (slot, penta) => ({ slot, penta });
+const HOME_BARS = [
+  { chordDeg: 0, cadence: true },                                    // kro on the tonic
+  { chordDeg: 0, rest: true },
+  { chordDeg: 0, melody: [N(0, 5), N(2, 7), N(4, 8), N(6, 7)] },     // theme
+  { chordDeg: 3, melody: [N(0, 9), N(3, 8), N(6, 7)] },
+  { chordDeg: 4, melody: [N(0, 7), N(2, 8), N(4, 9), N(6, 10)] },
+  { chordDeg: 0, melody: [N(0, 10), N(4, 9), N(6, 8)] },
+  { chordDeg: 0, melody: [N(0, 5), N(2, 7), N(4, 8), N(6, 7)] },     // theme again…
+  { chordDeg: 3, melody: [N(0, 9), N(3, 8), N(6, 10)] },
+  { chordDeg: 4, melody: [N(0, 8), N(2, 7), N(4, 6), N(6, 7)] },     // …turned downward
+  { chordDeg: 0, cadence: true },
+  { chordDeg: 0, melody: [N(0, 10), N(2, 9), N(4, 10), N(6, 12)], grace: true }, // answer, higher
+  { chordDeg: 2, melody: [N(0, 11), N(3, 10), N(6, 9)] },
+  { chordDeg: 4, melody: [N(0, 9), N(2, 8), N(4, 7), N(6, 8)] },
+  { chordDeg: 0, melody: [N(0, 7), N(4, 5)] },
+  { chordDeg: 3, melody: [N(0, 8), N(2, 9), N(4, 8), N(6, 7)] },     // gentle descent home
+  { chordDeg: 4, melody: [N(0, 6), N(3, 7), N(6, 8)] },
+  { chordDeg: 0, cadence: true },
+  { chordDeg: 0, rest: true },
+  { chordDeg: 0, rest: true },
+];
+
 let enabled = localStorage.getItem('tt.music') !== 'off';
 let playing = null;
 let wanted = null;
@@ -61,16 +87,39 @@ export const music = {
     wanted = h % 100;
     if (enabled) start(wanted);
   },
+  playHome() {
+    wanted = 'home';
+    if (enabled) start('home');
+  },
   stop() { wanted = null; stopEngine(); },
 };
 
 function start(trackId) {
   if (playing && playing.trackId === trackId) return; // same decade: play on
   const ctx = ac();
+  if (ctx.state === 'suspended') {
+    // autoplay policy: the context only runs after a user gesture. Try to
+    // resume now (works if we are inside one), and also arm a one-time
+    // listener so the front-page theme starts on the first click or key.
+    armResume(ctx);
+    ctx.resume().then(() => { if (enabled && wanted === trackId) start(trackId); });
+    return;
+  }
   loadInstruments(ctx).then(
     (inst) => { if (enabled && wanted === trackId) engineStart(ctx, trackId, inst); },
     () => { if (enabled && wanted === trackId) engineStart(ctx, trackId, null); }, // offline: synth fallback
   );
+}
+
+let armed = false;
+function armResume(ctx) {
+  if (armed) return;
+  armed = true;
+  const kick = () => {
+    ctx.resume().then(() => { if (enabled && wanted !== null) start(wanted); });
+  };
+  window.addEventListener('pointerdown', kick, { once: true });
+  window.addEventListener('keydown', kick, { once: true });
 }
 
 function stopEngine() {
@@ -91,16 +140,17 @@ function stopEngine() {
 // ---- the engine -----------------------------------------------------------------
 function engineStart(ctx, trackId, inst) {
   stopEngine();
-  const rng = mulberry32(trackId * 7919 + 29);
-  const region = Math.floor(trackId / 10) % 10;
-  const rootHz = 220 * Math.pow(2, (rng() * 7) / 12); // tonic A3..E4
-  const beat = 60 / (58 + Math.floor(rng() * 24));
+  const home = trackId === 'home'; // the front page: fixed, hand-composed
+  const rng = mulberry32(home ? 9 : trackId * 7919 + 29);
+  const region = home ? 0 : Math.floor(trackId / 10) % 10;
+  const rootHz = home ? 233.08 : 220 * Math.pow(2, (rng() * 7) / 12); // tonic A3..E4
+  const beat = home ? 60 / 63 : 60 / (58 + Math.floor(rng() * 24));
   const slot = beat / 2; // 8th-note grid
   const barDur = beat * 4;
-  const voice = inst ? (MELLOW.has(region) ? inst.bala : inst.xylo) : null;
-  const barTuning = PENTA.map(() => (rng() - 0.5) * 16); // ±8¢ per bar, per track
+  const voice = inst ? (!home && MELLOW.has(region) ? inst.bala : inst.xylo) : null;
+  const barTuning = PENTA.map(() => (rng() - 0.5) * (home ? 10 : 16)); // ±8¢ per bar, per track
   const progression = PROGRESSIONS[Math.floor(rng() * PROGRESSIONS.length)];
-  const useChing = inst && rng() < 0.7;
+  const useChing = inst && !home && rng() < 0.7;
 
   // -- mix chain
   const master = ctx.createGain();
@@ -228,11 +278,13 @@ function engineStart(ctx, trackId, inst) {
   function* barPlan() {
     let section = 0;
     while (true) {
-      const bars = [
-        ...phrase(motifA, motifB),
-        ...phrase(motifB, motifA),
-        { chordDeg: 0, rest: true }, { chordDeg: 0, rest: true }, // let the forest answer
-      ];
+      const bars = home
+        ? HOME_BARS.map((b) => ({ ...b }))
+        : [
+          ...phrase(motifA, motifB),
+          ...phrase(motifB, motifA),
+          { chordDeg: 0, rest: true }, { chordDeg: 0, rest: true }, // let the forest answer
+        ];
       bars[0].sectionStart = section > 0;
       yield* bars;
       section++;
