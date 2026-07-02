@@ -1,0 +1,34 @@
+<!doctype html>
+<!-- Dev harness: renders just the pixel map, full width, for tuning the region
+     scenes. ?r=<region 0-9>&done=<max passed level> fakes the progress, e.g.
+     maptest.html?r=6&done=655 — not linked from the app. -->
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<style>body { margin: 0; background: #777; } main { max-width: none; padding: 8px; }</style>
+</head>
+<body>
+<main>
+  <div class="mapwrap" id="mapwrap">
+    <canvas id="pixelmap" width="320" height="180"></canvas>
+    <div id="map-tip" class="map-tip" hidden></div>
+  </div>
+</main>
+<div id="modal" class="modal" hidden><div class="modal-card" id="modal-card"></div></div>
+<script type="module">
+import { initMap, drawMap, showMongkhon, showBlessing } from './js/map.js';
+import { BY_LEVEL } from './js/data/mongkhon.js';
+const q = new URLSearchParams(location.search);
+if (q.has('dark')) document.documentElement.dataset.theme = 'dark';
+const region = +(q.get('r') || 0);
+const done = +(q.get('done') ?? region * 100 + 37);
+const starsByLevel = new Map();
+for (let l = 1; l <= done; l++) starsByLevel.set(l, 1 + (l % 3));
+initMap({ onPlay: () => {} });
+drawMap({ region, next: done + 1, maxDone: done, starsByLevel });
+if (q.get('modal') === 'mk') showMongkhon(done);
+if (q.get('modal') === 'blessing') showBlessing(BY_LEVEL.get(region * 100 + 33) || BY_LEVEL.get(region * 100 + 25), true);
+</script>
+</body>
+</html>

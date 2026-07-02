@@ -10,6 +10,7 @@ import { sound } from './audio.js';
 import { music } from './music.js';
 import { loadRuns, saveRun, stats } from './records.js';
 import { $, show, modal, closeModal, confetti, setRegion, segmentThai, REGION_SIZE, TOTAL_LEVELS } from './ui.js';
+import { BY_LEVEL, thaiNum } from './data/mongkhon.js';
 
 const WORDS_PER_LEVEL = 25;
 
@@ -138,7 +139,11 @@ async function finish() {
   if (S.name) run.name = S.name;
   await saveRun(run);
 
-  if (pb) { sound.pb(); confetti(); } else if (stars) { sound.level(); } else { sound.error(); }
+  // passing a shrine level for the first time opens its มงคลชีวิต blessing
+  const blessing = S.mode === 'speed' && stars > 0 && S.level > st.maxDone
+    ? BY_LEVEL.get(S.level) : null;
+
+  if (pb || blessing) { sound.pb(); confetti(); } else if (stars) { sound.level(); } else { sound.error(); }
 
   const delta = st.pb ? Math.round((cpm - st.pb) * 10) / 10 : null;
   const starHtml = [1, 2, 3].map((n) =>
@@ -154,6 +159,13 @@ async function finish() {
            : (delta !== null && delta < 0 ? `<div>ห่างสถิติ ${Math.abs(Math.round(delta))} ตัวอักษร/นาที</div>` : '')}
       ${stars === 0 ? '<div>ต้องแม่นยำอย่างน้อย 90% จึงจะผ่านด่าน</div>' : ''}
     </div>
+    ${blessing ? `
+    <div class="blessing">
+      <div class="blessing-head">☸ มงคลชีวิตข้อที่ ${thaiNum(blessing.n)} เปิดแล้ว</div>
+      <div class="blessing-name">${blessing.th}</div>
+      <div class="blessing-pali">${blessing.pali}</div>
+      <div class="blessing-mean">${blessing.mean}</div>
+    </div>` : ''}
     <div class="play-actions">
       <button class="btn ghost" id="m-retry">เล่นอีกครั้ง</button>
       ${nextLevel && stars > 0 && nextLevel <= TOTAL_LEVELS

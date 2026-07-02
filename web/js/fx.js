@@ -16,13 +16,12 @@ export const fx = {
     });
   },
 
-  // the level map ripples in along the path
-  gridIn(grid) {
-    if (!g || still || !grid || !grid.children.length) return;
-    g.from(grid.children, {
-      opacity: 0, scale: 0.5, duration: 0.3,
-      stagger: { amount: 0.5, grid: [10, 10], from: 'start' },
-      ease: 'back.out(1.7)', clearProps: 'all', overwrite: 'auto',
+  // the pixel map rises into view when the region changes
+  mapIn(wrap) {
+    if (!g || still || !wrap) return;
+    g.from(wrap, {
+      opacity: 0, y: 10, scale: 0.98, duration: 0.35,
+      ease: 'power2.out', clearProps: 'all', overwrite: 'auto',
     });
   },
 

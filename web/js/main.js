@@ -8,6 +8,8 @@ import { sound } from './audio.js';
 import { music } from './music.js';
 import { fx } from './fx.js';
 import { $, show, setRegion, segmentThai, REGIONS, REGION_SIZE, TOTAL_LEVELS } from './ui.js';
+import { initMap, drawMap, redrawMap, showMongkhon } from './map.js';
+import { thaiNum, unlockedCount } from './data/mongkhon.js';
 
 let selRegion = null; // region the user is browsing (defaults to where they are)
 
@@ -23,6 +25,9 @@ async function renderJourney() {
     <span>🔥 <b>${st.streak}</b> วันติด</span>
     <span>🏆 สถิติ <b>${Math.round(st.pb)}</b> ตัวอักษร/นาที</span>
     <span>ผ่านแล้ว <b>${st.maxDone}</b>/${TOTAL_LEVELS} ด่าน</span>`;
+  const mkBtn = $('#mongkhon-btn');
+  mkBtn.textContent = `☸ มงคล ${thaiNum(unlockedCount(st.maxDone))}/๓๘`;
+  mkBtn.onclick = () => showMongkhon(st.maxDone);
   const playBtn = $('#journey-play');
   playBtn.textContent = st.maxDone === 0 ? 'เริ่มเส้นทาง 🌱' : `เล่นด่าน ${next} →`;
   playBtn.onclick = () => startLevel(next);
@@ -39,21 +44,8 @@ async function renderJourney() {
     chips.appendChild(chip);
   });
 
-  const grid = $('#level-grid');
-  grid.innerHTML = '';
-  for (let i = 1; i <= REGION_SIZE; i++) {
-    const level = selRegion * REGION_SIZE + i;
-    const starCount = st.starsByLevel.get(level) || 0;
-    const cell = document.createElement('div');
-    cell.className = 'lvl'
-      + (level % 10 === 0 ? ' bonus' : '')
-      + (starCount ? ' done' : level === next ? ' cur' : level > next ? ' locked' : '');
-    cell.innerHTML = `<div>${level}</div>` +
-      (starCount ? `<div class="stars">${'★'.repeat(starCount)}</div>` : '');
-    if (level <= next) cell.onclick = () => startLevel(level);
-    grid.appendChild(cell);
-  }
-  fx.gridIn(grid);
+  drawMap({ region: selRegion, next, maxDone: st.maxDone, starsByLevel: st.starsByLevel });
+  fx.mapIn($('#mapwrap'));
 }
 
 function countDone(st, region) {
@@ -138,12 +130,14 @@ themeBtn.addEventListener('click', () => {
   document.documentElement.dataset.theme = next;
   localStorage.setItem('tt.theme', next);
   themeIcon();
+  redrawMap(); // day turns to dusk on the map too
 });
 
 document.addEventListener('runs-changed', () => { loadRuns(); renderJourney(); });
 
 initSpeed();
 initDictationInput();
+initMap({ onPlay: startLevel });
 fx.init();
 renderJourney();
 music.playHome(); // the front page's own theme; starts on the first gesture

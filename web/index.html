@@ -260,10 +260,18 @@
   <section id="view-journey" class="view">
     <div class="journey-bar">
       <div id="journey-stats"></div>
-      <button class="btn gold" id="journey-play">เริ่มเส้นทาง</button>
+      <div class="journey-actions">
+        <button class="btn ghost" id="mongkhon-btn">☸ มงคล ๓๘</button>
+        <button class="btn gold" id="journey-play">เริ่มเส้นทาง</button>
+      </div>
     </div>
     <div class="region-chips" id="region-chips"></div>
-    <div class="level-grid" id="level-grid"></div>
+    <!-- the pixel overworld: 320x180 logical pixels, upscaled crisp by CSS -->
+    <div class="mapwrap" id="mapwrap">
+      <canvas id="pixelmap" width="320" height="180"></canvas>
+      <div id="map-tip" class="map-tip" hidden></div>
+    </div>
+    <p class="map-legend hint">แตะหินบนเส้นทางเพื่อเล่นด่าน · ศาลริมทางคือมงคลชีวิต ๓๘ — แตะเพื่ออ่าน</p>
   </section>
 
   <section id="view-play" class="view" hidden>

@@ -292,28 +292,44 @@ footer p { margin: 0; letter-spacing: .04em; }
 .chip.locked { opacity: .38; border-style: dashed; }
 .chip small { opacity: .7; }
 
-.level-grid {
-  display: grid; grid-template-columns: repeat(10, 1fr); gap: .5rem;
+.journey-actions { display: flex; gap: .6rem; align-items: center; }
+
+/* ---- the pixel overworld ---- */
+.mapwrap {
+  position: relative; border-radius: 16px; overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent);
+  box-shadow: 0 2px 12px rgb(27 67 50 / .12);
 }
-.lvl {
-  aspect-ratio: 1; border-radius: 50%;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  font-size: .85rem; line-height: 1.1; cursor: pointer; user-select: none;
-  background: var(--card); border: 1px solid rgb(0 0 0 / .09); color: var(--ink-soft);
-  transition: transform .12s, box-shadow .12s;
+#pixelmap {
+  display: block; width: 100%; height: auto;
+  image-rendering: pixelated; image-rendering: crisp-edges;
 }
-.lvl:not(.locked):hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgb(27 67 50 / .18); }
-.lvl .stars { font-size: .62rem; color: var(--gold); letter-spacing: .05em; }
-.lvl.bonus { border-radius: 16px; border: 1.5px solid var(--gold); }
-.lvl.done { background: var(--green-700); border-color: var(--green-700); color: #fdfbf3; }
-.lvl.done.bonus { background: linear-gradient(165deg, var(--gold-hi), var(--gold-lo)); border-color: var(--gold); color: #fff; }
-.lvl.cur { border: 2px solid var(--gold); color: var(--green-900); font-weight: 700;
-  animation: pulse 1.6s infinite; }
-.lvl.locked { opacity: .32; cursor: default; }
-@keyframes pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgb(184 134 11 / .45); }
-  50% { box-shadow: 0 0 0 7px rgb(184 134 11 / 0); }
+.map-tip {
+  position: absolute; transform: translateX(-50%); pointer-events: none;
+  background: color-mix(in srgb, var(--green-950) 88%, transparent); color: #f6f1e4;
+  font-size: .82rem; padding: .15rem .6rem; border-radius: 999px; white-space: nowrap;
+  border: 1px solid color-mix(in srgb, var(--gold) 55%, transparent);
 }
+.map-legend { text-align: center; margin: .5rem 0 0; }
+
+/* ---- มงคล ๓๘: blessing cards and the collection ---- */
+.blessing {
+  margin-top: 1rem; padding: .8rem 1rem; border-radius: 14px;
+  background: color-mix(in srgb, var(--gold-soft) 55%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent);
+}
+.blessing-head { color: var(--gold); font-size: .85rem; letter-spacing: .05em; }
+.blessing-name { font-family: var(--display); font-weight: 700; font-size: 1.7rem;
+  line-height: 1.4; color: var(--green-900); margin: .1rem 0; }
+h2.blessing-name { margin: .2rem 0 .4rem; }
+.blessing-pali { color: var(--ink-soft); font-size: .88rem; font-style: italic; }
+.blessing-mean { color: var(--ink); font-size: .95rem; margin: .3rem 0 0; }
+.mk-list { max-height: 55vh; overflow-y: auto; text-align: start; padding-right: .4rem; }
+.mk-stanza h3 { font-family: var(--display); color: var(--gold); margin: .8rem 0 .3rem; font-size: 1.15rem; }
+.mk-item { padding: .25rem 0; color: var(--ink-soft); }
+.mk-item b { font-weight: 600; display: block; }
+.mk-item small { display: block; font-size: .8rem; }
+.mk-item.open b { color: var(--green-900); }
 
 /* ---- play (speed game) ---- */
 .play-head {
@@ -472,11 +488,10 @@ html[data-theme="dark"] #hero-art .stars circle:nth-child(3n+1) { animation-dela
 @keyframes twinkle { 0%, 100% { opacity: .25; } 50% { opacity: .95; } }
 html[data-theme="dark"] .hero-scrim { background: linear-gradient(to top, rgb(0 0 0 / .4), transparent 42%); }
 html[data-theme="dark"] .card,
-html[data-theme="dark"] .lvl,
 html[data-theme="dark"] .mediacard,
 html[data-theme="dark"] .stat { border-color: rgb(255 255 255 / .09); }
-html[data-theme="dark"] .btn,
-html[data-theme="dark"] .lvl.done { color: #f2eddd; }
+html[data-theme="dark"] .btn { color: #f2eddd; }
+html[data-theme="dark"] .blessing { background: color-mix(in srgb, var(--gold-soft) 70%, var(--card)); }
 html[data-theme="dark"] nav button.active { color: #10160f; }
 html[data-theme="dark"] .modal { background: rgb(0 0 0 / .6); }
 html[data-theme="dark"] .modal-stars .star { color: #3d463c; }
@@ -493,7 +508,5 @@ html[data-theme="dark"] .modal-stars .star.on { color: var(--gold); }
   #hero-art { height: 175px; }
   .hero-title #region-name { font-size: 1.6rem; }
   .wordstream { font-size: 1.4rem; }
-  .level-grid { gap: .3rem; }
-  .lvl { font-size: .7rem; }
-  .lvl .stars { display: none; }
+  .map-tip { font-size: .72rem; }
 }

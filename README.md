@@ -15,6 +15,19 @@ as levels rise — so the data is one plain-text list, every level is determinis
 and replayable, and nothing needs authoring. Every 10th level is a bonus round of
 proverbs (`sentences.js`).
 
+The journey is walked on a **pixel-art overworld map** (`web/js/map.js`): one
+320×180-pixel canvas scene per region, drawn entirely in code (string-art
+sprites + seeded scatter, upscaled crisp by CSS — no image assets), with the
+region's 100 levels as stepping stones on a winding path, a little traveler
+standing on the next level, and **shrines that unlock the มงคลชีวิต ๓๘
+ประการ** — the Mangala Sutta's 38 blessings (`web/js/data/mongkhon.js`). The
+sutta's 10 stanzas map one-to-one onto the 10 regions; each shrine opens the
+first time its level is passed (derived from `runs.jsonl`, nothing stored),
+the results card presents the blessing, ☸ in the journey bar opens the
+collection, and ข้อ ๓๘ จิตเกษม waits at level 1000 beside the summit chedi.
+`web/maptest.html` is a dev harness for tuning the scenes
+(`?r=6&done=655`, `&dark`, `&modal=mk`).
+
 The gamification is deliberately self-referential — you compete with yourself only:
 
 - **1 star** = finish with ≥90% accuracy (this is also what unlocks the next level)
