@@ -108,6 +108,24 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
     from the sample library on the Lexar drive, loaded as an optional overlay
     on the committed VCSL set — a fresh clone still sounds complete on the
     dan tranh; this box just sounds better.
+  - **Sound rules, learned by ear** (johan's feedback across four engine
+    versions — binding for any future music work here):
+    1. *Samples only.* Synthesized elements read as synthetic even at pad
+       level (the "constant tone"), and synthesized nature reads as noise —
+       weather has to be recorded. The only synthesis left is the offline
+       fallback voice.
+    2. *Short sounds only.* Sustained voices annoy over a typing session:
+       recorder, kaval, duduk and bowed psaltery were all tried and retired.
+       Struck and plucked only; the nature bed owns the sustain.
+    3. *Nothing high-pitched or repetitive-bright.* The glockenspiel was
+       rejected as "annoying high-pitched percussion"; the ranat's top now
+       folds down below ~1.25 kHz. The soft ching is the one high voice that
+       survived. Keep instruments dark; brightness belongs to the birds.
+    4. *Nature forward.* The bed carries the track and the instruments sit
+       inside it. Reference tracks for the target feel: region 2 breeze and
+       region 3 brook ("super chill, nothing that sticks out").
+    5. *Specific bans:* the Manhã-fria sea-waves recording ("awful, never
+       use"); kanun in the low dark registers (pulled from the caves).
 - Dark mode ("forest at night") follows the system preference, toggleable with
   🌙/☀️, persisted in localStorage.
 - `data/runs.jsonl` — append-only, one JSON object per finished run. **The single
