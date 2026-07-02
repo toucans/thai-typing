@@ -11,9 +11,22 @@ export function loadInstruments(ctx) {
   if (loaded) return loaded;
   loaded = (async () => {
     const man = await (await fetch('assets/ranat/manifest.json')).json();
-    const buffers = await Promise.all(man.notes.map(async (n) => ({
+    let notes = man.notes.map((n) => ({ ...n, dir: 'assets/ranat' }));
+    // optional local overlay (assets/lexar/, gitignored): higher-quality voices
+    // built from the Lexar drive by tools/build-lexar.py. A set present there
+    // replaces the committed set of the same name; a fresh clone skips this.
+    try {
+      const r = await fetch('assets/lexar/manifest.json');
+      if (r.ok) {
+        const lex = await r.json();
+        const replaced = new Set(lex.notes.map((n) => n.set));
+        notes = notes.filter((n) => !replaced.has(n.set))
+          .concat(lex.notes.map((n) => ({ ...n, dir: 'assets/lexar' })));
+      }
+    } catch { /* offline or absent: the committed set carries everything */ }
+    const buffers = await Promise.all(notes.map(async (n) => ({
       ...n,
-      buffer: await ctx.decodeAudioData(await (await fetch(`assets/ranat/${n.file}`)).arrayBuffer()),
+      buffer: await ctx.decodeAudioData(await (await fetch(`${n.dir}/${n.file}`)).arrayBuffer()),
     })));
     const byFreq = {};   // pitched sets: freq -> layer -> buffer
     const byVar = {};    // unpitched variant sets (drums): var -> [buffers]
@@ -37,10 +50,12 @@ export function loadInstruments(ctx) {
       khong: new Sampler(byFreq.khong),
       flute: new Sampler(byFreq.flute),
       saw: new Sampler(byFreq.saw),
+      duduk: byFreq.duduk ? new Sampler(byFreq.duduk) : null, // overlay-only voice
       thon: byVar.thon,
       ram: byVar.ram,
       ching: single.ching,
       gong: single.gong,
+      rain: single.rain,
     };
   })();
   return loaded;

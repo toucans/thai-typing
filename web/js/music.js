@@ -58,10 +58,12 @@ const THEMES = [
     skel: [10, 9, 8, 7, 10, 9, 8, 5, 9, 8, 7, 6, 8, 7, 6, 5] },
   { // 7 ถ้ำหินปูน — sparse and dark, notes like water in the deep
     tempo: [50, 62], lead: 'bala', flute: 5, zith: false, drums: false, saw: true,
+    wind: 'duduk',
     chords: [0, 3, 0, 2, 0, 3, 2, 0],
     skel: [5, 3, 4, 3, 5, 4, 3, 2, 3, 4, 5, 6, 4, 3, 2, 0] },
   { // 8 ดอยหมอก — floating, high, slow as drifting cloud
     tempo: [52, 64], lead: 'bala', flute: 1, zith: false, drums: false, saw: true,
+    wind: 'duduk',
     chords: [0, 2, 3, 2, 0, 2, 4, 0],
     skel: [8, 9, 8, 7, 8, 9, 10, 8, 7, 8, 9, 8, 7, 6, 7, 5] },
   { // 9 ยอดดอยอินทนนท์ — ascending, triumphant, the whole walk below you
@@ -199,13 +201,19 @@ function engineStart(ctx, trackId, inst) {
   const rootHz = home ? 233.08 : 220 * Math.pow(2, (rng() * 7) / 12);
   const barTuning = PENTA.map(() => (rng() - 0.5) * (home ? 10 : 16)); // ±8¢, hand-tuned bars
 
-  // which voices sit in tonight's ensemble
+  // which voices sit in tonight's ensemble. The wind is a kaval (khlui role)
+  // by default, a duduk in the dark regions — when the local sample overlay
+  // is absent, both fall back to the committed recorder set.
   const lead = inst ? (home ? inst.xylo : inst[theme.lead]) : null;
+  const windSamp = inst ? (theme.wind === 'duduk' && inst.duduk ? inst.duduk : inst.flute) : null;
   const hasFlute = inst && !home && theme.flute !== false && decade >= theme.flute;
   const hasZith = inst && !home && theme.zith !== false && decade >= theme.zith && dens >= 2;
   const hasDrums = inst && !home && theme.drums !== false && decade >= theme.drums && dens >= 2;
   const useChing = inst && (home ? false : dens >= 2);
   const useSaw = inst && !home && theme.saw;
+  // every third decade the wind carries the theme and the mallets step back —
+  // the same melody, told by a different voice
+  const windLed = hasFlute && decade % 3 === 2;
 
   // -- mix chain: per-voice buses into one compressor
   const master = ctx.createGain();
@@ -252,7 +260,7 @@ function engineStart(ctx, trackId, inst) {
   }
   const khongBus = bus(0.8);
   const leadBus = bus(1.0);
-  const fluteBus = bus(0.42, 1.7);
+  const fluteBus = bus(windLed ? 0.58 : 0.42, 1.7);
   const zithBus = bus(0.5);
   const sawBus = bus(0.16, 1.8, 900); // the psaltery records sharp: darken and sit it back
   const percBus = bus(1.0, 0.5);
@@ -306,9 +314,9 @@ function engineStart(ctx, trackId, inst) {
   function flute(t, penta, dur, vel = 0.5) {
     if (!hasFlute) return;
     let f = freqOf(penta);
-    while (f > 680) f /= 2;
-    while (f < 170) f *= 2;
-    inst.flute.play(ctx, t, f, vel, 0.25, [fluteBus], {
+    while (f > windSamp.maxFreq * 1.06) f /= 2;
+    while (f < 135) f *= 2;
+    windSamp.play(ctx, t, f, vel, 0.25, [fluteBus], {
       dur, attack: 0.1, release: 0.4,
       slideFrom: Math.pow(2, -STEP / 1200), slideTime: 0.1, // slide up a bar-step
     });
@@ -452,7 +460,17 @@ function engineStart(ctx, trackId, inst) {
 
     if (bar.cadence) {
       kro(t, T2, barDur * 1.2);
-      flute(t, T2, barDur * 1.6, 0.45);
+      flute(t, T2, barDur * 1.6, windLed ? 0.55 : 0.45);
+    } else if (windLed) {
+      // the wind tells the theme in connected phrases, arriving with the khong
+      flute(t + 2 * slot, T1, slot * 3.8, 0.48 + rng() * 0.1);
+      flute(t + 6 * slot, T2, slot * 3.8, 0.52 + rng() * 0.1);
+      // the mallets step back to sparse, quiet punctuation
+      for (const n of divide(prevT2, T1, T2, next)) {
+        if (n.slot === 2 || n.slot === 6 || rng() < 0.3) {
+          ranat(t + n.slot * slot, n.penta, n.vel * 0.6);
+        }
+      }
     } else {
       if (bar.grace) {
         for (let i = 0; i < 3; i++) {

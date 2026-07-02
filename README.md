@@ -94,6 +94,15 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
   psaltery replaces the synth pad. Toggle 🎵. The front page has the one piece
   whose *lead line* is written out by hand (`HOME_BARS`), starting on the
   first click or keypress (browsers require a gesture before audio).
+  - **Local voice overlay** (`web/assets/lexar/`, gitignored — not
+    redistributable): `tools/build-lexar.py` builds premium voices from the
+    sample library on the Lexar drive — kanun → the khim role, kaval → the
+    khlui role, plus a duduk for the cave/mist regions. The app loads this as
+    an optional overlay on the committed VCSL set, so a fresh clone still
+    sounds complete; this box just sounds better. Every third decade of a
+    region is **wind-led**: the kaval or duduk carries the theme in connected
+    phrases while the mallets step back — the same melody, told by a
+    different voice.
 - Dark mode ("forest at night") follows the system preference, toggleable with
   🌙/☀️, persisted in localStorage.
 - `data/runs.jsonl` — append-only, one JSON object per finished run. **The single

@@ -4,3 +4,4 @@ data/
 media/*
 !media/.gitkeep
 __pycache__/
+web/assets/lexar/
