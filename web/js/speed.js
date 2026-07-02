@@ -86,6 +86,7 @@ function begin(cfg) {
   else music.playForName(S.name || S.title);
   const box = $('#typebox');
   box.value = '';
+  box.placeholder = 'พิมพ์คำ แล้วเคาะวรรคเพื่อส่ง…'; // shown until the first keystroke
   box.focus();
 }
 
@@ -189,6 +190,7 @@ export function initSpeed() {
     const v = box.value;
     if (!S.t0 && v.trim()) {
       S.t0 = performance.now();
+      box.placeholder = ''; // stop it reappearing between words
       ticker = setInterval(updateLive, 500);
     }
     if (v.endsWith(' ')) {

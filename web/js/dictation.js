@@ -101,6 +101,7 @@ async function start(pair, resumeCue) {
   };
   $('#dict-setup').hidden = true;
   $('#dict-session').hidden = false;
+  $('#dict-typebox').placeholder = 'ฟังแล้วพิมพ์…'; // shown until the first keystroke
   show('dictation');
   loadCue();
 }
@@ -261,6 +262,7 @@ export function initDictationInput() {
   const box = $('#dict-typebox');
   box.addEventListener('input', (e) => {
     if (!D) return;
+    box.placeholder = ''; // stop it reappearing between words
     if (e.data) sound.click();
     checkWord();
   });
