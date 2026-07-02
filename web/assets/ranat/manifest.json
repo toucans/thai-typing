@@ -402,7 +402,124 @@
    "file": "rain.wav",
    "set": "rain",
    "loop": true,
+   "skip": 8,
    "credit": "Rain on leaves by Gravity Sound, CC BY 4.0, via Wikimedia Commons"
+  },
+  {
+   "file": "g_pp_G4.wav",
+   "set": "metal",
+   "layer": "pp",
+   "freq": 392.0
+  },
+  {
+   "file": "g_ff_G4.wav",
+   "set": "metal",
+   "layer": "ff",
+   "freq": 392.0
+  },
+  {
+   "file": "g_pp_C5.wav",
+   "set": "metal",
+   "layer": "pp",
+   "freq": 523.25
+  },
+  {
+   "file": "g_ff_C5.wav",
+   "set": "metal",
+   "layer": "ff",
+   "freq": 523.25
+  },
+  {
+   "file": "g_pp_G5.wav",
+   "set": "metal",
+   "layer": "pp",
+   "freq": 783.99
+  },
+  {
+   "file": "g_ff_G5.wav",
+   "set": "metal",
+   "layer": "ff",
+   "freq": 783.99
+  },
+  {
+   "file": "g_pp_C6.wav",
+   "set": "metal",
+   "layer": "pp",
+   "freq": 1046.5
+  },
+  {
+   "file": "g_ff_C6.wav",
+   "set": "metal",
+   "layer": "ff",
+   "freq": 1046.5
+  },
+  {
+   "file": "g_pp_C7.wav",
+   "set": "metal",
+   "layer": "pp",
+   "freq": 2093.0
+  },
+  {
+   "file": "g_ff_C7.wav",
+   "set": "metal",
+   "layer": "ff",
+   "freq": 2093.0
+  },
+  {
+   "file": "waves.wav",
+   "set": "waves",
+   "loop": true,
+   "skip": 182,
+   "credit": "Manha fria no mar by Felipe Ruiz P., CC BY-SA 4.0, via Wikimedia Commons"
+  },
+  {
+   "file": "stream.wav",
+   "set": "stream",
+   "loop": true,
+   "skip": 42,
+   "credit": "Brook rippling, Simmerath (radio aporee maps), public domain"
+  },
+  {
+   "file": "falls.wav",
+   "set": "falls",
+   "loop": true,
+   "skip": 5,
+   "credit": "Waterfall and birds sounds by Blight55, CC BY-SA 4.0, via Wikimedia Commons"
+  },
+  {
+   "file": "birds.wav",
+   "set": "birds",
+   "loop": true,
+   "skip": 15,
+   "credit": "Early morning Birdsong Leersum by Tammo Heikens, CC BY-SA 3.0 NL, via Wikimedia Commons"
+  },
+  {
+   "file": "birds2.wav",
+   "set": "birds2",
+   "loop": true,
+   "skip": 36,
+   "credit": "Birds in mixed forest by De Auditieve Dienst, CC BY-SA 3.0 NL, via Wikimedia Commons"
+  },
+  {
+   "file": "breeze.wav",
+   "set": "breeze",
+   "loop": true,
+   "skip": 269,
+   "credit": "Morning birds and breeze, Fasano (radio aporee maps), public domain"
+  },
+  {
+   "file": "wind.wav",
+   "set": "wind",
+   "loop": true,
+   "skip": 24,
+   "credit": "Mountain day with birds and wind, Saillagouse, Pyrenees (radio aporee maps), public domain"
+  },
+  {
+   "file": "drips.wav",
+   "set": "drips",
+   "loop": true,
+   "skip": 60,
+   "credit": "Dripping water, Binckhorst (radio aporee maps), public domain"
   }
  ]
 }

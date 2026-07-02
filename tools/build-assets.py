@@ -46,7 +46,7 @@ FREQ = {"C#3": 138.59, "F3": 174.61, "G3": 196.00, "C4": 261.63, "F4": 349.23,
         "C3": 130.81, "E3": 164.81, "G#3": 207.65, "E4": 329.63, "G#4": 415.30,
         "A#3": 233.08, "D4": 293.66, "F#4": 369.99, "E5": 659.26,
         "F#3": 185.00, "B3": 246.94, "D#4": 311.13, "B4": 493.88,
-        "G2": 98.00, "B2": 123.47}
+        "G2": 98.00, "B2": 123.47, "C7": 2093.00}
 
 # (source url path, output name, max seconds)
 FILES = []
@@ -88,16 +88,55 @@ for k, v, var in [("1", "vl1", "thom"), ("1", "vl2", "thom"),
 for k, var in [("Hit_v2", "ting"), ("Hit_v3", "ting2"), ("HitMuted_v2", "mute")]:
     FILES.append((FRAME.format(k=k), f"r_{var}.wav", 1.2,
                   {"set": "ram", "var": var}))
+# ranat ek lek role: glockenspiel, the piphat's high metal xylophone; sparkle
+# doubling in the densest decades (suffix numbers in VCSL are not uniform)
+GLOCK = "Idiophones/Struck Idiophones/Glockenspiel/glock_{v}_{n}_{i}.wav"
+for n, vsoft, vloud in [("G4", "01", "01"), ("C5", "02", "01"), ("G5", "01", "01"),
+                        ("C6", "01", "01"), ("C7", "03", "01")]:
+    FILES.append((GLOCK.format(v="soft", n=n, i=vsoft), f"g_pp_{n}.wav", 2.5,
+                  {"set": "metal", "layer": "pp", "freq": FREQ[n]}))
+    FILES.append((GLOCK.format(v="loud", n=n, i=vloud), f"g_ff_{n}.wav", 2.5,
+                  {"set": "metal", "layer": "ff", "freq": FREQ[n]}))
 FILES.append(("Idiophones/Struck Idiophones/Finger Cymbals/Fing_Cymb.wav",
               "ching.wav", 4.0, {"set": "ching"}))
 FILES.append(("Idiophones/Struck Idiophones/Gong 1/gong_p.wav",
               "gong.wav", 6.0, {"set": "gong"}))
-# the one non-VCSL asset: a real rain recording for the rainforest bed
-# (synthesized rain never passed for weather). Looped seamlessly in the app.
-FILES.append(("https://upload.wikimedia.org/wikipedia/commons/9/92/Rain_on_leaves_%28Gravity_Sound%29.wav",
-              "rain.wav", 48.0,
-              {"set": "rain", "loop": True,
-               "credit": "Rain on leaves by Gravity Sound, CC BY 4.0, via Wikimedia Commons"}))
+# ---- the nature collection: real field recordings, one bed per region ---------
+# (synthesized nature never passed for weather). Each is cut to a seamless loop;
+# "skip" starts the cut at the cleanest stretch of the source recording (chosen
+# by RMS-flatness analysis: no voices, dogs or traffic bumps).
+NATURE_SRC = [
+    ("https://upload.wikimedia.org/wikipedia/commons/9/92/Rain_on_leaves_%28Gravity_Sound%29.wav",
+     "rain.wav", 48.0, 8,
+     "Rain on leaves by Gravity Sound, CC BY 4.0, via Wikimedia Commons"),
+    ("https://upload.wikimedia.org/wikipedia/commons/e/e1/Manh%C3%A3_fria_no_mar_-_Felipe_RuizBRX11.wav",
+     "waves.wav", 46.0, 182,
+     "Manha fria no mar by Felipe Ruiz P., CC BY-SA 4.0, via Wikimedia Commons"),
+    ("https://archive.org/download/aporee_21935_25485/ZOOM0004BachamSchpfungspfad.WAV",
+     "stream.wav", 46.0, 42,
+     "Brook rippling, Simmerath (radio aporee maps), public domain"),
+    ("https://upload.wikimedia.org/wikipedia/commons/0/00/Waterfall_and_birds_sounds.wav",
+     "falls.wav", 34.0, 5,
+     "Waterfall and birds sounds by Blight55, CC BY-SA 4.0, via Wikimedia Commons"),
+    ("https://upload.wikimedia.org/wikipedia/commons/c/cd/Early_morning_Birdsong_Leersum.wav",
+     "birds.wav", 46.0, 15,
+     "Early morning Birdsong Leersum by Tammo Heikens, CC BY-SA 3.0 NL, via Wikimedia Commons"),
+    ("https://upload.wikimedia.org/wikipedia/commons/8/8e/Birds_in_mixed_forest.wav",
+     "birds2.wav", 46.0, 36,
+     "Birds in mixed forest by De Auditieve Dienst, CC BY-SA 3.0 NL, via Wikimedia Commons"),
+    ("https://archive.org/download/aporee_59289_68049/APOREELauretomattinoEDIT.wav",
+     "breeze.wav", 46.0, 269,
+     "Morning birds and breeze, Fasano (radio aporee maps), public domain"),
+    ("https://archive.org/download/aporee_69090_80171/TASLAmbSaillagousepyreneesdayclearweatherbirdswinddistanttown.wav",
+     "wind.wav", 46.0, 24,
+     "Mountain day with birds and wind, Saillagouse, Pyrenees (radio aporee maps), public domain"),
+    ("https://archive.org/download/aporee_13668_15939/Scene01027e.wav",
+     "drips.wav", 46.0, 60,
+     "Dripping water, Binckhorst (radio aporee maps), public domain"),
+]
+for url, name, secs, skip, credit in NATURE_SRC:
+    FILES.append((url, name, secs, {"set": name[:-4], "loop": True, "skip": skip,
+                                    "credit": credit}))
 
 
 
@@ -111,16 +150,24 @@ def main():
     for src, name, max_secs, meta in FILES:
         if only and only not in name:
             continue
-        tmp = "/tmp/vcsl_dl.wav"
-        url = src if src.startswith("http") else RAW + urllib.request.quote(src)
-        print(f"{name} <- {src}")
-        # Wikimedia rejects the default urllib UA; a descriptive one is polite anyway
-        req = urllib.request.Request(url, headers={"User-Agent": "thai-typing-build/1.0 (self-hosted trainer; stdlib urllib)"})
-        with urllib.request.urlopen(req) as r, open(tmp, "wb") as f:
-            f.write(r.read())
+        # TT_FETCH_CACHE: a directory of pre-downloaded sources keyed by output
+        # name, so a rebuild doesn't re-pull half a gigabyte of field recordings
+        cache = os.environ.get("TT_FETCH_CACHE")
+        cached = cache and os.path.join(cache, name)
+        if cached and os.path.exists(cached):
+            tmp = cached
+            print(f"{name} <- cache")
+        else:
+            tmp = "/tmp/vcsl_dl.wav"
+            url = src if src.startswith("http") else RAW + urllib.request.quote(src)
+            print(f"{name} <- {src}")
+            # Wikimedia rejects the default urllib UA; a descriptive one is polite anyway
+            req = urllib.request.Request(url, headers={"User-Agent": "thai-typing-build/1.0 (self-hosted trainer; stdlib urllib)"})
+            with urllib.request.urlopen(req) as r, open(tmp, "wb") as f:
+                f.write(r.read())
         x, rate = read_wav(tmp)
         if meta.get("loop"):
-            x, rate = make_loop(x, rate, max_secs)
+            x, rate = make_loop(x, rate, max_secs, skip_s=meta.get("skip", 8.0))
         else:
             x = trim_normalize(x, rate, max_secs)
         write_wav(os.path.join(OUT, name), x, rate)

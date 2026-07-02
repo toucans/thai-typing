@@ -1,6 +1,8 @@
-// Generative Thai ambient music, v3 — a sampled mahori-style ensemble playing
-// *heterophonically*, the way Thai ensembles actually work: everyone performs
-// the same melody at different densities at once.
+// Generative Thai ambient music, v4 — a sampled ensemble of short struck and
+// plucked sounds playing *heterophonically*, the way Thai ensembles actually
+// work: everyone performs the same melody at different densities at once.
+// Nothing sustained, nothing synthesized: the space between notes belongs to
+// the nature bed, which is real field recordings looped seamlessly.
 //
 //  - each region has a hand-composed skeletal melody (its "theme"): 16
 //    structural notes, two per bar, landing on the ching and chap beats
@@ -8,9 +10,9 @@
 //  - the ranat lead (xylophone or balafon) improvises a division around it —
 //    walks, neighbor notes, octave sparks — always arriving on the structural
 //    note together with the khong; density grows with the decade
-//  - the khlui (recorder) floats long notes above, sliding into pitch
-//  - the jakhe (dan tranh) plucks a pattern; thon-rammana drums join late
-//  - in the misty regions a bowed psaltery replaces the synth pad
+//  - the kanun plucks a pattern, and every third decade it takes the melody
+//    itself while the mallets answer; thon-rammana drums join late; the
+//    ranat ek lek (glockenspiel) doubles arrivals in the densest decades
 //
 // One track per 10 levels: same theme as its region, realized differently
 // (tempo, density, which voices join) — ten regions, ten decades each, so all
@@ -21,53 +23,66 @@ import { loadInstruments, strike, makeReverb, makePingPong } from './instruments
 
 const STEP = 1200 / 7; // cents per 7-TET step
 const PENTA = [0, 1, 2, 4, 5]; // the pentatonic degrees within the 7 steps
-const NATURE = ['waves', 'waves', 'wind', 'stream', 'wind', 'rain', 'stream', 'drips', 'wind', 'wind'];
+// per-region nature bed: real field recordings (see manifest credits), each a
+// seamless loop, layered where the landscape asks for it
+const NATURE = [
+  [['waves', 0.24]],                      // เกาะทะเลใต้
+  [['waves', 0.14], ['birds2', 0.12]],    // ป่าชายเลน
+  [['breeze', 0.22]],                     // ทุ่งนาเขียว
+  [['stream', 0.20]],                     // ริมแม่น้ำ
+  [['birds', 0.20]],                      // สวนผลไม้
+  [['rain', 0.24]],                       // ป่าฝน
+  [['falls', 0.22]],                      // น้ำตกในหุบเขา
+  [['drips', 0.20]],                      // ถ้ำหินปูน
+  [['wind', 0.22]],                       // ดอยหมอก
+  [['wind', 0.14], ['birds2', 0.10]],     // ยอดดอยอินทนนท์
+];
 
 // The ten regional themes. skel = the skeletal melody in pentatonic degrees
 // (0 = tonic, 5 = octave), two structural notes per bar for 8 bars; chords =
-// one root per bar. flute/zith/drums = the decade (0..9) that voice joins;
-// false = never. saw = bowed sustains instead of the synth pad.
+// one root per bar. zith/drums/metal = the decade (0..9) that voice joins;
+// false = never.
+// Every voice is a short struck or plucked sound — nothing sustained,
+// nothing synthesized; the nature bed carries the space between notes.
 const THEMES = [
   { // 0 เกาะทะเลใต้ — open water, rising and falling like swell
-    tempo: [64, 78], lead: 'xylo', flute: 2, zith: 4, drums: 5, saw: false,
+    tempo: [64, 78], lead: 'xylo', zith: 3, drums: 5, metal: 7,
     chords: [0, 3, 4, 0, 0, 3, 4, 0],
     skel: [5, 7, 8, 7, 9, 8, 7, 5, 7, 8, 9, 10, 8, 7, 6, 5] },
   { // 1 ป่าชายเลน — rocking, narrow, patient as roots in the tide
-    tempo: [56, 68], lead: 'bala', flute: 1, zith: false, drums: 6, saw: false,
+    tempo: [56, 68], lead: 'bala', zith: 4, drums: 6, metal: false,
     chords: [0, 2, 3, 0, 0, 2, 4, 0],
     skel: [5, 6, 5, 6, 7, 6, 5, 3, 5, 6, 7, 8, 6, 5, 4, 5] },
   { // 2 ทุ่งนาเขียว — pastoral, stepwise, wide open
-    tempo: [68, 82], lead: 'xylo', flute: 3, zith: 4, drums: 4, saw: false,
+    tempo: [68, 82], lead: 'xylo', zith: 3, drums: 4, metal: 7,
     chords: [0, 3, 2, 0, 0, 4, 3, 0],
     skel: [7, 8, 9, 8, 7, 6, 5, 6, 7, 8, 9, 10, 9, 8, 7, 5] },
   { // 3 ริมแม่น้ำ — an arch, out with the current and home again
-    tempo: [62, 74], lead: 'xylo', flute: 2, zith: 3, drums: 5, saw: false,
+    tempo: [62, 74], lead: 'xylo', zith: 2, drums: 5, metal: 8,
     chords: [0, 2, 4, 3, 0, 2, 3, 0],
     skel: [5, 7, 9, 10, 9, 8, 7, 6, 5, 6, 8, 7, 6, 6, 7, 5] },
   { // 4 สวนผลไม้ — playful skips, fruit dropping from branches
-    tempo: [72, 86], lead: 'xylo', flute: 4, zith: 3, drums: 3, saw: false,
+    tempo: [72, 86], lead: 'xylo', zith: 2, drums: 3, metal: 6,
     chords: [0, 4, 3, 0, 2, 4, 3, 0],
     skel: [7, 9, 7, 9, 10, 8, 9, 7, 8, 10, 8, 6, 7, 9, 6, 5] },
   { // 5 ป่าฝน — low, mysterious, moving under the canopy
-    tempo: [54, 66], lead: 'bala', flute: 2, zith: false, drums: false, saw: false,
+    tempo: [54, 66], lead: 'bala', zith: 5, drums: false, metal: false,
     chords: [0, 2, 0, 3, 4, 2, 3, 0],
     skel: [3, 4, 5, 4, 3, 2, 4, 5, 6, 5, 4, 3, 5, 4, 3, 5] },
   { // 6 น้ำตกในหุบเขา — cascading descents
-    tempo: [66, 80], lead: 'xylo', flute: 3, zith: false, drums: 6, saw: false,
+    tempo: [66, 80], lead: 'xylo', zith: 4, drums: 6, metal: 7,
     chords: [0, 4, 0, 3, 4, 2, 4, 0],
     skel: [10, 9, 8, 7, 10, 9, 8, 5, 9, 8, 7, 6, 8, 7, 6, 5] },
   { // 7 ถ้ำหินปูน — sparse and dark, notes like water in the deep
-    tempo: [50, 62], lead: 'bala', flute: 5, zith: false, drums: false, saw: true,
-    wind: 'duduk',
+    tempo: [50, 62], lead: 'bala', zith: 6, drums: false, metal: false,
     chords: [0, 3, 0, 2, 0, 3, 2, 0],
     skel: [5, 3, 4, 3, 5, 4, 3, 2, 3, 4, 5, 6, 4, 3, 2, 0] },
   { // 8 ดอยหมอก — floating, high, slow as drifting cloud
-    tempo: [52, 64], lead: 'bala', flute: 1, zith: false, drums: false, saw: true,
-    wind: 'duduk',
+    tempo: [52, 64], lead: 'bala', zith: 5, drums: false, metal: false,
     chords: [0, 2, 3, 2, 0, 2, 4, 0],
     skel: [8, 9, 8, 7, 8, 9, 10, 8, 7, 8, 9, 8, 7, 6, 7, 5] },
   { // 9 ยอดดอยอินทนนท์ — ascending, triumphant, the whole walk below you
-    tempo: [58, 72], lead: 'xylo', flute: 1, zith: 4, drums: 7, saw: false,
+    tempo: [58, 72], lead: 'xylo', zith: 3, drums: 7, metal: 6,
     chords: [0, 3, 4, 0, 3, 4, 2, 0],
     skel: [5, 6, 7, 8, 9, 10, 9, 8, 9, 10, 11, 10, 9, 8, 7, 5] },
 ];
@@ -201,19 +216,16 @@ function engineStart(ctx, trackId, inst) {
   const rootHz = home ? 233.08 : 220 * Math.pow(2, (rng() * 7) / 12);
   const barTuning = PENTA.map(() => (rng() - 0.5) * (home ? 10 : 16)); // ±8¢, hand-tuned bars
 
-  // which voices sit in tonight's ensemble. The wind is a kaval (khlui role)
-  // by default, a duduk in the dark regions — when the local sample overlay
-  // is absent, both fall back to the committed recorder set.
+  // which voices sit in tonight's ensemble — all of them short struck or
+  // plucked sounds; the space between notes belongs to the nature bed
   const lead = inst ? (home ? inst.xylo : inst[theme.lead]) : null;
-  const windSamp = inst ? (theme.wind === 'duduk' && inst.duduk ? inst.duduk : inst.flute) : null;
-  const hasFlute = inst && !home && theme.flute !== false && decade >= theme.flute;
-  const hasZith = inst && !home && theme.zith !== false && decade >= theme.zith && dens >= 2;
+  const hasZith = inst && !home && theme.zith !== false && decade >= theme.zith;
   const hasDrums = inst && !home && theme.drums !== false && decade >= theme.drums && dens >= 2;
+  const hasMetal = inst && inst.metal && !home && theme.metal !== false && decade >= theme.metal;
   const useChing = inst && (home ? false : dens >= 2);
-  const useSaw = inst && !home && theme.saw;
-  // every third decade the wind carries the theme and the mallets step back —
+  // every third decade the kanun carries the theme and the mallets answer —
   // the same melody, told by a different voice
-  const windLed = hasFlute && decade % 3 === 2;
+  const zithLed = hasZith && decade % 3 === 2;
 
   // -- mix chain: per-voice buses into one compressor
   const master = ctx.createGain();
@@ -260,9 +272,8 @@ function engineStart(ctx, trackId, inst) {
   }
   const khongBus = bus(0.8);
   const leadBus = bus(1.0);
-  const fluteBus = bus(windLed ? 0.58 : 0.42, 1.7);
-  const zithBus = bus(0.5);
-  const sawBus = bus(0.16, 1.8, 900); // the psaltery records sharp: darken and sit it back
+  const zithBus = bus(zithLed ? 0.7 : 0.5);
+  const metalBus = bus(0.26, 1.3, 6000); // sparkle, kept behind the wood
   const percBus = bus(1.0, 0.5);
 
   const srcs = [];
@@ -311,52 +322,18 @@ function engineStart(ctx, trackId, inst) {
     inst.khong.play(ctx, t + Math.max(0, (rng() - 0.5) * 0.008), f, vel, -0.2, [khongBus]);
   }
 
-  function flute(t, penta, dur, vel = 0.5) {
-    if (!hasFlute) return;
-    let f = freqOf(penta);
-    while (f > windSamp.maxFreq * 1.06) f /= 2;
-    while (f < 135) f *= 2;
-    windSamp.play(ctx, t, f, vel, 0.25, [fluteBus], {
-      dur, attack: 0.1, release: 0.4,
-      slideFrom: Math.pow(2, -STEP / 1200), slideTime: 0.1, // slide up a bar-step
-    });
-  }
-
   function zith(t, penta, vel) {
     if (!hasZith) return;
     let f = freqOf(penta);
-    while (f > 740) f /= 2;
+    while (f > inst.zith.maxFreq * 1.06) f /= 2;
     inst.zith.play(ctx, t, f, vel, -0.32, [zithBus]);
   }
 
-  function sawPad(t, chordDeg, dur) {
-    if (!useSaw) return;
-    for (const p of [chordDeg + 5, chordDeg + 8]) { // root + fifth-ish, mid register
-      let f = freqOf(p);
-      while (f > 700) f /= 2;
-      inst.saw.play(ctx, t + rng() * 0.15, f, 0.3, (rng() - 0.5) * 0.8, [sawBus], {
-        dur: dur - 0.4, attack: 0.8, release: 0.9,
-      });
-    }
-  }
-
-  function synthPad(t, chordDeg, dur) {
-    for (const cents of [0, 4 * STEP, 1200]) {
-      const o = ctx.createOscillator();
-      const f = ctx.createBiquadFilter();
-      const g = ctx.createGain();
-      o.type = 'triangle';
-      o.frequency.value = freqOf(chordDeg) * Math.pow(2, cents / 1200) / 2;
-      f.type = 'lowpass'; f.frequency.value = 550;
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.028, t + 2);
-      g.gain.setValueAtTime(0.028, t + dur - 2);
-      g.gain.linearRampToValueAtTime(0, t + dur);
-      o.connect(f).connect(g);
-      g.connect(dry);
-      g.connect(revSend);
-      o.start(t); o.stop(t + dur + 0.1);
-    }
+  function metal(t, penta, vel) { // ranat ek lek: high glockenspiel doubling
+    let f = freqOf(penta);
+    while (f > inst.metal.maxFreq * 1.05) f /= 2;
+    while (f < 380) f *= 2;
+    inst.metal.play(ctx, t + Math.max(0, (rng() - 0.5) * 0.01), f, vel, 0.18, [metalBus]);
   }
 
   function bass(t, chordDeg) {
@@ -430,10 +407,6 @@ function engineStart(ctx, trackId, inst) {
     }
     if (bar.cadence) {
       kro(t, 5, barDur * 1.5);
-      if (inst && theme.flute !== false) { // breath over the shimmer
-        inst.flute.play(ctx, t, Math.min(660, freqOf(5)), 0.4, 0.25, [fluteBus],
-          { dur: barDur * 1.4, attack: 0.5, release: 0.8 });
-      }
     } else if (bar.melody) {
       if (bar.grace) {
         for (let i = 0; i < 3; i++) {
@@ -460,15 +433,16 @@ function engineStart(ctx, trackId, inst) {
 
     if (bar.cadence) {
       kro(t, T2, barDur * 1.2);
-      flute(t, T2, barDur * 1.6, windLed ? 0.55 : 0.45);
-    } else if (windLed) {
-      // the wind tells the theme in connected phrases, arriving with the khong
-      flute(t + 2 * slot, T1, slot * 3.8, 0.48 + rng() * 0.1);
-      flute(t + 6 * slot, T2, slot * 3.8, 0.52 + rng() * 0.1);
-      // the mallets step back to sparse, quiet punctuation
+      if (zithLed) zith(t, T2 + 5, 0.6); // the kanun rings out over the roll
+    } else if (zithLed) {
+      // the kanun tells the division, bright and plucked, an octave up;
+      // the mallets step back to quiet punctuation on the structural beats
       for (const n of divide(prevT2, T1, T2, next)) {
-        if (n.slot === 2 || n.slot === 6 || rng() < 0.3) {
-          ranat(t + n.slot * slot, n.penta, n.vel * 0.6);
+        zith(t + n.slot * slot, n.penta + 5, Math.min(0.9, n.vel + 0.12));
+      }
+      for (const n of divide(prevT2, T1, T2, next)) {
+        if (n.slot === 2 || n.slot === 6 || rng() < 0.2) {
+          ranat(t + n.slot * slot, n.penta, n.vel * 0.55);
         }
       }
     } else {
@@ -480,17 +454,18 @@ function engineStart(ctx, trackId, inst) {
       for (const n of divide(prevT2, T1, T2, next)) {
         ranat(t + n.slot * slot, n.penta, n.vel);
       }
-      // the khlui sings alternate structural notes, sliding in late
-      if (bar.b % 2 === 1 && (bar.phase === 1 || dens >= 2) && rng() < 0.75) {
-        flute(t + 6 * slot, T2, barDur * 0.9, 0.42 + rng() * 0.12);
+      if (hasZith) { // plucked pattern on chord tones
+        const pat = [[0, chordDeg + 5], [3, chordDeg + 8], [4, chordDeg + 7], [7, chordDeg + 10]];
+        for (const [s, p] of pat) {
+          if (rng() < 0.8) zith(t + s * slot, p, 0.4 + rng() * 0.15);
+        }
       }
     }
 
-    if (hasZith && !bar.cadence) { // plucked pattern on chord tones
-      const pat = [[0, chordDeg + 5], [3, chordDeg + 8], [4, chordDeg + 7], [7, chordDeg + 10]];
-      for (const [s, p] of pat) {
-        if (rng() < 0.8) zith(t + s * slot, p, 0.4 + rng() * 0.15);
-      }
+    if (hasMetal && bar.phase === 1 && !bar.cadence) {
+      // the ranat ek lek doubles the arrival notes two octaves up, softly
+      metal(t + 6 * slot, T2 + 10, 0.32 + rng() * 0.08);
+      if (rng() < 0.4) metal(t + 2 * slot, T1 + 10, 0.28);
     }
 
     if (hasDrums && bar.phase === 1) { // the thon-rammana joins for the answer
@@ -506,7 +481,6 @@ function engineStart(ctx, trackId, inst) {
   // -- scheduling
   const plan = barPlan();
   let barStart = ctx.currentTime + 0.4;
-  let barIdx = 0;
   let prevT2 = theme.skel[14]; // pretend we arrive from the end of the melody
   const tick = setInterval(() => {
     while (barStart < ctx.currentTime + 1.4) {
@@ -515,26 +489,22 @@ function engineStart(ctx, trackId, inst) {
       if (bar.sectionStart && inst) {
         strike(ctx, inst.gong, t, 0.05, [dry, revSend], { rate: 0.92 + rng() * 0.12 });
       }
-      const chordDeg = bar.home ? (bar.chordDeg || 0) : bar.rest ? 0 : theme.chords[bar.b];
-      if (useSaw) {
-        // re-bow every bar: the psaltery samples are ~4.5s, a two-bar pad
-        // at slow tempi would fall silent halfway through
-        if (!bar.rest || rng() < 0.5) sawPad(t, chordDeg, barDur + 0.8);
-      } else if (barIdx % 2 === 0) {
-        synthPad(t, chordDeg, 2 * barDur + 1.5);
-      }
       if (useChing && !bar.rest) {
         strike(ctx, inst.ching, t + 2 * slot, 0.035, [dry], { rate: 0.98 + rng() * 0.04 });
         strike(ctx, inst.ching, t + 6 * slot, 0.05, [dry], { rate: 0.98 + rng() * 0.04, cut: 0.14 });
       }
       if (bar.home) playHomeBar(bar, t);
       else if (bar.rest) {
-        if (rng() < 0.4) flute(t, 5, barDur * 1.8, 0.35); // a long breath over the forest
+        // the forest answers; sometimes the kanun lays a slow broken chord over it
+        if (hasZith && rng() < 0.35) {
+          for (const [i, p] of [0, 3, 5].entries()) {
+            zith(t + i * slot * 1.5, p + 5, 0.3 + rng() * 0.08);
+          }
+        }
       } else {
         prevT2 = playThemeBar(bar, t, prevT2);
       }
       barStart += barDur;
-      barIdx++;
     }
   }, 200);
 
@@ -577,73 +547,42 @@ function lfo(ctx, rate, depth, param, srcs) {
 }
 
 function natureLayer(ctx, region, out, srcs, timers, inst) {
-  if (NATURE[region] === 'rain' && inst && inst.rain) {
-    // a real recording (rain on leaves, see manifest credit) — two attempts
-    // at synthesizing rain both read as noise; weather has to be recorded.
-    // The loop's tail is crossfaded into its head at build time, so it seams.
-    const r = ctx.createBufferSource();
-    r.buffer = inst.rain;
-    r.loop = true;
-    const g = ctx.createGain();
-    g.gain.value = 0.55;
-    r.connect(g).connect(out);
-    lfo(ctx, 0.05, 0.06, g.gain, srcs); // distant weather drifting
-    r.start();
-    srcs.push(r);
+  if (inst && inst.nat) {
+    // real field recordings, looped seamlessly (tails crossfaded into heads
+    // at build time), layered per region; see the manifest for credits
+    for (const [name, gain] of NATURE[region]) {
+      const buf = inst.nat[name];
+      if (!buf) continue;
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      const g = ctx.createGain();
+      g.gain.value = gain;
+      src.connect(g).connect(out);
+      lfo(ctx, 0.04 + Math.random() * 0.05, gain * 0.18, g.gain, srcs); // weather drifts
+      src.start(0, Math.random() * buf.duration); // each visit begins elsewhere
+      srcs.push(src);
+    }
     return;
   }
+  // offline fallback (samples unreachable): one filtered-noise wash
+  const kind = ['waves', 'waves', 'wind', 'stream', 'wind', 'rain', 'stream', 'drips', 'wind', 'wind'][region];
   const src = ctx.createBufferSource();
   src.buffer = noise(ctx);
   src.loop = true;
   const f = ctx.createBiquadFilter();
   const g = ctx.createGain();
   src.connect(f).connect(g).connect(out);
-  switch (NATURE[region]) {
-    case 'waves':
-      f.type = 'lowpass'; f.frequency.value = 480;
-      g.gain.value = 0.20;
-      lfo(ctx, 0.07, 0.15, g.gain, srcs);
-      break;
-    case 'rain': {
-      // offline fallback only: filtered patter plus droplet blips
-      f.type = 'bandpass'; f.frequency.value = 1700; f.Q.value = 0.5;
-      g.gain.value = 0.055;
-      lfo(ctx, 0.05, 0.02, g.gain, srcs);
-      lfo(ctx, 4.3, 0.018, g.gain, srcs);
-      const drip = () => {
-        const t = ctx.currentTime + Math.random() * 0.09;
-        const o = ctx.createOscillator();
-        const dg = ctx.createGain();
-        const p = ctx.createStereoPanner();
-        o.frequency.setValueAtTime(1400 + Math.random() * 1800, t);
-        o.frequency.exponentialRampToValueAtTime(600 + Math.random() * 500, t + 0.05);
-        dg.gain.setValueAtTime(0.006 + Math.random() * 0.02, t);
-        dg.gain.exponentialRampToValueAtTime(0.0001, t + 0.04 + Math.random() * 0.07);
-        p.pan.value = (Math.random() - 0.5) * 1.4;
-        o.connect(dg).connect(p).connect(out);
-        o.start(t); o.stop(t + 0.15);
-      };
-      timers.push(setInterval(() => {
-        if (Math.random() < 0.9) drip();
-        if (Math.random() < 0.35) drip();
-      }, 90));
-      break;
-    }
-    case 'wind':
-      f.type = 'bandpass'; f.frequency.value = 420; f.Q.value = 1.3;
-      g.gain.value = 0.14;
-      lfo(ctx, 0.06, 180, f.frequency, srcs);
-      lfo(ctx, 0.11, 0.06, g.gain, srcs);
-      break;
-    case 'stream':
-      f.type = 'bandpass'; f.frequency.value = 1500; f.Q.value = 0.8;
-      g.gain.value = 0.12;
-      lfo(ctx, 1.1, 0.035, g.gain, srcs);
-      break;
-    case 'drips':
-      f.type = 'lowpass'; f.frequency.value = 260;
-      g.gain.value = 0.04;
-      break;
+  if (kind === 'waves' || kind === 'drips') {
+    f.type = 'lowpass'; f.frequency.value = kind === 'waves' ? 480 : 260;
+    g.gain.value = kind === 'waves' ? 0.2 : 0.04;
+    if (kind === 'waves') lfo(ctx, 0.07, 0.15, g.gain, srcs);
+  } else {
+    f.type = 'bandpass';
+    f.frequency.value = { rain: 1700, wind: 420, stream: 1500 }[kind];
+    f.Q.value = 0.8;
+    g.gain.value = { rain: 0.055, wind: 0.14, stream: 0.12 }[kind];
+    lfo(ctx, 0.08, g.gain * 0.3, g.gain, srcs);
   }
   src.start();
   srcs.push(src);

@@ -24,6 +24,12 @@ export function loadInstruments(ctx) {
           .concat(lex.notes.map((n) => ({ ...n, dir: 'assets/lexar' })));
       }
     } catch { /* offline or absent: the committed set carries everything */ }
+    // sets the engine actually plays; retired voices in the manifests
+    // (recorder, psaltery, kaval, duduk) are not fetched
+    const WANTED = new Set(['xylo', 'bala', 'zith', 'khong', 'metal', 'thon', 'ram',
+      'ching', 'gong', 'rain', 'waves', 'stream', 'falls', 'birds', 'birds2',
+      'breeze', 'wind', 'drips']);
+    notes = notes.filter((n) => WANTED.has(n.set));
     const buffers = await Promise.all(notes.map(async (n) => ({
       ...n,
       buffer: await ctx.decodeAudioData(await (await fetch(`${n.dir}/${n.file}`)).arrayBuffer()),
@@ -48,14 +54,12 @@ export function loadInstruments(ctx) {
       bala: new Sampler(byFreq.bala),
       zith: new Sampler(byFreq.zith),
       khong: new Sampler(byFreq.khong),
-      flute: new Sampler(byFreq.flute),
-      saw: new Sampler(byFreq.saw),
-      duduk: byFreq.duduk ? new Sampler(byFreq.duduk) : null, // overlay-only voice
+      metal: byFreq.metal ? new Sampler(byFreq.metal) : null,
       thon: byVar.thon,
       ram: byVar.ram,
       ching: single.ching,
       gong: single.gong,
-      rain: single.rain,
+      nat: single, // the nature collection: waves, stream, falls, birds… by set
     };
   })();
   return loaded;

@@ -73,36 +73,40 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
     (`web/vendor/gsap.min.js`, pinned 3.13.0, GreenSock standard license), no
     package manager. Without it, or under `prefers-reduced-motion`, the page
     is simply still; nothing breaks.
-- Background music (`music.js` + `instruments.js`): a sampled mahori-style
+- Background music (`music.js` + `instruments.js`): a sampled
   **ensemble playing heterophonically** — the defining texture of Thai music,
   where every instrument performs the same melody at a different density at
-  once. Each of the ten regions has a **hand-composed skeletal melody** (its
+  once. Every voice is a **short struck or plucked sound, nothing sustained
+  and nothing synthesized**; the space between notes belongs to the nature
+  bed. Each of the ten regions has a **hand-composed skeletal melody** (its
   theme, `THEMES` in `music.js`); the khong (marimba) states it plainly, the
   ranat lead (xylophone or balafon) weaves a division around it that always
-  arrives on the structural notes, the khlui (recorder) floats sustained lines
-  that slide into pitch, the jakhe (dan tranh) plucks patterns, and the
-  thon-rammana drums join in later decades. One track per 10 levels: the ten
-  decades of a region are ten realizations of that region's theme — tempo,
-  density and instrumentation grow as you walk — so all hundred tracks are
-  authored melodies, not dice. No free Thai-instrument recordings exist
-  (checked 2026-07), so every voice is a real VCSL recording (CC0,
-  `web/assets/ranat/`, rebuilt by `tools/build-assets.py`) cast *by role*, and
-  made Thai by performance: near-7-TET tuning with a per-track ±8¢ bar-tuning
-  table, octave doubling with mallet flams, kro tremolo rolls at cadences,
-  ching-chap timekeeping and a soft gong at sections, over a nature bed per
-  region (waves/rain/stream/wind/cave drips). In the misty regions a bowed
-  psaltery replaces the synth pad. Toggle 🎵. The front page has the one piece
-  whose *lead line* is written out by hand (`HOME_BARS`), starting on the
-  first click or keypress (browsers require a gesture before audio).
+  arrives on the structural notes, the kanun plucks patterns — and every
+  third decade *carries the melody itself* while the mallets answer — the
+  thon-rammana drums join in later decades, and the ranat ek lek
+  (glockenspiel) doubles arrivals in the densest ones. One track per 10
+  levels: the ten decades of a region are ten realizations of that region's
+  theme — tempo, density and instrumentation grow as you walk — so all
+  hundred tracks are authored melodies, not dice. No free Thai-instrument
+  recordings exist (checked 2026-07), so every voice is a real recording
+  (mostly VCSL, CC0; `web/assets/ranat/`, rebuilt by `tools/build-assets.py`)
+  cast *by role*, and made Thai by performance: near-7-TET tuning with a
+  per-track ±8¢ bar-tuning table, octave doubling with mallet flams, kro
+  tremolo rolls at cadences, ching-chap timekeeping and a soft gong at
+  sections. Toggle 🎵. The front page has the one piece whose *lead line* is
+  written out by hand (`HOME_BARS`), starting on the first click or keypress
+  (browsers require a gesture before audio).
+  - **The nature collection**: every region's bed is a real field recording,
+    cut to a seamless loop by `build-assets.py` (tail crossfaded into head)
+    and credited in the manifest — Krabi-blue sea waves, a rippling brook, a
+    waterfall, two different dawn choruses, morning birds over open country,
+    mountain wind in the Pyrenees, cave drips, and rain on leaves. Layered
+    where the landscape asks (mangroves get waves *and* birds).
   - **Local voice overlay** (`web/assets/lexar/`, gitignored — not
-    redistributable): `tools/build-lexar.py` builds premium voices from the
-    sample library on the Lexar drive — kanun → the khim role, kaval → the
-    khlui role, plus a duduk for the cave/mist regions. The app loads this as
-    an optional overlay on the committed VCSL set, so a fresh clone still
-    sounds complete; this box just sounds better. Every third decade of a
-    region is **wind-led**: the kaval or duduk carries the theme in connected
-    phrases while the mallets step back — the same melody, told by a
-    different voice.
+    redistributable): `tools/build-lexar.py` builds the kanun (khim role)
+    from the sample library on the Lexar drive, loaded as an optional overlay
+    on the committed VCSL set — a fresh clone still sounds complete on the
+    dan tranh; this box just sounds better.
 - Dark mode ("forest at night") follows the system preference, toggleable with
   🌙/☀️, persisted in localStorage.
 - `data/runs.jsonl` — append-only, one JSON object per finished run. **The single

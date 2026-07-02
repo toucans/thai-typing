@@ -2,13 +2,13 @@
 """Build web/assets/lexar/ from the sample library on the Lexar drive.
 
 These are high-quality chromatic recordings (Decent Sampler library under
-/mnt/lexar/oriental instruments/) that upgrade three ensemble roles:
+/mnt/lexar/oriental instruments/) that upgrade one ensemble role:
 
   kanun pluck  -> set "zith"   the khim/jakhe role (the kanun is the khim's
                                direct relative - same trapezoid zither family)
-  kaval pure   -> set "flute"  the khlui role (end-blown folk flute, 15s
-                               sustains - far closer than a baroque recorder)
-  duduk        -> set "duduk"  a dark sustained wind for the cave/mist regions
+
+(The library's kaval and duduk were tried and retired: sustained winds didn't
+fit the music's short-sounds-over-nature character.)
 
 Output is GITIGNORED: this library is not redistributable, so it never enters
 the repo. The app loads assets/lexar/manifest.json as an optional overlay on
@@ -32,8 +32,6 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "web", "ass
 # (preset, our set name, filename prefix, keep every Nth semitone, max seconds)
 PICKS = [
     ("Kanun/Kanun Pluck.dspreset", "zith", "kn", 3, 2.2),
-    ("Kaval/Kaval Pure.dspreset", "flute", "kv", 3, 8.0),
-    ("Duduk/Duduk.dspreset", "duduk", "dd", 3, 5.5),
 ]
 
 midi_freq = lambda n: 440.0 * 2 ** ((n - 69) / 12)
