@@ -158,6 +158,239 @@
    "freq": 698.46
   },
   {
+   "file": "z_mf_Cs3.wav",
+   "set": "zith",
+   "layer": "pp",
+   "freq": 138.59
+  },
+  {
+   "file": "z_ff_Cs3.wav",
+   "set": "zith",
+   "layer": "ff",
+   "freq": 138.59
+  },
+  {
+   "file": "z_mf_Fs3.wav",
+   "set": "zith",
+   "layer": "pp",
+   "freq": 185.0
+  },
+  {
+   "file": "z_ff_Fs3.wav",
+   "set": "zith",
+   "layer": "ff",
+   "freq": 185.0
+  },
+  {
+   "file": "z_mf_B3.wav",
+   "set": "zith",
+   "layer": "pp",
+   "freq": 246.94
+  },
+  {
+   "file": "z_ff_B3.wav",
+   "set": "zith",
+   "layer": "ff",
+   "freq": 246.94
+  },
+  {
+   "file": "z_mf_Ds4.wav",
+   "set": "zith",
+   "layer": "pp",
+   "freq": 311.13
+  },
+  {
+   "file": "z_ff_Ds4.wav",
+   "set": "zith",
+   "layer": "ff",
+   "freq": 311.13
+  },
+  {
+   "file": "z_mf_Fs4.wav",
+   "set": "zith",
+   "layer": "pp",
+   "freq": 369.99
+  },
+  {
+   "file": "z_ff_Fs4.wav",
+   "set": "zith",
+   "layer": "ff",
+   "freq": 369.99
+  },
+  {
+   "file": "z_mf_B4.wav",
+   "set": "zith",
+   "layer": "pp",
+   "freq": 493.88
+  },
+  {
+   "file": "z_ff_B4.wav",
+   "set": "zith",
+   "layer": "ff",
+   "freq": 493.88
+  },
+  {
+   "file": "k_soft_G2.wav",
+   "set": "khong",
+   "layer": "pp",
+   "freq": 98.0
+  },
+  {
+   "file": "k_loud_G2.wav",
+   "set": "khong",
+   "layer": "ff",
+   "freq": 98.0
+  },
+  {
+   "file": "k_soft_F3.wav",
+   "set": "khong",
+   "layer": "pp",
+   "freq": 174.61
+  },
+  {
+   "file": "k_loud_F3.wav",
+   "set": "khong",
+   "layer": "ff",
+   "freq": 174.61
+  },
+  {
+   "file": "k_soft_C4.wav",
+   "set": "khong",
+   "layer": "pp",
+   "freq": 261.63
+  },
+  {
+   "file": "k_loud_C4.wav",
+   "set": "khong",
+   "layer": "ff",
+   "freq": 261.63
+  },
+  {
+   "file": "k_soft_G4.wav",
+   "set": "khong",
+   "layer": "pp",
+   "freq": 392.0
+  },
+  {
+   "file": "k_loud_G4.wav",
+   "set": "khong",
+   "layer": "ff",
+   "freq": 392.0
+  },
+  {
+   "file": "f_C3.wav",
+   "set": "flute",
+   "layer": "solo",
+   "freq": 130.81
+  },
+  {
+   "file": "f_E3.wav",
+   "set": "flute",
+   "layer": "solo",
+   "freq": 164.81
+  },
+  {
+   "file": "f_Gs3.wav",
+   "set": "flute",
+   "layer": "solo",
+   "freq": 207.65
+  },
+  {
+   "file": "f_C4.wav",
+   "set": "flute",
+   "layer": "solo",
+   "freq": 261.63
+  },
+  {
+   "file": "f_E4.wav",
+   "set": "flute",
+   "layer": "solo",
+   "freq": 329.63
+  },
+  {
+   "file": "f_Gs4.wav",
+   "set": "flute",
+   "layer": "solo",
+   "freq": 415.3
+  },
+  {
+   "file": "f_C5.wav",
+   "set": "flute",
+   "layer": "solo",
+   "freq": 523.25
+  },
+  {
+   "file": "s_As3.wav",
+   "set": "saw",
+   "layer": "solo",
+   "freq": 233.08
+  },
+  {
+   "file": "s_C4.wav",
+   "set": "saw",
+   "layer": "solo",
+   "freq": 261.63
+  },
+  {
+   "file": "s_E4.wav",
+   "set": "saw",
+   "layer": "solo",
+   "freq": 329.63
+  },
+  {
+   "file": "s_Gs4.wav",
+   "set": "saw",
+   "layer": "solo",
+   "freq": 415.3
+  },
+  {
+   "file": "s_C5.wav",
+   "set": "saw",
+   "layer": "solo",
+   "freq": 523.25
+  },
+  {
+   "file": "s_E5.wav",
+   "set": "saw",
+   "layer": "solo",
+   "freq": 659.26
+  },
+  {
+   "file": "d_thom_vl1.wav",
+   "set": "thon",
+   "var": "thom"
+  },
+  {
+   "file": "d_thom_vl2.wav",
+   "set": "thon",
+   "var": "thom"
+  },
+  {
+   "file": "d_tek_vl1.wav",
+   "set": "thon",
+   "var": "tek"
+  },
+  {
+   "file": "d_tek_vl2.wav",
+   "set": "thon",
+   "var": "tek"
+  },
+  {
+   "file": "r_ting.wav",
+   "set": "ram",
+   "var": "ting"
+  },
+  {
+   "file": "r_ting2.wav",
+   "set": "ram",
+   "var": "ting2"
+  },
+  {
+   "file": "r_mute.wav",
+   "set": "ram",
+   "var": "mute"
+  },
+  {
    "file": "ching.wav",
    "set": "ching"
   },

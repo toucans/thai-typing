@@ -73,19 +73,27 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
     (`web/vendor/gsap.min.js`, pinned 3.13.0, GreenSock standard license), no
     package manager. Without it, or under `prefers-reduced-motion`, the page
     is simply still; nothing breaks.
-- Background music (`music.js` + `instruments.js`): one generated track per 10
-  levels, seeded by the decade, played on **real sampled instruments** —
-  no free ranat ek recordings exist, so the voice is VCSL's rosewood xylophone
-  (hard mallets) and balafon (CC0, `web/assets/ranat/`, rebuilt from source by
-  `tools/build-assets.py`), made Thai by *how* they're played: near-7-TET tuning
-  with a per-track ±8¢ bar-tuning table, octave doubling with mallet flams, kro
-  tremolo rolls at cadences, ching-chap timekeeping (real finger cymbals) and a
-  soft gong at section starts. Each track generates two motifs and repeats them
-  with variation — phrase, answer, cadence, rest — over a curated chord cycle,
-  with a nature bed per region (waves/rain/stream/wind/cave drips). Toggle 🎵.
-  The front page has the one piece that is *composed by hand*, not generated —
-  a fixed welcome theme (`HOME_BARS` in `music.js`) that starts on the first
-  click or keypress (browsers require a gesture before audio).
+- Background music (`music.js` + `instruments.js`): a sampled mahori-style
+  **ensemble playing heterophonically** — the defining texture of Thai music,
+  where every instrument performs the same melody at a different density at
+  once. Each of the ten regions has a **hand-composed skeletal melody** (its
+  theme, `THEMES` in `music.js`); the khong (marimba) states it plainly, the
+  ranat lead (xylophone or balafon) weaves a division around it that always
+  arrives on the structural notes, the khlui (recorder) floats sustained lines
+  that slide into pitch, the jakhe (dan tranh) plucks patterns, and the
+  thon-rammana drums join in later decades. One track per 10 levels: the ten
+  decades of a region are ten realizations of that region's theme — tempo,
+  density and instrumentation grow as you walk — so all hundred tracks are
+  authored melodies, not dice. No free Thai-instrument recordings exist
+  (checked 2026-07), so every voice is a real VCSL recording (CC0,
+  `web/assets/ranat/`, rebuilt by `tools/build-assets.py`) cast *by role*, and
+  made Thai by performance: near-7-TET tuning with a per-track ±8¢ bar-tuning
+  table, octave doubling with mallet flams, kro tremolo rolls at cadences,
+  ching-chap timekeeping and a soft gong at sections, over a nature bed per
+  region (waves/rain/stream/wind/cave drips). In the misty regions a bowed
+  psaltery replaces the synth pad. Toggle 🎵. The front page has the one piece
+  whose *lead line* is written out by hand (`HOME_BARS`), starting on the
+  first click or keypress (browsers require a gesture before audio).
 - Dark mode ("forest at night") follows the system preference, toggleable with
   🌙/☀️, persisted in localStorage.
 - `data/runs.jsonl` — append-only, one JSON object per finished run. **The single

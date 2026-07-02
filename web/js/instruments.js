@@ -1,7 +1,9 @@
 // Sampled instruments for the music engine. The wavs in assets/ranat/ are real
 // VCSL recordings (CC0, see assets/ranat/manifest.json; rebuild with
-// tools/build-assets.py). Two velocity layers per note, blended equal-power so
-// dynamics are continuous; pitches between sampled notes come from playbackRate.
+// tools/build-assets.py). Struck voices have two velocity layers blended
+// equal-power so dynamics are continuous; sustained voices (flute, saw) are
+// single-layer with a shaped envelope. Pitches between sampled notes come
+// from playbackRate.
 
 let loaded = null; // promise, resolved once
 
@@ -13,21 +15,32 @@ export function loadInstruments(ctx) {
       ...n,
       buffer: await ctx.decodeAudioData(await (await fetch(`assets/ranat/${n.file}`)).arrayBuffer()),
     })));
-    const sets = {};
+    const byFreq = {};   // pitched sets: freq -> layer -> buffer
+    const byVar = {};    // unpitched variant sets (drums): var -> [buffers]
+    const single = {};   // one-shot sets (ching, gong)
     for (const n of buffers) {
       if (n.freq) {
-        sets[n.set] = sets[n.set] || {};
-        sets[n.set][n.freq] = sets[n.set][n.freq] || {};
-        sets[n.set][n.freq][n.layer] = n.buffer;
+        byFreq[n.set] = byFreq[n.set] || {};
+        byFreq[n.set][n.freq] = byFreq[n.set][n.freq] || {};
+        byFreq[n.set][n.freq][n.layer] = n.buffer;
+      } else if (n.var) {
+        byVar[n.set] = byVar[n.set] || {};
+        (byVar[n.set][n.var] = byVar[n.set][n.var] || []).push(n.buffer);
       } else {
-        sets[n.set] = n.buffer; // ching, gong: single buffers
+        single[n.set] = n.buffer;
       }
     }
     return {
-      xylo: new Sampler(sets.xylo),
-      bala: new Sampler(sets.bala),
-      ching: sets.ching,
-      gong: sets.gong,
+      xylo: new Sampler(byFreq.xylo),
+      bala: new Sampler(byFreq.bala),
+      zith: new Sampler(byFreq.zith),
+      khong: new Sampler(byFreq.khong),
+      flute: new Sampler(byFreq.flute),
+      saw: new Sampler(byFreq.saw),
+      thon: byVar.thon,
+      ram: byVar.ram,
+      ching: single.ching,
+      gong: single.gong,
     };
   })();
   return loaded;
@@ -49,30 +62,54 @@ export class Sampler {
     return best;
   }
 
-  // vel 0..1 → equal-power blend of the soft and loud takes
-  play(ctx, t, freq, vel, pan, dests) {
+  // vel 0..1 → equal-power blend of the soft and loud takes (or the single
+  // 'solo' layer for sustained voices). opts shape sustained notes:
+  //   dur      cut the note to this length with a release tail
+  //   attack   fade-in seconds (breath, bow)
+  //   release  fade-out seconds when dur is set
+  //   slideFrom  start at this pitch ratio and glide to 1 (the khlui's slide)
+  play(ctx, t, freq, vel, pan, dests, opts = {}) {
     const note = this.nearest(freq);
     const rate = freq / note.freq;
     const p = ctx.createStereoPanner();
     p.pan.value = pan;
     for (const d of dests) p.connect(d);
-    const layers = [[note.pp, Math.cos(vel * Math.PI / 2)], [note.ff, Math.sin(vel * Math.PI / 2)]];
+    const layers = note.solo
+      ? [[note.solo, 1]]
+      : [[note.pp, Math.cos(vel * Math.PI / 2)], [note.ff, Math.sin(vel * Math.PI / 2)]];
     for (const [buffer, g] of layers) {
       if (!buffer || g < 0.01) continue;
       const src = ctx.createBufferSource();
       src.buffer = buffer;
-      src.playbackRate.value = rate;
+      if (opts.slideFrom) {
+        src.playbackRate.setValueAtTime(rate * opts.slideFrom, t);
+        src.playbackRate.linearRampToValueAtTime(rate, t + (opts.slideTime || 0.09));
+      } else {
+        src.playbackRate.value = rate;
+      }
       const gain = ctx.createGain();
-      gain.gain.value = g * (0.35 + 0.65 * vel);
+      const level = g * (0.35 + 0.65 * vel);
+      if (opts.attack) {
+        gain.gain.setValueAtTime(0.0001, t);
+        gain.gain.exponentialRampToValueAtTime(level, t + opts.attack);
+      } else {
+        gain.gain.value = level;
+      }
+      if (opts.dur) {
+        const rel = opts.release || 0.25;
+        gain.gain.setValueAtTime(level, t + opts.dur);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + opts.dur + rel);
+        src.stop(t + opts.dur + rel + 0.05);
+      }
       src.connect(gain).connect(p);
       src.start(t);
     }
   }
 }
 
-// One-shot for the unpitched buffers (ching, gong). cut > 0 chokes the ring
-// (the damped "chap" stroke); rate varies the pitch slightly.
-export function strike(ctx, buffer, t, gain, dests, { rate = 1, cut = 0 } = {}) {
+// One-shot for the unpitched buffers (ching, gong, drum strokes). cut > 0
+// chokes the ring (the damped "chap"); rate varies the pitch slightly.
+export function strike(ctx, buffer, t, gain, dests, { rate = 1, cut = 0, pan = 0 } = {}) {
   const src = ctx.createBufferSource();
   src.buffer = buffer;
   src.playbackRate.value = rate;
@@ -82,8 +119,10 @@ export function strike(ctx, buffer, t, gain, dests, { rate = 1, cut = 0 } = {}) 
     g.gain.setValueAtTime(gain, t + cut * 0.4);
     g.gain.exponentialRampToValueAtTime(0.0001, t + cut);
   }
-  src.connect(g);
-  for (const d of dests) g.connect(d);
+  const p = ctx.createStereoPanner();
+  p.pan.value = pan;
+  src.connect(g).connect(p);
+  for (const d of dests) p.connect(d);
   src.start(t);
   if (cut) src.stop(t + cut + 0.05);
 }
@@ -124,6 +163,5 @@ export function makePingPong(ctx, time, feedback = 0.35) {
   dl.connect(pl).connect(out);
   dl.connect(fbl).connect(dr);
   dr.connect(pr).connect(out);
-  dr.connect(fbr).connect(dl);
   return { input, out };
 }
