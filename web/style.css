@@ -165,6 +165,7 @@ nav button.active { background: var(--green-900); color: var(--paper); }
 #sound-toggle, #music-toggle, #theme-toggle {
   border: none; background: none; padding: .2rem; cursor: pointer; opacity: .8;
   transition: transform .15s; line-height: 0;
+  color: var(--ink); /* buttons don't inherit color; the icons paint in it */
 }
 #sound-toggle canvas, #music-toggle canvas, #theme-toggle canvas {
   width: 24px; height: 24px;
