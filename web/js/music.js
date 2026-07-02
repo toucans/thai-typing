@@ -11,8 +11,7 @@
 //    walks, neighbor notes, octave sparks — always arriving on the structural
 //    note together with the khong; density grows with the decade
 //  - the kanun plucks a pattern, and every third decade it takes the melody
-//    itself while the mallets answer; thon-rammana drums join late; the
-//    ranat ek lek (glockenspiel) doubles arrivals in the densest decades
+//    itself while the mallets answer; soft thon-rammana drums join late
 //
 // One track per 10 levels: same theme as its region, realized differently
 // (tempo, density, which voices join) — ten regions, ten decades each, so all
@@ -24,65 +23,67 @@ import { loadInstruments, strike, makeReverb, makePingPong } from './instruments
 const STEP = 1200 / 7; // cents per 7-TET step
 const PENTA = [0, 1, 2, 4, 5]; // the pentatonic degrees within the 7 steps
 // per-region nature bed: real field recordings (see manifest credits), each a
-// seamless loop, layered where the landscape asks for it
+// seamless loop, layered where the landscape asks for it. The bed carries the
+// track — instruments sit inside it, not on top of it.
 const NATURE = [
-  [['waves', 0.24]],                      // เกาะทะเลใต้
-  [['waves', 0.14], ['birds2', 0.12]],    // ป่าชายเลน
-  [['breeze', 0.22]],                     // ทุ่งนาเขียว
-  [['stream', 0.20]],                     // ริมแม่น้ำ
-  [['birds', 0.20]],                      // สวนผลไม้
-  [['rain', 0.24]],                       // ป่าฝน
-  [['falls', 0.22]],                      // น้ำตกในหุบเขา
-  [['drips', 0.20]],                      // ถ้ำหินปูน
-  [['wind', 0.22]],                       // ดอยหมอก
-  [['wind', 0.14], ['birds2', 0.10]],     // ยอดดอยอินทนนท์
+  [['breeze', 0.30]],                     // เกาะทะเลใต้ — island morning air
+  [['stream', 0.24], ['birds2', 0.14]],   // ป่าชายเลน — water through the roots
+  [['breeze', 0.30]],                     // ทุ่งนาเขียว
+  [['stream', 0.28]],                     // ริมแม่น้ำ
+  [['birds', 0.26], ['stream', 0.12]],    // สวนผลไม้
+  [['rain', 0.30]],                       // ป่าฝน
+  [['falls', 0.28]],                      // น้ำตกในหุบเขา
+  [['drips', 0.26]],                      // ถ้ำหินปูน
+  [['wind', 0.28]],                       // ดอยหมอก
+  [['wind', 0.18], ['birds2', 0.12]],     // ยอดดอยอินทนนท์
 ];
+const HOME_NATURE = [['breeze', 0.30]]; // the journey begins on a bright morning
 
 // The ten regional themes. skel = the skeletal melody in pentatonic degrees
 // (0 = tonic, 5 = octave), two structural notes per bar for 8 bars; chords =
-// one root per bar. zith/drums/metal = the decade (0..9) that voice joins;
+// one root per bar. zith/drums = the decade (0..9) that voice joins;
 // false = never.
 // Every voice is a short struck or plucked sound — nothing sustained,
 // nothing synthesized; the nature bed carries the space between notes.
 const THEMES = [
   { // 0 เกาะทะเลใต้ — open water, rising and falling like swell
-    tempo: [64, 78], lead: 'xylo', zith: 3, drums: 5, metal: 7,
+    tempo: [64, 78], lead: 'xylo', zith: 3, drums: 5,
     chords: [0, 3, 4, 0, 0, 3, 4, 0],
     skel: [5, 7, 8, 7, 9, 8, 7, 5, 7, 8, 9, 10, 8, 7, 6, 5] },
   { // 1 ป่าชายเลน — rocking, narrow, patient as roots in the tide
-    tempo: [56, 68], lead: 'bala', zith: 4, drums: 6, metal: false,
+    tempo: [56, 68], lead: 'bala', zith: 4, drums: 6,
     chords: [0, 2, 3, 0, 0, 2, 4, 0],
     skel: [5, 6, 5, 6, 7, 6, 5, 3, 5, 6, 7, 8, 6, 5, 4, 5] },
   { // 2 ทุ่งนาเขียว — pastoral, stepwise, wide open
-    tempo: [68, 82], lead: 'xylo', zith: 3, drums: 4, metal: 7,
+    tempo: [68, 82], lead: 'xylo', zith: 3, drums: 4,
     chords: [0, 3, 2, 0, 0, 4, 3, 0],
     skel: [7, 8, 9, 8, 7, 6, 5, 6, 7, 8, 9, 10, 9, 8, 7, 5] },
   { // 3 ริมแม่น้ำ — an arch, out with the current and home again
-    tempo: [62, 74], lead: 'xylo', zith: 2, drums: 5, metal: 8,
+    tempo: [62, 74], lead: 'xylo', zith: 2, drums: 5,
     chords: [0, 2, 4, 3, 0, 2, 3, 0],
     skel: [5, 7, 9, 10, 9, 8, 7, 6, 5, 6, 8, 7, 6, 6, 7, 5] },
   { // 4 สวนผลไม้ — playful skips, fruit dropping from branches
-    tempo: [72, 86], lead: 'xylo', zith: 2, drums: 3, metal: 6,
+    tempo: [72, 86], lead: 'xylo', zith: 2, drums: 3,
     chords: [0, 4, 3, 0, 2, 4, 3, 0],
     skel: [7, 9, 7, 9, 10, 8, 9, 7, 8, 10, 8, 6, 7, 9, 6, 5] },
   { // 5 ป่าฝน — low, mysterious, moving under the canopy
-    tempo: [54, 66], lead: 'bala', zith: 5, drums: false, metal: false,
+    tempo: [54, 66], lead: 'bala', zith: 5, drums: false,
     chords: [0, 2, 0, 3, 4, 2, 3, 0],
     skel: [3, 4, 5, 4, 3, 2, 4, 5, 6, 5, 4, 3, 5, 4, 3, 5] },
   { // 6 น้ำตกในหุบเขา — cascading descents
-    tempo: [66, 80], lead: 'xylo', zith: 4, drums: 6, metal: 7,
+    tempo: [66, 80], lead: 'xylo', zith: 4, drums: 6,
     chords: [0, 4, 0, 3, 4, 2, 4, 0],
     skel: [10, 9, 8, 7, 10, 9, 8, 5, 9, 8, 7, 6, 8, 7, 6, 5] },
   { // 7 ถ้ำหินปูน — sparse and dark, notes like water in the deep
-    tempo: [50, 62], lead: 'bala', zith: 6, drums: false, metal: false,
+    tempo: [50, 62], lead: 'bala', zith: false, drums: false,
     chords: [0, 3, 0, 2, 0, 3, 2, 0],
     skel: [5, 3, 4, 3, 5, 4, 3, 2, 3, 4, 5, 6, 4, 3, 2, 0] },
   { // 8 ดอยหมอก — floating, high, slow as drifting cloud
-    tempo: [52, 64], lead: 'bala', zith: 5, drums: false, metal: false,
+    tempo: [52, 64], lead: 'bala', zith: 5, drums: false,
     chords: [0, 2, 3, 2, 0, 2, 4, 0],
     skel: [8, 9, 8, 7, 8, 9, 10, 8, 7, 8, 9, 8, 7, 6, 7, 5] },
   { // 9 ยอดดอยอินทนนท์ — ascending, triumphant, the whole walk below you
-    tempo: [58, 72], lead: 'xylo', zith: 3, drums: 7, metal: 6,
+    tempo: [58, 72], lead: 'xylo', zith: 3, drums: 7,
     chords: [0, 3, 4, 0, 3, 4, 2, 0],
     skel: [5, 6, 7, 8, 9, 10, 9, 8, 9, 10, 11, 10, 9, 8, 7, 5] },
 ];
@@ -221,7 +222,6 @@ function engineStart(ctx, trackId, inst) {
   const lead = inst ? (home ? inst.xylo : inst[theme.lead]) : null;
   const hasZith = inst && !home && theme.zith !== false && decade >= theme.zith;
   const hasDrums = inst && !home && theme.drums !== false && decade >= theme.drums && dens >= 2;
-  const hasMetal = inst && inst.metal && !home && theme.metal !== false && decade >= theme.metal;
   const useChing = inst && (home ? false : dens >= 2);
   // every third decade the kanun carries the theme and the mallets answer —
   // the same melody, told by a different voice
@@ -271,14 +271,12 @@ function engineStart(ctx, trackId, inst) {
     return g;
   }
   const khongBus = bus(0.8);
-  const leadBus = bus(1.0);
+  const leadBus = bus(0.88);
   const zithBus = bus(zithLed ? 0.7 : 0.5);
-  const metalBus = bus(0.26, 1.3, 6000); // sparkle, kept behind the wood
   const percBus = bus(1.0, 0.5);
 
   const srcs = [];
-  const natTimers = [];
-  natureLayer(ctx, region, comp, srcs, natTimers, inst);
+  natureLayer(ctx, home ? HOME_NATURE : NATURE[region], region, comp, srcs, inst);
 
   // -- note helpers
   const freqOf = (penta) => {
@@ -291,6 +289,7 @@ function engineStart(ctx, trackId, inst) {
   function ranat(t, penta, vel, { double: dbl = true, sends = true } = {}) {
     let f = freqOf(penta);
     if (lead && f > lead.maxFreq * 1.25) f /= 2; // keep inside the sampled range
+    while (f > 1250) f /= 2; // and keep the top dark — nothing piercing
     const pan = Math.max(-0.25, Math.min(0.25, (penta - 8) * 0.03)) + (rng() - 0.5) * 0.06;
     const dests = sends ? [leadBus, dlySend] : [leadBus];
     const jit = () => (rng() - 0.5) * 0.012;
@@ -327,13 +326,6 @@ function engineStart(ctx, trackId, inst) {
     let f = freqOf(penta);
     while (f > inst.zith.maxFreq * 1.06) f /= 2;
     inst.zith.play(ctx, t, f, vel, -0.32, [zithBus]);
-  }
-
-  function metal(t, penta, vel) { // ranat ek lek: high glockenspiel doubling
-    let f = freqOf(penta);
-    while (f > inst.metal.maxFreq * 1.05) f /= 2;
-    while (f < 380) f *= 2;
-    inst.metal.play(ctx, t + Math.max(0, (rng() - 0.5) * 0.01), f, vel, 0.18, [metalBus]);
   }
 
   function bass(t, chordDeg) {
@@ -462,12 +454,6 @@ function engineStart(ctx, trackId, inst) {
       }
     }
 
-    if (hasMetal && bar.phase === 1 && !bar.cadence) {
-      // the ranat ek lek doubles the arrival notes two octaves up, softly
-      metal(t + 6 * slot, T2 + 10, 0.32 + rng() * 0.08);
-      if (rng() < 0.4) metal(t + 2 * slot, T1 + 10, 0.28);
-    }
-
     if (hasDrums && bar.phase === 1) { // the thon-rammana joins for the answer
       drumHit('thom', t, 0.07);
       drumHit('ting', t + 4 * slot, 0.05);
@@ -508,7 +494,7 @@ function engineStart(ctx, trackId, inst) {
     }
   }, 200);
 
-  playing = { trackId, master, srcs, timers: [tick, ...natTimers] };
+  playing = { trackId, master, srcs, timers: [tick] };
 }
 
 // fallback voice when the samples can't be fetched (offline cache miss)
@@ -546,11 +532,11 @@ function lfo(ctx, rate, depth, param, srcs) {
   srcs.push(o);
 }
 
-function natureLayer(ctx, region, out, srcs, timers, inst) {
+function natureLayer(ctx, recipe, region, out, srcs, inst) {
   if (inst && inst.nat) {
     // real field recordings, looped seamlessly (tails crossfaded into heads
     // at build time), layered per region; see the manifest for credits
-    for (const [name, gain] of NATURE[region]) {
+    for (const [name, gain] of recipe) {
       const buf = inst.nat[name];
       if (!buf) continue;
       const src = ctx.createBufferSource();

@@ -24,10 +24,10 @@ export function loadInstruments(ctx) {
           .concat(lex.notes.map((n) => ({ ...n, dir: 'assets/lexar' })));
       }
     } catch { /* offline or absent: the committed set carries everything */ }
-    // sets the engine actually plays; retired voices in the manifests
-    // (recorder, psaltery, kaval, duduk) are not fetched
-    const WANTED = new Set(['xylo', 'bala', 'zith', 'khong', 'metal', 'thon', 'ram',
-      'ching', 'gong', 'rain', 'waves', 'stream', 'falls', 'birds', 'birds2',
+    // sets the engine actually plays; retired voices in the manifests are
+    // not fetched
+    const WANTED = new Set(['xylo', 'bala', 'zith', 'khong', 'thon', 'ram',
+      'ching', 'gong', 'rain', 'stream', 'falls', 'birds', 'birds2',
       'breeze', 'wind', 'drips']);
     notes = notes.filter((n) => WANTED.has(n.set));
     const buffers = await Promise.all(notes.map(async (n) => ({
@@ -54,7 +54,6 @@ export function loadInstruments(ctx) {
       bala: new Sampler(byFreq.bala),
       zith: new Sampler(byFreq.zith),
       khong: new Sampler(byFreq.khong),
-      metal: byFreq.metal ? new Sampler(byFreq.metal) : null,
       thon: byVar.thon,
       ram: byVar.ram,
       ching: single.ching,

@@ -88,15 +88,6 @@ for k, v, var in [("1", "vl1", "thom"), ("1", "vl2", "thom"),
 for k, var in [("Hit_v2", "ting"), ("Hit_v3", "ting2"), ("HitMuted_v2", "mute")]:
     FILES.append((FRAME.format(k=k), f"r_{var}.wav", 1.2,
                   {"set": "ram", "var": var}))
-# ranat ek lek role: glockenspiel, the piphat's high metal xylophone; sparkle
-# doubling in the densest decades (suffix numbers in VCSL are not uniform)
-GLOCK = "Idiophones/Struck Idiophones/Glockenspiel/glock_{v}_{n}_{i}.wav"
-for n, vsoft, vloud in [("G4", "01", "01"), ("C5", "02", "01"), ("G5", "01", "01"),
-                        ("C6", "01", "01"), ("C7", "03", "01")]:
-    FILES.append((GLOCK.format(v="soft", n=n, i=vsoft), f"g_pp_{n}.wav", 2.5,
-                  {"set": "metal", "layer": "pp", "freq": FREQ[n]}))
-    FILES.append((GLOCK.format(v="loud", n=n, i=vloud), f"g_ff_{n}.wav", 2.5,
-                  {"set": "metal", "layer": "ff", "freq": FREQ[n]}))
 FILES.append(("Idiophones/Struck Idiophones/Finger Cymbals/Fing_Cymb.wav",
               "ching.wav", 4.0, {"set": "ching"}))
 FILES.append(("Idiophones/Struck Idiophones/Gong 1/gong_p.wav",
@@ -109,9 +100,6 @@ NATURE_SRC = [
     ("https://upload.wikimedia.org/wikipedia/commons/9/92/Rain_on_leaves_%28Gravity_Sound%29.wav",
      "rain.wav", 48.0, 8,
      "Rain on leaves by Gravity Sound, CC BY 4.0, via Wikimedia Commons"),
-    ("https://upload.wikimedia.org/wikipedia/commons/e/e1/Manh%C3%A3_fria_no_mar_-_Felipe_RuizBRX11.wav",
-     "waves.wav", 46.0, 182,
-     "Manha fria no mar by Felipe Ruiz P., CC BY-SA 4.0, via Wikimedia Commons"),
     ("https://archive.org/download/aporee_21935_25485/ZOOM0004BachamSchpfungspfad.WAV",
      "stream.wav", 46.0, 42,
      "Brook rippling, Simmerath (radio aporee maps), public domain"),

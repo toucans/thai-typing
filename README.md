@@ -80,11 +80,11 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
   and nothing synthesized**; the space between notes belongs to the nature
   bed. Each of the ten regions has a **hand-composed skeletal melody** (its
   theme, `THEMES` in `music.js`); the khong (marimba) states it plainly, the
-  ranat lead (xylophone or balafon) weaves a division around it that always
-  arrives on the structural notes, the kanun plucks patterns — and every
-  third decade *carries the melody itself* while the mallets answer — the
-  thon-rammana drums join in later decades, and the ranat ek lek
-  (glockenspiel) doubles arrivals in the densest ones. One track per 10
+  ranat lead (xylophone or balafon, its top kept dark — nothing piercing)
+  weaves a division around it that always arrives on the structural notes,
+  the kanun plucks patterns — and every third decade *carries the melody
+  itself* while the mallets answer — and the soft thon-rammana drums join
+  in later decades. One track per 10
   levels: the ten decades of a region are ten realizations of that region's
   theme — tempo, density and instrumentation grow as you walk — so all
   hundred tracks are authored melodies, not dice. No free Thai-instrument
@@ -98,10 +98,11 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
   (browsers require a gesture before audio).
   - **The nature collection**: every region's bed is a real field recording,
     cut to a seamless loop by `build-assets.py` (tail crossfaded into head)
-    and credited in the manifest — Krabi-blue sea waves, a rippling brook, a
-    waterfall, two different dawn choruses, morning birds over open country,
+    and credited in the manifest — a rippling brook, a waterfall, two
+    different dawn choruses, morning birds and breeze over open country,
     mountain wind in the Pyrenees, cave drips, and rain on leaves. Layered
-    where the landscape asks (mangroves get waves *and* birds).
+    where the landscape asks (the mangroves get water *and* birds), and
+    mixed forward: the bed carries the track, the instruments sit inside it.
   - **Local voice overlay** (`web/assets/lexar/`, gitignored — not
     redistributable): `tools/build-lexar.py` builds the kanun (khim role)
     from the sample library on the Lexar drive, loaded as an optional overlay
