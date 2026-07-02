@@ -1,5 +1,5 @@
 {
- "source": "VCSL (github.com/sgossner/VCSL), CC0",
+ "source": "VCSL (github.com/sgossner/VCSL), CC0, except where credited",
  "notes": [
   {
    "file": "x_pp_G3.wav",
@@ -397,6 +397,12 @@
   {
    "file": "gong.wav",
    "set": "gong"
+  },
+  {
+   "file": "rain.wav",
+   "set": "rain",
+   "loop": true,
+   "credit": "Rain on leaves by Gravity Sound, CC BY 4.0, via Wikimedia Commons"
   }
  ]
 }

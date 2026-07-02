@@ -259,7 +259,7 @@ function engineStart(ctx, trackId, inst) {
 
   const srcs = [];
   const natTimers = [];
-  natureLayer(ctx, region, comp, srcs, natTimers);
+  natureLayer(ctx, region, comp, srcs, natTimers, inst);
 
   // -- note helpers
   const freqOf = (penta) => {
@@ -558,7 +558,22 @@ function lfo(ctx, rate, depth, param, srcs) {
   srcs.push(o);
 }
 
-function natureLayer(ctx, region, out, srcs, timers) {
+function natureLayer(ctx, region, out, srcs, timers, inst) {
+  if (NATURE[region] === 'rain' && inst && inst.rain) {
+    // a real recording (rain on leaves, see manifest credit) — two attempts
+    // at synthesizing rain both read as noise; weather has to be recorded.
+    // The loop's tail is crossfaded into its head at build time, so it seams.
+    const r = ctx.createBufferSource();
+    r.buffer = inst.rain;
+    r.loop = true;
+    const g = ctx.createGain();
+    g.gain.value = 0.55;
+    r.connect(g).connect(out);
+    lfo(ctx, 0.05, 0.06, g.gain, srcs); // distant weather drifting
+    r.start();
+    srcs.push(r);
+    return;
+  }
   const src = ctx.createBufferSource();
   src.buffer = noise(ctx);
   src.loop = true;
@@ -572,13 +587,11 @@ function natureLayer(ctx, region, out, srcs, timers) {
       lfo(ctx, 0.07, 0.15, g.gain, srcs);
       break;
     case 'rain': {
-      // static bandpass noise reads as hiss, not weather. Rain on a canopy is
-      // a darker patter that flutters, plus countless single drops on leaves —
-      // little pitched blips, endlessly irregular.
+      // offline fallback only: filtered patter plus droplet blips
       f.type = 'bandpass'; f.frequency.value = 1700; f.Q.value = 0.5;
       g.gain.value = 0.055;
       lfo(ctx, 0.05, 0.02, g.gain, srcs);
-      lfo(ctx, 4.3, 0.018, g.gain, srcs); // the patter
+      lfo(ctx, 4.3, 0.018, g.gain, srcs);
       const drip = () => {
         const t = ctx.currentTime + Math.random() * 0.09;
         const o = ctx.createOscillator();

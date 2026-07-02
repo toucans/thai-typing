@@ -23,6 +23,7 @@ import json
 import math
 import os
 import struct
+import sys
 import urllib.request
 import wave
 
@@ -91,6 +92,12 @@ FILES.append(("Idiophones/Struck Idiophones/Finger Cymbals/Fing_Cymb.wav",
               "ching.wav", 4.0, {"set": "ching"}))
 FILES.append(("Idiophones/Struck Idiophones/Gong 1/gong_p.wav",
               "gong.wav", 6.0, {"set": "gong"}))
+# the one non-VCSL asset: a real rain recording for the rainforest bed
+# (synthesized rain never passed for weather). Looped seamlessly in the app.
+FILES.append(("https://upload.wikimedia.org/wikipedia/commons/9/92/Rain_on_leaves_%28Gravity_Sound%29.wav",
+              "rain.wav", 48.0,
+              {"set": "rain", "loop": True,
+               "credit": "Rain on leaves by Gravity Sound, CC BY 4.0, via Wikimedia Commons"}))
 
 
 def read_wav(path):
@@ -134,6 +141,27 @@ def trim_normalize(x, rate, max_secs):
     return [v * g for v in x]
 
 
+def make_loop(x, rate, secs, out_rate=32000, xfade_s=2.0, skip_s=8.0):
+    """Ambience processing: pick a stretch, downsample (it's a noise-like bed;
+    32k is plenty), and blend the tail into the head so loop=true is seamless."""
+    skip = int(rate * skip_s)
+    x = x[skip:skip + int(rate * (secs + xfade_s))]
+    n = int(len(x) * out_rate / rate)
+    y = []
+    for i in range(n):  # linear resample
+        p = i * rate / out_rate
+        k = int(p)
+        if k + 1 >= len(x):
+            break
+        y.append(x[k] * (1 - (p - k)) + x[k + 1] * (p - k))
+    xf = int(out_rate * xfade_s)
+    body = y[:len(y) - xf]
+    for i in range(xf):
+        body[i] = body[i] * (i / xf) + y[len(body) + i] * (1 - i / xf)
+    peak = max(abs(v) for v in body) or 1.0
+    return [v * 0.71 / peak for v in body], out_rate
+
+
 def write_wav(path, x, rate):
     with wave.open(path, "wb") as w:
         w.setnchannels(1)
@@ -144,21 +172,40 @@ def write_wav(path, x, rate):
 
 
 def main():
+    only = sys.argv[1] if len(sys.argv) > 1 else None  # substring filter, e.g. "rain"
     os.makedirs(OUT, exist_ok=True)
     manifest = []
     for src, name, max_secs, meta in FILES:
+        if only and only not in name:
+            continue
         tmp = "/tmp/vcsl_dl.wav"
-        url = RAW + urllib.request.quote(src)
+        url = src if src.startswith("http") else RAW + urllib.request.quote(src)
         print(f"{name} <- {src}")
-        urllib.request.urlretrieve(url, tmp)
+        # Wikimedia rejects the default urllib UA; a descriptive one is polite anyway
+        req = urllib.request.Request(url, headers={"User-Agent": "thai-typing-build/1.0 (self-hosted trainer; stdlib urllib)"})
+        with urllib.request.urlopen(req) as r, open(tmp, "wb") as f:
+            f.write(r.read())
         x, rate = read_wav(tmp)
-        x = trim_normalize(x, rate, max_secs)
+        if meta.get("loop"):
+            x, rate = make_loop(x, rate, max_secs)
+        else:
+            x = trim_normalize(x, rate, max_secs)
         write_wav(os.path.join(OUT, name), x, rate)
         manifest.append({"file": name, **meta})
-    with open(os.path.join(OUT, "manifest.json"), "w", encoding="utf-8") as f:
-        json.dump({"source": "VCSL (github.com/sgossner/VCSL), CC0", "notes": manifest}, f, indent=1)
+    # merge into the existing manifest so a filtered run stays complete
+    mpath = os.path.join(OUT, "manifest.json")
+    notes = {}
+    if os.path.exists(mpath):
+        with open(mpath, encoding="utf-8") as f:
+            for n in json.load(f)["notes"]:
+                notes[n["file"]] = n
+    for n in manifest:
+        notes[n["file"]] = n
+    with open(mpath, "w", encoding="utf-8") as f:
+        json.dump({"source": "VCSL (github.com/sgossner/VCSL), CC0, except where credited",
+                   "notes": list(notes.values())}, f, indent=1)
     total = sum(os.path.getsize(os.path.join(OUT, f)) for f in os.listdir(OUT))
-    print(f"done: {len(FILES)} samples, {total // 1024}KB total")
+    print(f"done: {len(manifest)} processed, {total // 1024}KB total")
 
 
 if __name__ == "__main__":
