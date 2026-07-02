@@ -65,7 +65,7 @@ const THEMES = [
     chords: [0, 2, 3, 2, 0, 2, 4, 0],
     skel: [8, 9, 8, 7, 8, 9, 10, 8, 7, 8, 9, 8, 7, 6, 7, 5] },
   { // 9 ยอดดอยอินทนนท์ — ascending, triumphant, the whole walk below you
-    tempo: [58, 72], lead: 'xylo', flute: 1, zith: 4, drums: 7, saw: true,
+    tempo: [58, 72], lead: 'xylo', flute: 1, zith: 4, drums: 7, saw: false,
     chords: [0, 3, 4, 0, 3, 4, 2, 0],
     skel: [5, 6, 7, 8, 9, 10, 9, 8, 9, 10, 11, 10, 9, 8, 7, 5] },
 ];
@@ -233,25 +233,33 @@ function engineStart(ctx, trackId, inst) {
   dlySend.connect(pp.input);
   pp.out.connect(dlyGain).connect(comp);
 
-  // a bus = one voice's level into dry + reverb (wetter for the airy voices)
-  function bus(level, wet = 1) {
+  // a bus = one voice's level into dry + reverb (wetter for the airy voices);
+  // lp darkens a voice that records brighter than its role wants
+  function bus(level, wet = 1, lp = 0) {
     const g = ctx.createGain();
     g.gain.value = level;
-    g.connect(dry);
+    let head = g;
+    if (lp) {
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass'; f.frequency.value = lp;
+      g.connect(f); head = f;
+    }
+    head.connect(dry);
     const w = ctx.createGain();
     w.gain.value = wet;
-    g.connect(w).connect(revSend);
+    head.connect(w).connect(revSend);
     return g;
   }
   const khongBus = bus(0.8);
   const leadBus = bus(1.0);
   const fluteBus = bus(0.42, 1.7);
   const zithBus = bus(0.5);
-  const sawBus = bus(0.32, 1.8);
+  const sawBus = bus(0.16, 1.8, 900); // the psaltery records sharp: darken and sit it back
   const percBus = bus(1.0, 0.5);
 
   const srcs = [];
-  natureLayer(ctx, region, comp, srcs);
+  const natTimers = [];
+  natureLayer(ctx, region, comp, srcs, natTimers);
 
   // -- note helpers
   const freqOf = (penta) => {
@@ -318,8 +326,8 @@ function engineStart(ctx, trackId, inst) {
     for (const p of [chordDeg + 5, chordDeg + 8]) { // root + fifth-ish, mid register
       let f = freqOf(p);
       while (f > 700) f /= 2;
-      inst.saw.play(ctx, t + rng() * 0.15, f, 0.4, (rng() - 0.5) * 0.8, [sawBus], {
-        dur: dur - 0.4, attack: 0.5, release: 0.9,
+      inst.saw.play(ctx, t + rng() * 0.15, f, 0.3, (rng() - 0.5) * 0.8, [sawBus], {
+        dur: dur - 0.4, attack: 0.8, release: 0.9,
       });
     }
   }
@@ -512,7 +520,7 @@ function engineStart(ctx, trackId, inst) {
     }
   }, 200);
 
-  playing = { trackId, master, srcs, timers: [tick] };
+  playing = { trackId, master, srcs, timers: [tick, ...natTimers] };
 }
 
 // fallback voice when the samples can't be fetched (offline cache miss)
@@ -550,7 +558,7 @@ function lfo(ctx, rate, depth, param, srcs) {
   srcs.push(o);
 }
 
-function natureLayer(ctx, region, out, srcs) {
+function natureLayer(ctx, region, out, srcs, timers) {
   const src = ctx.createBufferSource();
   src.buffer = noise(ctx);
   src.loop = true;
@@ -563,11 +571,33 @@ function natureLayer(ctx, region, out, srcs) {
       g.gain.value = 0.20;
       lfo(ctx, 0.07, 0.15, g.gain, srcs);
       break;
-    case 'rain':
-      f.type = 'bandpass'; f.frequency.value = 3200; f.Q.value = 0.6;
-      g.gain.value = 0.10;
-      lfo(ctx, 0.05, 0.03, g.gain, srcs);
+    case 'rain': {
+      // static bandpass noise reads as hiss, not weather. Rain on a canopy is
+      // a darker patter that flutters, plus countless single drops on leaves —
+      // little pitched blips, endlessly irregular.
+      f.type = 'bandpass'; f.frequency.value = 1700; f.Q.value = 0.5;
+      g.gain.value = 0.055;
+      lfo(ctx, 0.05, 0.02, g.gain, srcs);
+      lfo(ctx, 4.3, 0.018, g.gain, srcs); // the patter
+      const drip = () => {
+        const t = ctx.currentTime + Math.random() * 0.09;
+        const o = ctx.createOscillator();
+        const dg = ctx.createGain();
+        const p = ctx.createStereoPanner();
+        o.frequency.setValueAtTime(1400 + Math.random() * 1800, t);
+        o.frequency.exponentialRampToValueAtTime(600 + Math.random() * 500, t + 0.05);
+        dg.gain.setValueAtTime(0.006 + Math.random() * 0.02, t);
+        dg.gain.exponentialRampToValueAtTime(0.0001, t + 0.04 + Math.random() * 0.07);
+        p.pan.value = (Math.random() - 0.5) * 1.4;
+        o.connect(dg).connect(p).connect(out);
+        o.start(t); o.stop(t + 0.15);
+      };
+      timers.push(setInterval(() => {
+        if (Math.random() < 0.9) drip();
+        if (Math.random() < 0.35) drip();
+      }, 90));
       break;
+    }
     case 'wind':
       f.type = 'bandpass'; f.frequency.value = 420; f.Q.value = 1.3;
       g.gain.value = 0.14;
