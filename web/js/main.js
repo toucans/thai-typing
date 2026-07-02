@@ -9,6 +9,8 @@ import { music } from './music.js';
 import { fx } from './fx.js';
 import { $, show, setRegion, segmentThai, REGIONS, REGION_SIZE, TOTAL_LEVELS } from './ui.js';
 import { initMap, drawMap, redrawMap, showMongkhon } from './map.js';
+import { redrawHero } from './hero.js';
+import { paintIcons } from './icons.js';
 import { thaiNum, unlockedCount } from './data/mongkhon.js';
 
 let selRegion = null; // region the user is browsing (defaults to where they are)
@@ -122,15 +124,13 @@ musicBtn.classList.toggle('off', !music.enabled);
 musicBtn.addEventListener('click', () => musicBtn.classList.toggle('off', !music.toggle()));
 
 // theme was applied before first paint by the inline <head> script
-const themeBtn = $('#theme-toggle');
-function themeIcon() { themeBtn.textContent = document.documentElement.dataset.theme === 'dark' ? '☀️' : '🌙'; }
-themeIcon();
-themeBtn.addEventListener('click', () => {
+$('#theme-toggle').addEventListener('click', () => {
   const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
   document.documentElement.dataset.theme = next;
   localStorage.setItem('tt.theme', next);
-  themeIcon();
-  redrawMap(); // day turns to dusk on the map too
+  paintIcons();  // the moon/sun swaps and the ink color changes
+  redrawMap();   // day turns to dusk on the map…
+  redrawHero();  // …and over the landscape
 });
 
 document.addEventListener('runs-changed', () => { loadRuns(); renderJourney(); });
@@ -138,6 +138,7 @@ document.addEventListener('runs-changed', () => { loadRuns(); renderJourney(); }
 initSpeed();
 initDictationInput();
 initMap({ onPlay: startLevel });
+paintIcons();
 fx.init();
 renderJourney();
 music.playHome(); // the front page's own theme; starts on the first gesture

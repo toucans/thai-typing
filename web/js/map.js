@@ -9,41 +9,21 @@
 // and the traveler's bob, and is skipped entirely under prefers-reduced-motion.
 import { REGION_SIZE, modal, closeModal } from './ui.js';
 import { STANZAS, BY_LEVEL, thaiNum, unlockedCount } from './data/mongkhon.js';
+import { makePainter, mulberry32 } from './pixel.js';
 
 const W = 320, H = 180, COLS = 20, ROWS = 5;
 
-let cv, cx, tip, onPlay;
+let cv, cx, px, rect, disc, spr; // painter, bound in initMap
+let tip, onPlay;
 let st = null;        // { region, next, starsByLevel, maxDone }
 let frame = 0;
 let nodesPts = [];    // node positions for the drawn region
 let shrinePts = [];   // { x, y, b, open } for the drawn region
 const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-function mulberry32(a) {
-  return function () {
-    a |= 0; a = (a + 0x6D2B79F5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 let rng = mulberry32(1);
-
-// ---- tiny drawing kit ---------------------------------------------------------
-const px = (x, y, c) => { cx.fillStyle = c; cx.fillRect(x | 0, y | 0, 1, 1); };
-const rect = (x, y, w, h, c) => { cx.fillStyle = c; cx.fillRect(x, y, w, h); };
-function disc(xc, yc, r, c) {
-  for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++)
-    if (x * x + y * y <= r * r + r * 0.6) px(xc + x, yc + y, c);
-}
 function speckle(x, y, w, h, c, n) {
   for (let i = 0; i < n; i++) px(x + rng() * w, y + rng() * h, c);
-}
-function spr(x, y, rows, pal) {
-  for (let j = 0; j < rows.length; j++) for (let i = 0; i < rows[j].length; i++) {
-    const c = pal[rows[j][i]];
-    if (c) px(x + i, y + j, c);
-  }
 }
 // 3x5 digit font for the level numbers in the margins
 const DIG = {
@@ -531,7 +511,7 @@ export function redrawMap() { if (st) draw(); }
 export function initMap(opts) {
   onPlay = opts.onPlay;
   cv = document.getElementById('pixelmap');
-  cx = cv.getContext('2d');
+  ({ cx, px, rect, disc, spr } = makePainter(cv));
   tip = document.getElementById('map-tip');
   cv.addEventListener('pointermove', hover);
   cv.addEventListener('pointerleave', () => { tip.hidden = true; });

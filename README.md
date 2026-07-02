@@ -72,16 +72,20 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
   - Type is **Srisakdi** (traditional Thai manuscript style) for display and
     **Sarabun** for text — self-hosted woff2 in `web/assets/fonts/` (SIL OFL,
     from Google Fonts), so nothing is fetched from third parties at runtime.
-  - The hero is one layered SVG landscape recolored per region, and each of the
-    ten regions gets its own hand-drawn foreground scene — karsts and a
-    long-tail boat in the south, mangrove roots, rice terraces with a sala, a
-    stilt house, orchards, rainforest vines, a waterfall, cave stalactites,
-    misty ridges, and the twin chedis at the summit. Clouds drift, stars
-    twinkle at night, petals fall by day and fireflies wander after dark.
+  - The hero is one pixel-art landscape painted in code (`web/js/hero.js`,
+    sharing the map's drawing kit `web/js/pixel.js`): dithered sky, sun or
+    moon, drifting clouds, two mountain ridges and water, recolored per
+    region, with a hand-placed foreground silhouette for each of the ten
+    regions — karsts and a long-tail boat in the south, mangroves on stilt
+    roots, rice terraces with a sala, a stilt house, an orchard, rainforest
+    canopy, a waterfall, cave stalactites, misty ridges, and the twin chedis
+    at the summit (lit gold after dark). Petals fall by day and fireflies
+    wander at night on the fx canvas above it.
   - Ornament is drawn in code: dok-phikun star-flower dividers, a
     lai-kruay-chœng petal band along the water, kranok flame flourishes on the
-    results card.
-  - Motion (parallax, staggered entrances, modal pops) is choreographed with
+    results card — and the page background is a lai-prajam-yam lattice of the
+    same dok-phikun flower with gold diamond dots, woven faint into the paper.
+  - Motion (staggered entrances, modal pops) is choreographed with
     **GSAP**, the one third-party library — a single vendored file
     (`web/vendor/gsap.min.js`, pinned 3.13.0, GreenSock standard license), no
     package manager. Without it, or under `prefers-reduced-motion`, the page
@@ -106,7 +110,7 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
   cast *by role*, and made Thai by performance: near-7-TET tuning with a
   per-track ±8¢ bar-tuning table, octave doubling with mallet flams, kro
   tremolo rolls at cadences, ching-chap timekeeping and a soft gong at
-  sections. Toggle 🎵. The front page has the one piece whose *lead line* is
+  sections. Toggle with the pixel note button. The front page has the one piece whose *lead line* is
   written out by hand (`HOME_BARS`), starting on the first click or keypress
   (browsers require a gesture before audio).
   - **The nature collection**: every region's bed is a real field recording,
@@ -140,7 +144,8 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
     5. *Specific bans:* the Manhã-fria sea-waves recording ("awful, never
        use"); kanun in the low dark registers (pulled from the caves).
 - Dark mode ("forest at night") follows the system preference, toggleable with
-  🌙/☀️, persisted in localStorage.
+  the pixel moon/sun button, persisted in localStorage. The header toggles are
+  pixel icons painted in code (`web/js/icons.js`), following the theme's ink.
 - `data/runs.jsonl` — append-only, one JSON object per finished run. **The single
   source of truth**: unlocked levels, stars, PBs, streaks and the graph are all
   derived from it. Gitignored (machine data), but it is your entire history —

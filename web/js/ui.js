@@ -2,6 +2,7 @@
 // segmentation, which every mode needs.
 import { music } from './music.js';
 import { fx } from './fx.js';
+import { setHeroRegion } from './hero.js';
 
 export const $ = (sel) => document.querySelector(sel);
 
@@ -25,10 +26,10 @@ export const TOTAL_LEVELS = REGIONS.length * REGION_SIZE;
 export function setRegion(idx) {
   idx = Math.max(0, Math.min(REGIONS.length - 1, idx));
   const r = REGIONS[idx];
-  document.documentElement.style.setProperty('--region-hue', r.hue);
   const hero = $('#hero');
   if (hero.dataset.region !== String(idx)) {
-    hero.dataset.region = idx; // picks the region's foreground scene in the hero
+    hero.dataset.region = idx;
+    setHeroRegion(idx, r.hue); // repaints the pixel landscape in the region's hue
     fx.heroRegion();
   }
   $('#region-name').textContent = r.th;
@@ -81,12 +82,14 @@ export function modal(html) {
 }
 export function closeModal() { $('#modal').hidden = true; }
 
-// ---- confetti: falling leaves and gold flecks for personal bests ---------------
+// ---- confetti: falling pixel leaves and gold flecks for personal bests ---------
 export function confetti() {
   const canvas = $('#confetti');
   const ctx = canvas.getContext('2d');
   canvas.width = innerWidth; canvas.height = innerHeight;
   const colors = ['#b8860b', '#e9d8a6', '#2d6a4f', '#40916c', '#95d5b2'];
+  const CELL = 4;
+  const snap = (v) => Math.round(v / CELL) * CELL;
   const parts = Array.from({ length: 130 }, () => ({
     x: Math.random() * canvas.width,
     y: -20 - Math.random() * canvas.height * 0.5,
@@ -94,8 +97,7 @@ export function confetti() {
     vy: 1.5 + Math.random() * 2.5,
     rot: Math.random() * Math.PI,
     vr: (Math.random() - 0.5) * 0.2,
-    w: 5 + Math.random() * 7,
-    h: 8 + Math.random() * 10,
+    big: Math.random() > 0.5, // leaves and smaller flecks
     c: colors[Math.floor(Math.random() * colors.length)],
   }));
   const t0 = performance.now();
@@ -104,12 +106,14 @@ export function confetti() {
     for (const p of parts) {
       p.x += p.vx + Math.sin(t / 300 + p.rot) * 0.6;
       p.y += p.vy; p.rot += p.vr;
-      ctx.save();
-      ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      const x = snap(p.x), y = snap(p.y);
+      const flip = Math.sin(t / 250 + p.rot * 4) > 0 ? CELL : -CELL;
       ctx.fillStyle = p.c;
-      // leaf-ish ellipse
-      ctx.beginPath(); ctx.ellipse(0, 0, p.w / 2, p.h / 2, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
+      ctx.fillRect(x, y, CELL, CELL);
+      if (p.big) { // a tumbling three-pixel leaf
+        ctx.fillRect(x + flip, y + CELL, CELL, CELL);
+        ctx.fillRect(x, y + CELL * 2, CELL, CELL);
+      }
     }
     if (t - t0 < 3000) requestAnimationFrame(frame);
     else ctx.clearRect(0, 0, canvas.width, canvas.height);
