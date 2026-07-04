@@ -140,11 +140,11 @@ async function finish() {
   if (S.name) run.name = S.name;
   await saveRun(run);
 
-  // passing a shrine level for the first time opens its มงคลชีวิต blessing
-  const blessing = S.mode === 'speed' && stars > 0 && S.level > st.maxDone
+  // finishing a shrine level for the first time opens its มงคลชีวิต blessing
+  const blessing = S.mode === 'speed' && S.level > st.maxDone
     ? BY_LEVEL.get(S.level) : null;
 
-  if (pb || blessing) { sound.pb(); confetti(); } else if (stars) { sound.level(); } else { sound.error(); }
+  if (pb || blessing) { sound.pb(); confetti(); } else { sound.level(); }
 
   const delta = st.pb ? Math.round((cpm - st.pb) * 10) / 10 : null;
   const starHtml = [1, 2, 3].map((n) =>
@@ -158,7 +158,7 @@ async function finish() {
       ความแม่นยำ ${Math.round(acc * 100)}%
       ${pb ? '<div class="modal-pb">🏆 สถิติใหม่!' + (delta > 0 ? ` เร็วขึ้น ${delta}` : '') + '</div>'
            : (delta !== null && delta < 0 ? `<div>ห่างสถิติ ${Math.abs(Math.round(delta))} ตัวอักษร/นาที</div>` : '')}
-      ${stars === 0 ? '<div>ต้องแม่นยำอย่างน้อย 90% จึงจะผ่านด่าน</div>' : ''}
+      ${stars === 0 ? '<div>แม่นยำ 90% ขึ้นไปจึงจะได้ดาว</div>' : ''}
     </div>
     ${blessing ? `
     <div class="blessing">
@@ -169,7 +169,7 @@ async function finish() {
     </div>` : ''}
     <div class="play-actions">
       <button class="btn ghost" id="m-retry">เล่นอีกครั้ง</button>
-      ${nextLevel && stars > 0 && nextLevel <= TOTAL_LEVELS
+      ${nextLevel && nextLevel <= TOTAL_LEVELS
         ? '<button class="btn gold" id="m-next">ด่านต่อไป →</button>'
         : '<button class="btn" id="m-close">กลับ</button>'}
     </div>`);

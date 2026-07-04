@@ -60,8 +60,9 @@ export function stats(runs) {
   let pbAt = null;
   for (const r of speed) {
     if (r.level) {
+      // finishing a level unlocks the next; stars are quality medals on top
+      maxDone = Math.max(maxDone, r.level);
       if ((r.stars || 0) >= 1) {
-        maxDone = Math.max(maxDone, r.level);
         starsByLevel.set(r.level, Math.max(starsByLevel.get(r.level) || 0, r.stars));
       }
     }

@@ -30,7 +30,8 @@ collection, and ข้อ ๓๘ จิตเกษม waits at level 1000 besid
 
 The gamification is deliberately self-referential — you compete with yourself only:
 
-- **1 star** = finish with ≥90% accuracy (this is also what unlocks the next level)
+- **Finishing a level unlocks the next** — stars are quality medals on top, they never gate progress
+- **1 star** = finish with ≥90% accuracy
 - **2 stars** = beat the median of your own last 10 runs
 - **3 stars** = beat it by 8% at ≥97% accuracy — always challenging, never impossible
 - **PB** = fastest run at ≥95% accuracy, ever; celebrated with a chime and falling
