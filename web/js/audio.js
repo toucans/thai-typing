@@ -1,10 +1,14 @@
 // All sounds are synthesized with WebAudio — no audio files to source, license,
 // or rot. Keystrokes get a mechanical click; milestones get a pentatonic chime.
 
+// Embedded (the dashboard's preview tile iframes this page, same-origin):
+// stay silent. A preview must not make sound — audio belongs to the real page.
+export const EMBEDDED = window.self !== window.top;
+
 let ctx = null;
 let master = null;
 let noiseBuf = null;
-let enabled = localStorage.getItem('tt.sound') !== 'off';
+let enabled = !EMBEDDED && localStorage.getItem('tt.sound') !== 'off';
 
 export function ac() { // shared context; music.js builds its own graph on it
   if (!ctx) {
@@ -16,7 +20,7 @@ export function ac() { // shared context; music.js builds its own graph on it
     const d = noiseBuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   }
-  if (ctx.state === 'suspended') ctx.resume();
+  if (!EMBEDDED && ctx.state === 'suspended') ctx.resume();
   return ctx;
 }
 
@@ -48,6 +52,7 @@ function noise(t, freq, q, peak, decay) {
 export const sound = {
   get enabled() { return enabled; },
   toggle() {
+    if (EMBEDDED) return false;
     enabled = !enabled;
     localStorage.setItem('tt.sound', enabled ? 'on' : 'off');
     return enabled;

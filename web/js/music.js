@@ -17,7 +17,7 @@
 // (tempo, density, which voices join) — ten regions, ten decades each, so all
 // hundred tracks are authored melodies, not dice. Tuning is near-7-TET with a
 // per-track bar-tuning table; kro rolls close every phrase.
-import { ac } from './audio.js';
+import { ac, EMBEDDED } from './audio.js';
 import { loadInstruments, strike, makeReverb, makePingPong } from './instruments.js';
 
 const STEP = 1200 / 7; // cents per 7-TET step
@@ -155,6 +155,7 @@ export const music = {
 };
 
 function start(trackId) {
+  if (EMBEDDED) return;   // dashboard preview tile: no music, no resume listeners
   if (playing && playing.trackId === trackId) return; // same decade: play on
   const ctx = ac();
   if (ctx.state === 'suspended') {
