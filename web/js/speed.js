@@ -50,7 +50,6 @@ export function levelWords(level) {
 }
 
 let S = null; // current session
-let ticker = null;
 
 export function startLevel(level) {
   const { words, bonus } = levelWords(level);
@@ -69,8 +68,6 @@ export function startText(name, title, words) {
 function begin(cfg) {
   S = { ...cfg, idx: 0, keys: 0, wrong: 0, correctChars: 0, t0: null, done: false };
   $('#play-title').textContent = S.title;
-  $('#live-cpm').textContent = '0';
-  $('#live-acc').textContent = '100%';
   $('#play-progress').style.width = '0';
   const stream = $('#wordstream');
   stream.innerHTML = '';
@@ -96,14 +93,6 @@ function scrollCurrentIntoView() {
   if (sp) stream.scrollTop = Math.max(0, sp.offsetTop - stream.offsetTop - 8);
 }
 
-function updateLive() {
-  if (!S || !S.t0) return;
-  const mins = (performance.now() - S.t0) / 60000;
-  if (mins > 0) $('#live-cpm').textContent = Math.round(S.correctChars / mins);
-  const acc = S.keys ? 1 - S.wrong / S.keys : 1;
-  $('#live-acc').textContent = `${Math.round(acc * 100)}%`;
-}
-
 function commitWord(typed) {
   const target = S.words[S.idx];
   const sp = S.spans[S.idx];
@@ -120,7 +109,6 @@ function commitWord(typed) {
 
 async function finish() {
   S.done = true;
-  clearInterval(ticker);
   const secs = (performance.now() - S.t0) / 1000;
   const cpm = Math.round((S.correctChars / (secs / 60)) * 10) / 10;
   const acc = Math.round((S.keys ? 1 - S.wrong / S.keys : 1) * 1000) / 1000;
@@ -189,9 +177,8 @@ export function initSpeed() {
     if (!S || S.done) return;
     const v = box.value;
     if (!S.t0 && v.trim()) {
-      S.t0 = performance.now();
+      S.t0 = performance.now(); // start the clock on the first keystroke
       box.placeholder = ''; // stop it reappearing between words
-      ticker = setInterval(updateLive, 500);
     }
     if (v.endsWith(' ')) {
       const typed = v.trim().normalize('NFC');
@@ -209,7 +196,6 @@ export function initSpeed() {
     S.spans[S.idx].classList.toggle('bad', !target.startsWith(v.normalize('NFC')));
   });
   $('#play-quit').addEventListener('click', () => {
-    clearInterval(ticker);
     const back = S ? S.backView : 'journey';
     S = null;
     show(back);

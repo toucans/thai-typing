@@ -299,8 +299,6 @@ h2.blessing-name { margin: .2rem 0 .4rem; }
   flex-wrap: wrap; gap: .5rem; margin: .4rem 0 .6rem;
 }
 .play-title { font-weight: 700; color: var(--green-900); font-size: 1.1rem; }
-.live { color: var(--ink-soft); font-size: .95rem; }
-.live b { color: var(--green-700); font-size: 1.15rem; }
 
 .progressbar { height: 6px; border-radius: 3px; background: var(--green-100); overflow: hidden; margin-bottom: 1rem; }
 #play-progress { height: 100%; width: 0; background: linear-gradient(90deg, var(--green-500), var(--gold)); transition: width .25s; }
