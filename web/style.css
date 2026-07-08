@@ -319,17 +319,20 @@ h2.blessing-name { margin: .2rem 0 .4rem; }
 .progressbar { height: 6px; border-radius: 3px; background: var(--green-100); overflow: hidden; margin-bottom: 1rem; }
 #play-progress { height: 100%; width: 0; background: linear-gradient(90deg, var(--green-500), var(--gold)); transition: width .25s; }
 
+/* The frame is fixed; the words scroll inside it. Keeping the gold rule on the
+   frame (not on the scrolling #wordstream) stops it drifting up with the text. */
+.wordstream-frame { position: relative; margin-bottom: 1rem; }
+.wordstream-frame::before { /* a manuscript's gold inner rule */
+  content: ''; position: absolute; inset: 7px; pointer-events: none; z-index: 1;
+  border: 1px solid color-mix(in srgb, var(--gold) 28%, transparent);
+  border-radius: 11px;
+}
 .wordstream {
   position: relative;
   font-size: 1.75rem; line-height: 2.3;
   /* exactly two lines at any font size (em, not rem: mobile shrinks the font) */
   padding: .9rem 1.1rem; height: calc(2 * 2.3em + 1.8rem);
-  overflow: hidden; margin-bottom: 1rem;
-}
-.wordstream::before { /* a manuscript's gold inner rule */
-  content: ''; position: absolute; inset: 7px; pointer-events: none;
-  border: 1px solid color-mix(in srgb, var(--gold) 28%, transparent);
-  border-radius: 11px;
+  overflow: hidden;
 }
 .wordstream span { padding: .05em .3em; border-radius: 9px; margin-right: .12em; white-space: nowrap; }
 .wordstream.nospace span { padding-left: 0; padding-right: 0; margin-right: 0; }
