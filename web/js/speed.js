@@ -88,9 +88,12 @@ function begin(cfg) {
 }
 
 function scrollCurrentIntoView() {
+  // span.offsetTop is already relative to the stream (its position:relative
+  // offsetParent). Anchor on the first span so line one sits at scrollTop 0
+  // and every later line scrolls up to the top of the two-line window.
   const stream = $('#wordstream');
   const sp = S.spans[S.idx];
-  if (sp) stream.scrollTop = Math.max(0, sp.offsetTop - stream.offsetTop - 8);
+  if (sp) stream.scrollTop = Math.max(0, sp.offsetTop - S.spans[0].offsetTop);
 }
 
 function commitWord(typed) {

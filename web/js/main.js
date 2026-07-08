@@ -1,6 +1,6 @@
 // Bootstrap and the three "browse" views: journey (level map), texts, stats.
 // The play views live in speed.js / dictation.js.
-import { loadRuns, stats } from './records.js';
+import { loadRuns, stats, currentUser, login, createUser, logout } from './records.js';
 import { startLevel, startText, initSpeed } from './speed.js';
 import { initDictation, initDictationInput } from './dictation.js';
 import { renderChart } from './chart.js';
@@ -51,11 +51,9 @@ async function renderJourney() {
 }
 
 function countDone(st, region) {
-  let n = 0;
-  for (let i = 1; i <= REGION_SIZE; i++) {
-    if (st.starsByLevel.has(region * REGION_SIZE + i)) n++;
-  }
-  return n;
+  // unlocking is sequential, so everything up to maxDone is passed — with or
+  // without stars
+  return Math.max(0, Math.min(REGION_SIZE, st.maxDone - region * REGION_SIZE));
 }
 
 // ---- stats ----------------------------------------------------------------------
@@ -133,12 +131,73 @@ $('#theme-toggle').addEventListener('click', () => {
   redrawHero();  // …and over the landscape
 });
 
-document.addEventListener('runs-changed', () => { loadRuns(); renderJourney(); });
+document.addEventListener('runs-changed', renderJourney);
+
+// ---- login gate -----------------------------------------------------------------
+// The server owns all save data; localStorage remembers only who you are. On
+// focus/visibility the visible browse view re-renders from the server, so two
+// devices on the same account always show the same progress (play views are
+// left alone mid-run).
+function showLogin() {
+  $('#login').hidden = false;
+  $('#login-name').focus();
+}
+
+async function doAuth(fn) {
+  const name = $('#login-name').value.trim();
+  if (!name) return;
+  const err = $('#login-err');
+  err.textContent = '';
+  try {
+    await fn(name);
+    $('#login').hidden = true;
+    startApp();
+  } catch (e) {
+    err.textContent = e.message;
+  }
+}
+$('#login-go').onclick = () => doAuth(login);
+$('#login-new').onclick = () => doAuth(createUser);
+$('#login-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') doAuth(login); });
+
+$('#user-btn').addEventListener('click', () => {
+  if (!confirm(`ออกจากระบบ "${currentUser()}" ?`)) return;
+  logout();
+  location.reload(); // clean slate; boot() lands on the login gate
+});
+
+function activeView() {
+  const v = document.querySelector('.view:not([hidden])');
+  return v ? v.id.replace('view-', '') : null;
+}
+function refreshFromServer() {
+  if (!currentUser() || !$('#login').hidden) return;
+  const r = renderers[activeView()];
+  if (r) r();
+}
+window.addEventListener('focus', refreshFromServer);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshFromServer(); });
+
+function startApp() {
+  const ub = $('#user-btn');
+  ub.textContent = `⛩ ${currentUser()}`;
+  ub.hidden = false;
+  renderJourney();
+  music.playHome(); // the front page's own theme; starts on the first gesture
+}
+
+async function boot() {
+  if (!currentUser()) return showLogin();
+  try { // a remembered name the server no longer knows sends you back to the gate
+    const res = await fetch(`api/runs?user=${encodeURIComponent(currentUser())}`);
+    if (res.status === 400 || res.status === 404) { logout(); return showLogin(); }
+  } catch { /* offline: keep the session, views fall back to the last good copy */ }
+  startApp();
+}
 
 initSpeed();
 initDictationInput();
 initMap({ onPlay: startLevel });
 paintIcons();
 fx.init();
-renderJourney();
-music.playHome(); // the front page's own theme; starts on the first gesture
+boot();

@@ -27,6 +27,7 @@
     <button data-view="texts">เรื่องอ่าน</button>
     <button data-view="stats">สถิติ</button>
   </nav>
+  <button id="user-btn" class="userbtn" title="ออกจากระบบ" hidden></button>
   <button id="music-toggle" title="เพลงประกอบ"><canvas width="12" height="12"></canvas></button>
   <button id="sound-toggle" title="เปิด/ปิดเสียง"><canvas width="12" height="12"></canvas></button>
   <button id="theme-toggle" title="สลับโหมดมืด/สว่าง"><canvas width="12" height="12"></canvas></button>
@@ -117,6 +118,24 @@
   <div class="orn-divider" aria-hidden="true"></div>
   <p>ทางไกลพันด่าน เริ่มที่ก้าวแรก</p>
 </footer>
+
+<!-- login gate: a username and nothing else (no password — personal site on the
+     VPN). Save data lives on the server under this name; localStorage keeps only
+     the name so the same account follows you across devices without conflicts. -->
+<div id="login" class="modal" hidden>
+  <div class="modal-card">
+    <h2>พิมพ์ไทย</h2>
+    <p class="hint">ใส่ชื่อผู้ใช้เพื่อเดินทางต่อ — ความคืบหน้าบันทึกไว้ที่เซิร์ฟเวอร์
+      ใช้ชื่อเดิมได้จากทุกเครื่อง</p>
+    <input id="login-name" type="text" autocomplete="username" autocapitalize="off"
+           spellcheck="false" maxlength="32" placeholder="ชื่อผู้ใช้">
+    <p id="login-err" class="login-err"></p>
+    <div class="play-actions">
+      <button class="btn gold" id="login-go">เข้าสู่ระบบ</button>
+      <button class="btn ghost" id="login-new">สร้างผู้ใช้ใหม่</button>
+    </div>
+  </div>
+</div>
 
 <div id="modal" class="modal" hidden><div class="modal-card" id="modal-card"></div></div>
 <canvas id="confetti"></canvas>

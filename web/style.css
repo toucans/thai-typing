@@ -162,6 +162,22 @@ nav button {
 }
 nav button:hover { background: var(--green-100); color: var(--green-900); }
 nav button.active { background: var(--green-900); color: var(--paper); }
+.userbtn {
+  border: 1px solid var(--green-500); background: none; color: var(--green-900);
+  border-radius: 999px; padding: .15rem .7rem; cursor: pointer;
+  font: inherit; font-size: .85rem;
+}
+.userbtn:hover { background: var(--green-100); }
+
+#login-name {
+  width: 100%; font: inherit; font-size: 1.2rem; text-align: center;
+  padding: .5rem .9rem; border-radius: 14px; margin-top: .4rem;
+  border: 1.5px solid var(--green-500); background: var(--card); color: var(--ink);
+  outline: none;
+}
+#login-name:focus { border-color: var(--gold); box-shadow: 0 0 0 4px rgb(184 134 11 / .15); }
+.login-err { color: var(--red); min-height: 1.3em; margin: .5rem 0 0; }
+
 #sound-toggle, #music-toggle, #theme-toggle {
   border: none; background: none; padding: .2rem; cursor: pointer; opacity: .8;
   transition: transform .15s; line-height: 0;
@@ -306,7 +322,8 @@ h2.blessing-name { margin: .2rem 0 .4rem; }
 .wordstream {
   position: relative;
   font-size: 1.75rem; line-height: 2.3;
-  padding: .9rem 1.1rem; height: calc(2 * 2.3 * 1.75rem + 1.8rem);
+  /* exactly two lines at any font size (em, not rem: mobile shrinks the font) */
+  padding: .9rem 1.1rem; height: calc(2 * 2.3em + 1.8rem);
   overflow: hidden; margin-bottom: 1rem;
 }
 .wordstream::before { /* a manuscript's gold inner rule */

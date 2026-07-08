@@ -147,10 +147,43 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
 - Dark mode ("forest at night") follows the system preference, toggleable with
   the pixel moon/sun button, persisted in localStorage. The header toggles are
   pixel icons painted in code (`web/js/icons.js`), following the theme's ink.
-- `data/runs.jsonl` — append-only, one JSON object per finished run. **The single
-  source of truth**: unlocked levels, stars, PBs, streaks and the graph are all
-  derived from it. Gitignored (machine data), but it is your entire history —
-  include it in backups. localStorage only caches it and queues offline writes.
+- `data/users/<name>.jsonl` — one append-only run log per user, one JSON object
+  per finished run. **The single source of truth**: unlocked levels, stars, PBs,
+  streaks and the graph are all derived from it, live from the server on every
+  view. Gitignored (machine data), but it is your entire history — include it
+  in backups.
+
+## Accounts & the backend, the monk-like way
+
+Accounts are a username and nothing else — no password, no sessions, no
+tokens. The site lives behind the WireGuard VPN and the threat model is "me on
+three devices", so authentication would be moving parts guarding nothing. The
+user list is just the filenames in `data/users/` and is never listed by any
+endpoint; `/api/login` answers only for the one name asked about.
+
+The whole backend recipe, transferable to any small project:
+
+1. **One stdlib-only process** serves static app + API. No framework, no pip,
+   no database daemon — nothing to update, nothing to rot.
+2. **Storage is an append-only `.jsonl` per user.** Appends are atomic enough
+   under one process + a lock; no schema migrations, `cat`-able, greppable,
+   backed up by copying a file.
+3. **Store events, derive state.** Only finished runs are written; stars,
+   unlocks, PBs, streaks are computed from the log on read. There is no second
+   copy of state to drift out of sync.
+4. **The server is the only source of truth.** Clients keep no persistent save
+   data (localStorage holds just the username + device prefs like theme) and
+   re-fetch on focus — that's the entire multi-device sync story: no cache
+   invalidation, no conflict resolution, because nothing conflicts.
+
+This holds as long as writes are append-only events from a handful of trusted
+clients. The moment a project needs concurrent mutable state or untrusted
+users (e.g. a future multiplayer backend), that's a different shape — real
+auth and a real database — not more layers on this one.
+
+Legacy note: pre-account history lived in `data/runs.jsonl`; it was copied
+into `data/users/johan.jsonl` when accounts arrived (2026-07) and the old file
+now just sits as an archive.
 
 ## Install / deploy
 

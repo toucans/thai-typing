@@ -6,8 +6,13 @@ Python stdlib only -- no pip, nothing to rot. One process serves everything:
     web/    the app (vanilla HTML/CSS/JS, no build step)
     media/  audio/video + .srt pairs for the dictation game (gitignored, drop files in)
     texts/  plain-text Thai stories for free-text typing (first line = title)
-    data/runs.jsonl  append-only log of every finished run -- the single source of
-                     truth for all progress (PBs, stars, streaks are derived from it)
+    data/users/<name>.jsonl  one append-only run log per user -- the single source
+                             of truth for that user's progress (PBs, stars, streaks
+                             are all derived from it; nothing else is stored)
+
+Accounts are a username and nothing else (personal site behind the VPN -- no
+passwords, no sessions). The user list is just the files in data/users/ and is
+never exposed: /api/login answers only for the one name asked about.
 
 Binds to localhost; the dashboard's nginx front door proxies /thai-typing/ here,
 stripping the prefix -- which is why the app only ever uses relative URLs.
@@ -18,17 +23,20 @@ import os
 import re
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 HOST, PORT = "127.0.0.1", 8768
 ROOT = os.path.dirname(os.path.abspath(__file__))
 WEB = os.path.join(ROOT, "web")
 MEDIA = os.path.join(ROOT, "media")
 TEXTS = os.path.join(ROOT, "texts")
-RUNS = os.path.join(ROOT, "data", "runs.jsonl")
+USERS = os.path.join(ROOT, "data", "users")
 
 MEDIA_EXTS = (".mp4", ".webm", ".mkv", ".m4a", ".mp3", ".ogg", ".opus", ".wav")
 MAX_RUN_BYTES = 4096  # a run record is a small JSON object; anything bigger is a bug
+# usual username shape: letters/digits/._- , 1-32 chars, starts and ends
+# alphanumeric; matched lowercase so names are case-insensitive
+USER_RE = re.compile(r"^[a-z0-9](?:[a-z0-9._-]{0,30}[a-z0-9])?$")
 
 _runs_lock = threading.Lock()
 
@@ -37,6 +45,13 @@ def safe_join(base, rel):
     """Resolve rel under base, refusing path traversal. Returns None if outside."""
     path = os.path.realpath(os.path.join(base, rel))
     return path if path.startswith(os.path.realpath(base) + os.sep) else None
+
+
+def user_file(name):
+    """runs file for a valid username, else None. The regex is the traversal
+    guard: it admits no '/', so the name can only ever be a file in USERS."""
+    name = (name or "").strip().lower()
+    return os.path.join(USERS, name + ".jsonl") if USER_RE.match(name) else None
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -103,19 +118,24 @@ class Handler(BaseHTTPRequestHandler):
 
     # -- routes -------------------------------------------------------------
     def do_GET(self):
-        path = unquote(urlparse(self.path).path)
+        url = urlparse(self.path)
+        path = unquote(url.path)
 
         if path == "/health":
             return self.send_json({"ok": True})
 
         if path == "/api/runs":
+            uf = user_file(parse_qs(url.query).get("user", [""])[0])
+            if not uf:
+                return self.send_json({"error": "bad user"}, 400)
+            if not os.path.exists(uf):
+                return self.send_json({"error": "no such user"}, 404)
             runs = []
-            if os.path.exists(RUNS):
-                with open(RUNS, encoding="utf-8") as f:
-                    for line in f:
-                        line = line.strip()
-                        if line:
-                            runs.append(json.loads(line))
+            with open(uf, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        runs.append(json.loads(line))
             return self.send_json({"runs": runs})
 
         if path == "/api/media":
@@ -154,22 +174,48 @@ class Handler(BaseHTTPRequestHandler):
         return self.send_file(safe_join(WEB, rel),
                               cache=rel.startswith(("assets/", "vendor/")))
 
-    def do_POST(self):
-        path = unquote(urlparse(self.path).path)
-        if path != "/api/runs":
-            return self.send_json({"error": "not found"}, 404)
+    def read_body(self):
         length = int(self.headers.get("Content-Length") or 0)
         if not 0 < length <= MAX_RUN_BYTES:
-            return self.send_json({"error": "bad length"}, 400)
+            return None
         try:
-            run = json.loads(self.rfile.read(length).decode("utf-8"))
-            assert isinstance(run, dict) and run.get("t") and run.get("game")
+            body = json.loads(self.rfile.read(length).decode("utf-8"))
+            return body if isinstance(body, dict) else None
         except Exception:
+            return None
+
+    def do_POST(self):
+        path = unquote(urlparse(self.path).path)
+        body = self.read_body()
+        if body is None:
+            return self.send_json({"error": "bad request"}, 400)
+
+        if path in ("/api/login", "/api/user"):
+            uf = user_file(body.get("user"))
+            if not uf:
+                return self.send_json({"error": "bad user"}, 400)
+            name = os.path.basename(uf)[:-len(".jsonl")]
+            with _runs_lock:
+                if path == "/api/user":  # create: the name must be free
+                    if os.path.exists(uf):
+                        return self.send_json({"error": "taken"}, 409)
+                    os.makedirs(USERS, exist_ok=True)
+                    open(uf, "a", encoding="utf-8").close()
+                elif not os.path.exists(uf):  # login: the name must exist
+                    return self.send_json({"error": "no such user"}, 404)
+            return self.send_json({"ok": True, "user": name})
+
+        if path != "/api/runs":
+            return self.send_json({"error": "not found"}, 404)
+        uf = user_file(body.pop("user", None))
+        run = body
+        if not (uf and os.path.exists(uf)):
+            return self.send_json({"error": "bad user"}, 400)
+        if not (run.get("t") and run.get("game")):
             return self.send_json({"error": "bad run"}, 400)
         line = json.dumps(run, ensure_ascii=False, separators=(",", ":"))
         with _runs_lock:
-            os.makedirs(os.path.dirname(RUNS), exist_ok=True)
-            with open(RUNS, "a", encoding="utf-8") as f:
+            with open(uf, "a", encoding="utf-8") as f:
                 f.write(line + "\n")
         return self.send_json({"ok": True})
 

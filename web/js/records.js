@@ -1,49 +1,75 @@
-// Run records. The server's data/runs.jsonl is the single source of truth;
-// everything shown anywhere (unlocked levels, stars, PBs, streaks, the graph)
-// is derived from it. localStorage only caches a copy and queues writes that
-// failed while the server was unreachable.
+// Run records. The server's data/users/<name>.jsonl is the single source of
+// truth; everything shown anywhere (unlocked levels, stars, PBs, streaks, the
+// graph) is derived from it. loadRuns always fetches fresh so two devices on
+// the same account can never diverge. localStorage holds only the username
+// (plus device prefs like theme) — never save data that could conflict.
 
-const PENDING = 'tt.pending';
-const CACHE = 'tt.cache';
-let cache = null;
+const USER_KEY = 'tt.user';
+// pre-account versions cached runs here; stale copies must not linger
+localStorage.removeItem('tt.cache');
+localStorage.removeItem('tt.pending');
+let user = localStorage.getItem(USER_KEY);
+let cache = [];   // last good server copy, page lifetime only (offline fallback)
+let pending = []; // runs whose POST failed; retried before the next load/save
+
+export function currentUser() { return user; }
+
+export function logout() {
+  user = null;
+  cache = [];
+  pending = [];
+  localStorage.removeItem(USER_KEY);
+}
+
+async function auth(endpoint, name) {
+  const res = await fetch(endpoint, { method: 'POST', body: JSON.stringify({ user: name }) });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(res.status === 409 ? 'ชื่อนี้ถูกใช้แล้ว'
+      : res.status === 404 ? 'ไม่พบชื่อนี้ — สร้างผู้ใช้ใหม่ก่อน'
+      : res.status === 400 ? 'ใช้ได้เฉพาะ a-z 0-9 . _ - (1–32 ตัว)'
+      : 'เชื่อมต่อไม่ได้');
+  }
+  user = body.user; // server-normalized (lowercase)
+  localStorage.setItem(USER_KEY, user);
+  return user;
+}
+
+export const login = (name) => auth('api/login', name);
+export const createUser = (name) => auth('api/user', name);
 
 async function flushPending() {
-  const pending = JSON.parse(localStorage.getItem(PENDING) || '[]');
-  if (!pending.length) return;
   const still = [];
   for (const run of pending) {
     try {
-      const res = await fetch('api/runs', { method: 'POST', body: JSON.stringify(run) });
+      const res = await fetch('api/runs', {
+        method: 'POST', body: JSON.stringify({ ...run, user }),
+      });
       if (!res.ok) still.push(run);
     } catch { still.push(run); }
   }
-  localStorage.setItem(PENDING, JSON.stringify(still));
+  pending = still;
 }
 
-export async function loadRuns(force = false) {
-  if (cache && !force) return cache;
+export async function loadRuns() {
   await flushPending();
   try {
-    const res = await fetch('api/runs');
-    cache = (await res.json()).runs;
-    localStorage.setItem(CACHE, JSON.stringify(cache));
-  } catch {
-    cache = JSON.parse(localStorage.getItem(CACHE) || '[]');
-  }
-  return cache;
+    const res = await fetch(`api/runs?user=${encodeURIComponent(user)}`);
+    if (res.ok) cache = (await res.json()).runs;
+  } catch { /* offline: fall through to the last good copy */ }
+  return cache.concat(pending);
 }
 
 export async function saveRun(run) {
   run.t = new Date().toISOString();
-  cache = (cache || []).concat([run]);
-  localStorage.setItem(CACHE, JSON.stringify(cache));
   try {
-    const res = await fetch('api/runs', { method: 'POST', body: JSON.stringify(run) });
+    const res = await fetch('api/runs', {
+      method: 'POST', body: JSON.stringify({ ...run, user }),
+    });
     if (!res.ok) throw new Error();
+    cache = cache.concat([run]);
   } catch {
-    const p = JSON.parse(localStorage.getItem(PENDING) || '[]');
-    p.push(run);
-    localStorage.setItem(PENDING, JSON.stringify(p));
+    pending.push(run); // retried on the next load/save; lost if the tab closes
   }
   document.dispatchEvent(new CustomEvent('runs-changed'));
 }

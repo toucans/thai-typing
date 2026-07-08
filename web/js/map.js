@@ -448,9 +448,12 @@ function hover(e) {
     const stars = st.starsByLevel.get(level) || 0;
     const p = nodesPts[(level - 1) % REGION_SIZE];
     cv.style.cursor = level <= st.next ? 'pointer' : 'default';
-    showTip(
-      `ด่าน ${level}${level % 10 === 0 ? ' 🍃' : ''} · ${level > st.next ? '🔒' : stars ? '★'.repeat(stars) : 'ยังไม่ผ่าน'}`,
-      p.x, p.y);
+    // finishing alone passes a level (stars are quality medals on top), so a
+    // 0-star level below `next` still reads ผ่านแล้ว
+    const state = level > st.next ? '🔒'
+      : stars ? '★'.repeat(stars)
+      : level < st.next ? 'ผ่านแล้ว' : 'ยังไม่ผ่าน';
+    showTip(`ด่าน ${level}${level % 10 === 0 ? ' 🍃' : ''} · ${state}`, p.x, p.y);
     return;
   }
   cv.style.cursor = 'default';
