@@ -61,8 +61,8 @@ export function startLevel(level) {
   });
 }
 
-export function startText(name, title, words) {
-  begin({ mode: 'text', name, words, title, backView: 'texts' });
+export function startText(name, title, words, breaks) {
+  begin({ mode: 'text', name, words, breaks, title, backView: 'texts' });
 }
 
 function begin(cfg) {
@@ -70,10 +70,14 @@ function begin(cfg) {
   $('#play-title').textContent = S.title;
   $('#play-progress').style.width = '0';
   const stream = $('#wordstream');
+  // เรื่องอ่าน runs words together with no gaps, like natural Thai prose
+  stream.classList.toggle('nospace', S.mode === 'text');
   stream.innerHTML = '';
-  S.spans = S.words.map((w) => {
+  S.spans = S.words.map((w, i) => {
     const sp = document.createElement('span');
     sp.textContent = w;
+    // in เรื่องอ่าน words butt together; a 'brk' span keeps the space the source had
+    if (S.breaks && S.breaks[i]) sp.classList.add('brk');
     stream.appendChild(sp);
     return sp;
   });
@@ -83,7 +87,10 @@ function begin(cfg) {
   else music.playForName(S.name || S.title);
   const box = $('#typebox');
   box.value = '';
-  box.placeholder = 'พิมพ์คำ แล้วเคาะวรรคเพื่อส่ง…'; // shown until the first keystroke
+  // reading mode flows word-to-word on its own; other modes commit with a space
+  box.placeholder = S.mode === 'text'
+    ? 'พิมพ์ตามเรื่อง เว้นวรรคเมื่อเจอช่องว่าง…'
+    : 'พิมพ์คำ แล้วเคาะวรรคเพื่อส่ง…'; // shown until the first keystroke
   box.focus();
 }
 
@@ -190,13 +197,20 @@ export function initSpeed() {
       return;
     }
     const target = S.words[S.idx];
+    const nv = v.normalize('NFC');
     if (e.data) { // a real inserted character (not backspace)
       S.keys++;
       const pos = v.length - 1;
-      if (v.normalize('NFC')[pos] === target[pos]) sound.click();
+      if (nv[pos] === target[pos]) sound.click();
       else { S.wrong++; sound.thud(); }
     }
-    S.spans[S.idx].classList.toggle('bad', !target.startsWith(v.normalize('NFC')));
+    S.spans[S.idx].classList.toggle('bad', !target.startsWith(nv));
+    // เรื่องอ่าน: words run together, so a finished word advances on its own —
+    // no space needed. A space is only for real sentence breaks (S.breaks[idx]).
+    if (S.mode === 'text' && !(S.breaks && S.breaks[S.idx]) && nv === target) {
+      box.value = '';
+      commitWord(nv);
+    }
   });
   $('#play-quit').addEventListener('click', () => {
     const back = S ? S.backView : 'journey';

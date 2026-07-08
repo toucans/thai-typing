@@ -7,7 +7,7 @@ import { renderChart } from './chart.js';
 import { sound } from './audio.js';
 import { music } from './music.js';
 import { fx } from './fx.js';
-import { $, show, setRegion, segmentThai, REGIONS, REGION_SIZE, TOTAL_LEVELS } from './ui.js';
+import { $, show, setRegion, segmentThaiBreaks, REGIONS, REGION_SIZE, TOTAL_LEVELS } from './ui.js';
 import { initMap, drawMap, redrawMap, showMongkhon } from './map.js';
 import { redrawHero } from './hero.js';
 import { paintIcons } from './icons.js';
@@ -95,7 +95,8 @@ async function renderTexts() {
     card.onclick = async () => {
       const raw = await (await fetch(t.path)).text();
       const body = raw.split('\n').slice(1).join(' ').trim(); // first line is the title
-      startText(t.name, t.title, segmentThai(body));
+      const { words, breaks } = segmentThaiBreaks(body);
+      startText(t.name, t.title, words, breaks);
     };
     list.appendChild(card);
   }

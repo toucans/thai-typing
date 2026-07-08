@@ -332,6 +332,8 @@ h2.blessing-name { margin: .2rem 0 .4rem; }
   border-radius: 11px;
 }
 .wordstream span { padding: .05em .3em; border-radius: 9px; margin-right: .12em; white-space: nowrap; }
+.wordstream.nospace span { padding-left: 0; padding-right: 0; margin-right: 0; }
+.wordstream.nospace .brk { margin-right: .45em; } /* keep the source's sentence-break space */
 .wordstream .cur { background: var(--gold-soft); }
 .wordstream .cur.bad { background: var(--red-soft); color: var(--red); }
 .wordstream .ok { color: var(--green-500); }
