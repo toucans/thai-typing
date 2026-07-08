@@ -1,4 +1,4 @@
-# Thai typing trainer -- stdlib Python server, installed by install.sh.
+# Thai typing trainer -- stdlib Go server, installed by install.sh.
 [Unit]
 Description=Thai typing trainer (thai-typing)
 After=network.target
@@ -7,7 +7,7 @@ After=network.target
 Type=simple
 User=johan
 WorkingDirectory=/home/johan/thai-typing
-ExecStart=/usr/bin/python3 /home/johan/thai-typing/server.py
+ExecStart=/home/johan/thai-typing/thai-typing-go
 Restart=on-failure
 RestartSec=3
 

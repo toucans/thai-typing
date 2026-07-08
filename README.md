@@ -64,9 +64,9 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
 
 ## Architecture
 
-- `server.py` — Python stdlib only, one process on `127.0.0.1:8768`: serves the
-  static app, lists `media/` + `texts/`, streams media with Range support, and
-  appends finished runs to `data/runs.jsonl`.
+- `main.go` — Go stdlib only, one binary on `127.0.0.1:8768`: serves the static
+  app, lists `media/` + `texts/`, streams media with Range support, and appends
+  finished runs to `data/users/<name>.jsonl`.
 - `web/` — vanilla HTML/CSS/JS ES modules. No framework, no build step, no npm.
   Key clicks and chimes are synthesized with WebAudio — no sound assets.
 - **Design** — Thai and nature throughout, hand-made rather than themed:

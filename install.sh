@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # Install/upgrade the thai-typing service. Idempotent -- re-run after pulling changes.
 # The app itself is static files served straight from this checkout; only the tiny
-# stdlib server runs as a service, so "deploy" is just git pull (+ re-run this if
-# server.py or the unit changed).
+# stdlib Go server runs as a service, so "deploy" is git pull + re-run this (it
+# rebuilds the binary).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
 # Runtime dirs: media/ and data/ are deliberately not in git (binaries / machine data).
-# data/runs.jsonl is the one file worth backing up -- it is all your progress.
+# data/users/<name>.jsonl are the files worth backing up -- they are all your progress.
 mkdir -p "$HERE/media" "$HERE/data" "$HERE/texts"
 
-python3 -m py_compile "$HERE/server.py"
+( cd "$HERE" && "${GO:-/usr/local/go/bin/go}" build -o thai-typing-go . )
 
 sudo install -m 0644 "$HERE/thai-typing.service" /etc/systemd/system/thai-typing.service
 sudo systemctl daemon-reload
