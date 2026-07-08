@@ -6,9 +6,10 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
-# Runtime dirs: media/ and data/ are deliberately not in git (binaries / machine data).
-# data/users/<name>.jsonl are the files worth backing up -- they are all your progress.
-mkdir -p "$HERE/media" "$HERE/data" "$HERE/texts"
+# media/ + texts/ are in-repo content dirs (not in git). Durable user data lives OUTSIDE
+# the repo under the box's ~/keep/<project> convention, so it's backed up via ~/keep and
+# the app is pointed there (see the unit's -data flag). users/<name>.jsonl = all progress.
+mkdir -p "$HERE/media" "$HERE/texts" "$HOME/keep/thai-typing/users"
 
 ( cd "$HERE" && "${GO:-/usr/local/go/bin/go}" build -o thai-typing-go . )
 

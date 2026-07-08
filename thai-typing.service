@@ -7,7 +7,9 @@ After=network.target
 Type=simple
 User=johan
 WorkingDirectory=/home/johan/thai-typing
-ExecStart=/home/johan/thai-typing/thai-typing-go
+# Durable user data lives under the box's ~/keep/<project> convention (backed up
+# via ~/keep), not in the repo. See the thai-typing README + debian-config Backups.
+ExecStart=/home/johan/thai-typing/thai-typing-go -data /home/johan/keep/thai-typing
 Restart=on-failure
 RestartSec=3
 

@@ -54,6 +54,10 @@ var (
 
 func main() {
 	addr := flag.String("addr", host+":"+port, "listen address")
+	// Durable user data lives outside the repo, under the box's ~/keep/<project>
+	// convention (backed up as part of ~/keep); the service passes it explicitly.
+	// Defaults to <exe dir>/data so a bare local run still works.
+	dataDir := flag.String("data", "", "durable user-data dir (holds users/*.jsonl); default <exe dir>/data")
 	flag.Parse()
 
 	exe, _ := os.Executable()
@@ -61,7 +65,11 @@ func main() {
 	webDir = filepath.Join(root, "web")
 	mediaDir = filepath.Join(root, "media")
 	textsDir = filepath.Join(root, "texts")
-	usersDir = filepath.Join(root, "data", "users")
+	dd := *dataDir
+	if dd == "" {
+		dd = filepath.Join(root, "data")
+	}
+	usersDir = filepath.Join(dd, "users")
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handle)

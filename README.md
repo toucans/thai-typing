@@ -66,7 +66,8 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
 
 - `main.go` — Go stdlib only, one binary on `127.0.0.1:8768`: serves the static
   app, lists `media/` + `texts/`, streams media with Range support, and appends
-  finished runs to `data/users/<name>.jsonl`.
+  finished runs to `<data-dir>/users/<name>.jsonl` (data dir set with `-data`;
+  see below).
 - `web/` — vanilla HTML/CSS/JS ES modules. No framework, no build step, no npm.
   Key clicks and chimes are synthesized with WebAudio — no sound assets.
 - **Design** — Thai and nature throughout, hand-made rather than themed:
@@ -147,11 +148,13 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
 - Dark mode ("forest at night") follows the system preference, toggleable with
   the pixel moon/sun button, persisted in localStorage. The header toggles are
   pixel icons painted in code (`web/js/icons.js`), following the theme's ink.
-- `data/users/<name>.jsonl` — one append-only run log per user, one JSON object
-  per finished run. **The single source of truth**: unlocked levels, stars, PBs,
-  streaks and the graph are all derived from it, live from the server on every
-  view. Gitignored (machine data), but it is your entire history — include it
-  in backups.
+- `<data-dir>/users/<name>.jsonl` — one append-only run log per user, one JSON
+  object per finished run. **The single source of truth**: unlocked levels,
+  stars, PBs, streaks and the graph are all derived from it, live from the server
+  on every view. It is your entire history. Per the box's data convention it
+  lives **outside the repo at `~/keep/thai-typing/`** (the server is pointed there
+  with `-data`; defaults to `<repo>/data` for a bare local run) so it's backed up
+  as part of `~/keep` — see debian-config → Backups.
 
 ## Accounts & the backend, the monk-like way
 
