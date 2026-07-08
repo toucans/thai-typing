@@ -1,22 +1,26 @@
 // Run records. The server's data/users/<name>.jsonl is the single source of
 // truth; everything shown anywhere (unlocked levels, stars, PBs, streaks, the
-// graph) is derived from it. loadRuns always fetches fresh so two devices on
-// the same account can never diverge. localStorage holds only the username
-// (plus device prefs like theme) — never save data that could conflict.
+// graph) is derived from it. We fetch it once per session and keep it in memory
+// — switching between views (journey/stats/…) reuses that copy instead of
+// re-fetching everything; saving a run keeps the copy current. localStorage
+// holds only the username (plus device prefs like theme) — never save data
+// that could conflict.
 
 const USER_KEY = 'tt.user';
 // pre-account versions cached runs here; stale copies must not linger
 localStorage.removeItem('tt.cache');
 localStorage.removeItem('tt.pending');
 let user = localStorage.getItem(USER_KEY);
-let cache = [];   // last good server copy, page lifetime only (offline fallback)
-let pending = []; // runs whose POST failed; retried before the next load/save
+let cache = [];      // the session's copy of this user's runs (also the offline fallback)
+let loaded = false;  // has cache been filled from the server yet this session?
+let pending = [];    // runs whose POST failed; retried before the next load/save
 
 export function currentUser() { return user; }
 
 export function logout() {
   user = null;
   cache = [];
+  loaded = false;
   pending = [];
   localStorage.removeItem(USER_KEY);
 }
@@ -51,11 +55,15 @@ async function flushPending() {
   pending = still;
 }
 
-export async function loadRuns() {
-  await flushPending();
+// Returns this session's runs, fetching from the server only the first time (or
+// when force=true). Cheap to call on every view render — it won't hit the
+// network just because you switched tabs.
+export async function loadRuns(force = false) {
+  if (pending.length) await flushPending();
+  if (loaded && !force) return cache.concat(pending);
   try {
     const res = await fetch(`api/runs?user=${encodeURIComponent(user)}`);
-    if (res.ok) cache = (await res.json()).runs;
+    if (res.ok) { cache = (await res.json()).runs; loaded = true; }
   } catch { /* offline: fall through to the last good copy */ }
   return cache.concat(pending);
 }

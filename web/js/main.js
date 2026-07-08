@@ -134,10 +134,10 @@ $('#theme-toggle').addEventListener('click', () => {
 document.addEventListener('runs-changed', renderJourney);
 
 // ---- login gate -----------------------------------------------------------------
-// The server owns all save data; localStorage remembers only who you are. On
-// focus/visibility the visible browse view re-renders from the server, so two
-// devices on the same account always show the same progress (play views are
-// left alone mid-run).
+// The server owns all save data; localStorage remembers only who you are. Runs
+// are fetched once at boot and kept in memory (see records.js), so switching
+// tabs is instant and never re-fetches; reload to pull another device's newer
+// progress.
 function showLogin() {
   $('#login').hidden = false;
   $('#login-name').focus();
@@ -165,18 +165,6 @@ $('#user-btn').addEventListener('click', () => {
   logout();
   location.reload(); // clean slate; boot() lands on the login gate
 });
-
-function activeView() {
-  const v = document.querySelector('.view:not([hidden])');
-  return v ? v.id.replace('view-', '') : null;
-}
-function refreshFromServer() {
-  if (!currentUser() || !$('#login').hidden) return;
-  const r = renderers[activeView()];
-  if (r) r();
-}
-window.addEventListener('focus', refreshFromServer);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshFromServer(); });
 
 function startApp() {
   const ub = $('#user-btn');
