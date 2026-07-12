@@ -17,6 +17,7 @@ specific to the device and this port.
 | Waveforms | DU=1 GC16=2 A2=4 AUTO=257; `TEMP_USE_AMBIENT=0x1000` |
 | Storage | internal microSD `mmcblk0` 7.4GiB: p1 rootfs (256M), p2 recovery, p3 user FAT (`/mnt/onboard`, the `KOBOeReader` USB volume) |
 | USB OTG | `ci_hdrc.0`, role via `echo host > /sys/kernel/debug/ci_hdrc.0/role`; kernel has `CHIPIDEA_HOST`+EHCI+`USB_HID`+`HID_GENERIC`+evdev built in |
+| OTG power | port supplies **no VBUS** (no `vbus-supply` in DT; community-confirmed, mobileread t=340418) → powered OTG Y-adapter required (confirmed models: B07TX8FY6W, B07CK4KFLR), which also charges the Kobo while docked. Keyboards may need `echo 1 > /sys/module/hid/parameters/ignore_special_drivers` |
 | WiFi | RTL8189 (`eth0`), joins Zyxel_F0B1, DHCP (find with an ssh-port scan) |
 | No Bluetooth | wired/dongle keyboards only |
 
