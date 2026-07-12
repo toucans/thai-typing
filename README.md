@@ -52,10 +52,19 @@ text, and they become typing material with zero processing.
 ## Thai word segmentation
 
 No preprocessing pipeline: browsers ship ICU dictionary-based Thai segmentation
-via `Intl.Segmenter` (`web/js/ui.js`). Where the dictionary cuts wrong, put `|`
+via `Intl.Segmenter` (`web/js/segment.js`, dependency-free so other
+frontends can import it — see below). Where the dictionary cuts wrong, put `|`
 between words in that subtitle cue (or text) — explicit markers always win. The
 dictation setup screen has a per-file "ดูตัวอย่างการตัดคำ" preview to vet cuts
 before playing.
+
+## The Kobo e-ink frontend
+
+A second frontend — a Kobo Clara HD that boots straight into the trainer —
+lives in its own repo: [toucans/kobo](https://github.com/toucans/kobo). It
+talks to this project only through the server: its build step imports the
+word pool and `segment.js` over HTTP, and its runs merge into the same
+per-user JSONL via `POST /api/runs`. Nothing is copied between the repos.
 
 ## Speed metric
 
