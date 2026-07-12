@@ -82,27 +82,63 @@ export async function saveRun(run) {
   document.dispatchEvent(new CustomEvent('runs-changed'));
 }
 
+// Star rules, calibrated on real play data. Accuracy here is per keystroke —
+// every wrong key counts even if corrected, and Thai's stacked vowels and tone
+// marks make that unforgiving: a typical solid run sits near 85%, and 90%+ is
+// already a clean one. The thresholds sit inside that real distribution so all
+// four outcomes actually occur:
+//  ★    a careful finish — accuracy >= 80%
+//  ★★   a clean run      — accuracy >= 87%, not far off your usual speed
+//  ★★★  clean AND fast   — accuracy >= 93% at or above your recent median cpm
+// The speed checks compare against your own last 10 runs (baseline below), so
+// every tier stays reachable — and none turns trivial — from level 1 to 1000.
+export function starsFor(acc, cpm, baseline) {
+  let stars = 0;
+  if (acc >= 0.80) stars = 1;
+  if (stars && acc >= 0.87 && (baseline === 0 || cpm >= baseline * 0.85)) stars = 2;
+  if (stars === 2 && acc >= 0.93 && (baseline === 0 || cpm >= baseline)) stars = 3;
+  return stars;
+}
+
+// The runs that raised the personal best (>=95% accuracy, same rule as
+// stats().pb), oldest first. Feeds the chart's step line and the record-days
+// list on the stats page.
+export function pbHistory(runs) {
+  const speed = runs.filter((r) => r.game === 'speed' && r.cpm > 0)
+    .sort((a, b) => a.t.localeCompare(b.t));
+  const out = [];
+  let pb = 0;
+  for (const r of speed) {
+    if (r.acc >= 0.95 && r.cpm > pb) { pb = r.cpm; out.push(r); }
+  }
+  return out;
+}
+
 // Derived progress. PBs only count with >=95% accuracy so a sloppy sprint can't
-// set the bar; the star baseline is the median of your last 10 runs, so two and
-// three stars always mean "better than your own recent self" — never impossible,
-// never trivial.
+// set the bar. Stars are re-derived here from each run's raw numbers (acc, cpm,
+// and the baseline as it stood at the time) rather than read from the stored
+// `stars` field — so refining starsFor() regrades the whole journey
+// consistently instead of freezing old rules into the map.
 export function stats(runs) {
   const speed = runs.filter((r) => r.game === 'speed');
   const starsByLevel = new Map();
   let maxDone = 0;
   let pb = 0;
   let pbAt = null;
+  const cpms = []; // rolling window source for each run's baseline
   for (const r of speed) {
+    const win = cpms.slice(-10).sort((a, b) => a - b);
+    const base = win.length >= 3 ? win[Math.floor(win.length / 2)] : 0;
     if (r.level) {
       // finishing a level unlocks the next; stars are quality medals on top
       maxDone = Math.max(maxDone, r.level);
-      if ((r.stars || 0) >= 1) {
-        starsByLevel.set(r.level, Math.max(starsByLevel.get(r.level) || 0, r.stars));
-      }
+      const stars = starsFor(r.acc || 0, r.cpm, base);
+      if (stars) starsByLevel.set(r.level, Math.max(starsByLevel.get(r.level) || 0, stars));
     }
     if (r.acc >= 0.95 && r.cpm > pb) { pb = r.cpm; pbAt = r.t; }
+    cpms.push(r.cpm);
   }
-  const last = speed.slice(-10).map((r) => r.cpm).sort((a, b) => a - b);
+  const last = cpms.slice(-10).sort((a, b) => a - b);
   const baseline = last.length >= 3 ? last[Math.floor(last.length / 2)] : 0;
 
   const days = new Set(runs.map((r) => r.t.slice(0, 10)));

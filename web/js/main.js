@@ -1,13 +1,13 @@
 // Bootstrap and the three "browse" views: journey (level map), texts, stats.
 // The play views live in speed.js / dictation.js.
-import { loadRuns, stats, currentUser, login, createUser, logout } from './records.js';
+import { loadRuns, stats, pbHistory, currentUser, login, createUser, logout } from './records.js';
 import { startLevel, startText, initSpeed } from './speed.js';
 import { initDictation, initDictationInput } from './dictation.js';
 import { renderChart } from './chart.js';
 import { sound } from './audio.js';
 import { music } from './music.js';
 import { fx } from './fx.js';
-import { $, show, setRegion, segmentThaiBreaks, REGIONS, REGION_SIZE, TOTAL_LEVELS } from './ui.js';
+import { $, show, modal, closeModal, setRegion, segmentThaiBreaks, REGIONS, REGION_SIZE, TOTAL_LEVELS } from './ui.js';
 import { initMap, drawMap, redrawMap, showMongkhon } from './map.js';
 import { redrawHero } from './hero.js';
 import { paintIcons } from './icons.js';
@@ -76,6 +76,33 @@ async function renderStats() {
   $('#stat-cards').innerHTML = cards.map(([num, label]) =>
     `<div class="stat"><div class="stat-num">${num}</div><div class="stat-label">${label}</div></div>`).join('');
   renderChart($('#chart'), runs);
+  const pbs = pbHistory(runs);
+  const btn = $('#pb-list-btn');
+  btn.disabled = !pbs.length;
+  btn.onclick = () => showPbHistory(pbs);
+}
+
+// Every day the record moved, as a list you can actually read — the gold dots
+// on the chart, spelled out: when, at which level, and by how much.
+function showPbHistory(pbs) {
+  const dfmt = new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+  const tfmt = new Intl.DateTimeFormat('th-TH', { hour: '2-digit', minute: '2-digit' });
+  const rows = pbs.map((r, i) => {
+    const d = new Date(r.t);
+    const gain = i ? `+${Math.round((r.cpm - pbs[i - 1].cpm) * 10) / 10}` : 'ครั้งแรก';
+    const where = r.level ? `ด่าน ${r.level}` : (r.name || 'เรื่องอ่าน');
+    return `<div class="pb-row">
+      <span class="pb-date">${dfmt.format(d)} · ${tfmt.format(d)}</span>
+      <span class="pb-where">${where}</span>
+      <span class="pb-cpm"><b>${Math.round(r.cpm)}</b> <small class="pb-gain">${gain}</small></span>
+    </div>`;
+  }).reverse().join(''); // newest on top
+  const card = modal(`
+    <h2>🏆 วันทำลายสถิติ</h2>
+    <div class="modal-sub">ทุกครั้งที่ความเร็วสูงสุด (แม่นยำ ≥95%) ขยับขึ้น · ตัวอักษร/นาที</div>
+    <div class="pb-rows">${rows}</div>
+    <div class="play-actions"><button class="btn" id="m-close">ปิด</button></div>`);
+  card.querySelector('#m-close').onclick = closeModal;
 }
 
 // ---- free texts --------------------------------------------------------------------

@@ -1,6 +1,7 @@
 // The progress graph: every speed run as a dot, the running personal best as a
 // step line. Hand-rolled SVG — a chart library would be the only dependency in
 // the whole app, for one line and some dots.
+import { pbHistory } from './records.js';
 
 const W = 820, H = 300, PAD = { l: 46, r: 14, t: 14, b: 30 };
 
@@ -29,12 +30,8 @@ export function renderChart(el, runs) {
   const dots = speed.map((r) =>
     `<circle class="c-dot" cx="${x(r.t)}" cy="${y(r.cpm)}" r="3"/>`).join('');
 
-  // running PB (>=95% accuracy, same rule as everywhere else)
-  let pb = 0;
-  const pts = [];
-  for (const r of speed) {
-    if (r.acc >= 0.95 && r.cpm > pb) { pb = r.cpm; pts.push(r); }
-  }
+  // running PB (records.pbHistory: >=95% accuracy, same rule as everywhere else)
+  const pts = pbHistory(runs);
   let line = '';
   if (pts.length) {
     let d = `M ${x(pts[0].t)} ${y(pts[0].cpm)}`;

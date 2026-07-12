@@ -6,7 +6,7 @@
 // deterministic, so replaying "ด่าน 217" always gives the same words.
 import { sound } from './audio.js';
 import { music } from './music.js';
-import { loadRuns, saveRun, stats } from './records.js';
+import { loadRuns, saveRun, stats, starsFor } from './records.js';
 import { $, show, modal, closeModal, confetti, setRegion, REGION_SIZE, TOTAL_LEVELS } from './ui.js';
 import { levelWords } from './levels.js';
 import { BY_LEVEL, thaiNum } from './data/mongkhon.js';
@@ -44,6 +44,10 @@ function begin(cfg) {
     return sp;
   });
   S.spans[0].classList.add('cur');
+  // clearing and refilling the stream happens before any layout, so the browser
+  // never clamps the previous level's scrollTop — reset it or line one starts
+  // hidden above the two-line window
+  stream.scrollTop = 0;
   show('play');
   if (S.mode === 'speed') music.playForLevel(S.level);
   else music.playForName(S.name || S.title);
@@ -86,10 +90,7 @@ async function finish() {
   const acc = Math.round((S.keys ? 1 - S.wrong / S.keys : 1) * 1000) / 1000;
 
   const st = stats(await loadRuns());
-  let stars = 0;
-  if (acc >= 0.90) stars = 1;
-  if (stars && (st.baseline === 0 || cpm >= st.baseline)) stars = 2;
-  if (stars === 2 && st.baseline > 0 && cpm >= st.baseline * 1.08 && acc >= 0.97) stars = 3;
+  const stars = starsFor(acc, cpm, st.baseline); // rules live in records.js
   const pb = acc >= 0.95 && cpm > st.pb;
 
   const run = {
@@ -118,7 +119,9 @@ async function finish() {
       ความแม่นยำ ${Math.round(acc * 100)}%
       ${pb ? '<div class="modal-pb">🏆 สถิติใหม่!' + (delta > 0 ? ` เร็วขึ้น ${delta}` : '') + '</div>'
            : (delta !== null && delta < 0 ? `<div>ห่างสถิติ ${Math.abs(Math.round(delta))} ตัวอักษร/นาที</div>` : '')}
-      ${stars === 0 ? '<div>แม่นยำ 90% ขึ้นไปจึงจะได้ดาว</div>' : ''}
+      ${stars === 0 ? '<div>แม่นยำ 80% ขึ้นไปจึงจะได้ดาว</div>'
+        : stars === 1 ? '<div>แม่นยำ 87% ขึ้นไปได้ ★★</div>'
+        : stars === 2 ? '<div>แม่นยำ 93% + เร็วเท่าค่ากลางของคุณได้ ★★★</div>' : ''}
     </div>
     ${blessing ? `
     <div class="blessing">

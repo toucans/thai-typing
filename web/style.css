@@ -400,6 +400,21 @@ h2.blessing-name { margin: .2rem 0 .4rem; }
 .stat-label { color: var(--ink-soft); font-size: .85rem; margin-top: .15rem; }
 .chart-card { padding: 1rem 1.2rem; }
 .chart-card h2 { margin: 0 0 .6rem; font-size: 1.2rem; color: var(--green-900); }
+.chart-head { display: flex; justify-content: space-between; align-items: baseline;
+  flex-wrap: wrap; gap: .5rem; }
+.chart-head .btn:disabled { opacity: .4; cursor: default; }
+
+/* the record-days list (opened from the chart card) */
+.pb-rows { max-height: 55vh; overflow-y: auto; text-align: start;
+  margin: .8rem 0 0; padding-right: .4rem; }
+.pb-row { display: flex; justify-content: space-between; align-items: baseline;
+  gap: .8rem; padding: .35rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--gold) 18%, transparent); }
+.pb-row:last-child { border-bottom: none; }
+.pb-date { color: var(--ink-soft); font-size: .88rem; white-space: nowrap; }
+.pb-where { color: var(--ink); flex: 1; text-align: end; font-size: .92rem; }
+.pb-cpm b { color: var(--green-900); font-size: 1.05rem; }
+.pb-gain { color: var(--gold); font-size: .8rem; }
 #chart svg { width: 100%; height: auto; display: block; }
 .chart-empty { color: var(--ink-soft); padding: 2rem 0; text-align: center; }
 
