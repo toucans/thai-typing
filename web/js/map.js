@@ -355,9 +355,17 @@ function draw() {
       disc(p.x, p.y, 4, C.goldD);
       disc(p.x, p.y, 3, frame % 4 < 2 ? C.goldHi : C.cream);
     } else if (stars) {
-      disc(p.x, p.y, bonus ? 4 : 3, bonus ? C.goldD : C.leaf1);
-      disc(p.x, p.y, bonus ? 3 : 2, bonus ? C.gold : C.leaf2);
-      if (stars === 3) px(p.x, p.y - 1, C.cream);
+      // the stars are a visible ladder: ★ a mossy stone, ★★ the full green
+      // with a cream fleck, ★★★ a gold star that twinkles on the stone
+      if (stars === 1) {
+        disc(p.x, p.y, bonus ? 4 : 3, bonus ? C.goldD : conf.path[1]);
+        disc(p.x, p.y, bonus ? 3 : 2, bonus ? C.gold : C.leaf2);
+      } else {
+        disc(p.x, p.y, bonus ? 4 : 3, bonus ? C.goldD : C.leaf1);
+        disc(p.x, p.y, bonus ? 3 : 2, bonus ? C.gold : C.leaf2);
+        if (stars === 2) px(p.x, p.y, C.cream);
+        else starSpark(p.x, p.y);
+      }
     } else if (level < st.next) {
       disc(p.x, p.y, 3, conf.path[1]); disc(p.x, p.y, 2, C.cream);
     } else {
@@ -396,7 +404,8 @@ function draw() {
     spr(p.x - 3 + dx, p.y - 11 + bob, TRAVELER, TRAVELER_PAL);
   }
 
-  // night falls with the dark theme: one dusk wash, then the shrines re-lit
+  // night falls with the dark theme: one dusk wash, then the shrines re-lit —
+  // and the ★★★ stars, which keep their gold after dark like the flames do
   if (document.documentElement.dataset.theme === 'dark') {
     cx.globalCompositeOperation = 'multiply';
     rect(0, 0, W, H, '#9aa3cc');
@@ -407,7 +416,22 @@ function draw() {
       disc(s.x, s.y - 10, 7, '#ffdf8a');
       cx.globalAlpha = 1;
     }
+    for (let i = 0; i < nodesPts.length; i++) {
+      const level = region * REGION_SIZE + i + 1;
+      if ((st.starsByLevel.get(level) || 0) === 3 && level !== st.next) {
+        starSpark(nodesPts[i].x, nodesPts[i].y);
+      }
+    }
   }
+}
+
+// a four-point gold star, twinkling with the map's slow ticker
+function starSpark(x, y) {
+  px(x, y, C.goldHi);
+  px(x - 1, y, C.gold); px(x + 1, y, C.gold);
+  px(x, y - 1, C.gold); px(x, y + 1, C.gold);
+  if (frame % 4 < 2) { px(x - 2, y, C.goldHi); px(x + 2, y, C.goldHi); }
+  else { px(x, y - 2, C.goldHi); px(x, y + 2, C.goldHi); }
 }
 
 // ---- interaction -----------------------------------------------------------------
