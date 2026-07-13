@@ -53,6 +53,27 @@ back for a review round. Progress per file is resumable.
 and type through it. This is the "stories" path: source stories anywhere, in plain
 text, and they become typing material with zero processing.
 
+**พิมพ์ไล่ผี (the night hunt)** — Typing of the Dead, in Thai folklore terms
+(`web/js/ghosts.js`). Ghosts of the Thai pantheon — ผีอำ, ผีปอบ, กระสือ,
+นางตานี, กระหัง, drawn as string-art pixel sprites over a painted night
+scene — drift out of the dark toward a lit spirit house, each carrying one
+word from the same frequency-ordered pool; typing the word through is the
+chant that banishes it. The first keystroke locks the nearest matching ghost
+(spawns never share a first character), wrong keys are rejected and make the
+locked ghost lurch closer, a ghost that reaches the shrine puts out one of
+three candles, and after three waves a towering เปรต arrives carrying a whole
+proverb, banished a segment at a time. Word length picks the ghost: short
+words ride the small quick horrors, long words the big slow ones.
+
+Where the journey trains careful accuracy at your own pace (the clock only
+starts when you type), the night hunt trains the other half of fluency —
+recall under time pressure, where a typo costs ground instead of a
+percentage. Nights are generated like levels: seeded, deterministic,
+endless, the word pool widening and the drift quickening as they deepen.
+Thai script is unreadable at 320×180, so the words float above the canvas
+as real DOM text; the pixels stay pixels. `web/ghosttest.html` is the dev
+harness (`?n=5&bot=200&err=0.1` runs a night with a typing bot).
+
 ## Thai word segmentation
 
 No preprocessing pipeline: browsers ship ICU dictionary-based Thai segmentation

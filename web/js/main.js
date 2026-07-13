@@ -3,6 +3,7 @@
 import { loadRuns, stats, pbHistory, currentUser, login, createUser, logout } from './records.js';
 import { startLevel, startText, initSpeed } from './speed.js';
 import { initDictation, initDictationInput } from './dictation.js';
+import { initGhosts, renderGhosts } from './ghosts.js';
 import { renderChart } from './chart.js';
 import { sound } from './audio.js';
 import { music } from './music.js';
@@ -72,6 +73,8 @@ async function renderStats() {
     [st.totalChars.toLocaleString('th-TH'), `ตัวอักษรที่พิมพ์ · ≈ ${Math.max(1, Math.round(st.totalChars / 1800))} หน้ากระดาษ`],
     [`${hours} ชม. ${mins} น.`, 'เวลาฝึกทั้งหมด'],
     [st.dictWords.toLocaleString('th-TH'), 'คำจากแบบฝึกฟัง–พิมพ์'],
+    [st.ghostsBanished.toLocaleString('th-TH'),
+      `ผีที่ไล่ไปแล้ว${st.ghostNight ? ` · ลึกสุดคืนที่ ${st.ghostNight}` : ''}`],
   ];
   $('#stat-cards').innerHTML = cards.map(([num, label]) =>
     `<div class="stat"><div class="stat-num">${num}</div><div class="stat-label">${label}</div></div>`).join('');
@@ -130,7 +133,7 @@ async function renderTexts() {
 }
 
 // ---- boot ---------------------------------------------------------------------------
-const renderers = { journey: renderJourney, stats: renderStats, texts: renderTexts, dictation: null };
+const renderers = { journey: renderJourney, stats: renderStats, texts: renderTexts, ghosts: renderGhosts, dictation: null };
 
 for (const b of document.querySelectorAll('#nav button')) {
   b.addEventListener('click', () => {
@@ -212,6 +215,7 @@ async function boot() {
 }
 
 initSpeed();
+initGhosts();
 initDictationInput();
 initMap({ onPlay: startLevel });
 paintIcons();

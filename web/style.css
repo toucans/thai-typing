@@ -342,13 +342,13 @@ h2.blessing-name { margin: .2rem 0 .4rem; }
 .wordstream .ok { color: var(--green-500); }
 .wordstream .err { color: var(--red); text-decoration: underline wavy; text-decoration-thickness: 1px; }
 
-#typebox, #dict-typebox {
+#typebox, #dict-typebox, #gh-typebox {
   width: 100%; font: inherit; font-size: 1.6rem; text-align: center;
   padding: .55rem .9rem; border-radius: 14px;
   border: 1.5px solid var(--green-500); background: var(--card); color: var(--ink);
   outline: none;
 }
-#typebox:focus, #dict-typebox:focus { border-color: var(--gold); box-shadow: 0 0 0 4px rgb(184 134 11 / .15); }
+#typebox:focus, #dict-typebox:focus, #gh-typebox:focus { border-color: var(--gold); box-shadow: 0 0 0 4px rgb(184 134 11 / .15); }
 .flash-red { animation: flashred .35s; }
 @keyframes flashred {
   0% { background: var(--red-soft); border-color: var(--red); }
@@ -477,4 +477,38 @@ html[data-theme="dark"] .modal-stars .star.on { color: var(--gold); }
   .hero-title #region-name { font-size: 1.6rem; }
   .wordstream { font-size: 1.4rem; }
   .map-tip { font-size: .72rem; }
+}
+
+/* ---- พิมพ์ไล่ผี: the night hunt (js/ghosts.js) ----------------------------------
+   The canvas is always night — its colors are fixed, not themed; the page frame
+   around it follows the theme as usual. Words float above the pixels as real
+   DOM text: Thai script is unreadable at 320x180, Sarabun is not. */
+.gh-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: .3rem; }
+.gh-hud { color: var(--ink-soft); font-size: .95rem; white-space: nowrap; }
+.gh-wrap { background: #0a0d1c; cursor: text; margin-bottom: 1rem; }
+#gh-canvas {
+  display: block; width: 100%; height: auto;
+  image-rendering: pixelated; image-rendering: crisp-edges;
+}
+#gh-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.gh-label {
+  position: absolute; transform: translate(-50%, -100%); white-space: nowrap;
+  color: #cfc6ab; font-size: clamp(.85rem, 2.6vw, 1.15rem); line-height: 1.4;
+  text-shadow: 0 1px 3px rgb(0 0 0 / .95), 0 0 10px rgb(0 0 0 / .8);
+}
+.gh-label b { color: var(--gold-hi); }
+.gh-label.lock { color: #f6f1e4; font-weight: 600; }
+.gh-label.boss { font-size: clamp(1rem, 3.2vw, 1.35rem); }
+.gh-label.boss .done { color: #58b183; }
+.gh-label.boss .dim { opacity: .45; }
+.gh-banner {
+  position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%);
+  font-family: var(--display); font-size: clamp(1.5rem, 5vw, 2.3rem); font-weight: 700;
+  color: #f0cc5e; text-shadow: 0 2px 12px rgb(0 0 0 / .85); pointer-events: none;
+  animation: ghbanner 1.7s ease both;
+}
+@keyframes ghbanner {
+  0% { opacity: 0; transform: translate(-50%, -30%) scale(.85); }
+  18%, 72% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -60%) scale(1); }
 }

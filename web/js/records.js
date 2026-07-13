@@ -154,6 +154,9 @@ export function stats(runs) {
     ? recent.reduce((s, r) => s + r.cpm, 0) / recent.length : 0;
   const dictWords = runs.filter((r) => r.game === 'dictation')
     .reduce((s, r) => s + (r.words || 0), 0);
+  const ghostRuns = runs.filter((r) => r.game === 'ghosts');
+  const ghostsBanished = ghostRuns.reduce((s, r) => s + (r.ghosts || 0), 0);
+  const ghostNight = ghostRuns.reduce((m, r) => (r.cleared && r.night > m ? r.night : m), 0);
 
-  return { starsByLevel, maxDone, pb, pbAt, baseline, streak, totalChars, totalSecs, avg30, dictWords };
+  return { starsByLevel, maxDone, pb, pbAt, baseline, streak, totalChars, totalSecs, avg30, dictWords, ghostsBanished, ghostNight };
 }

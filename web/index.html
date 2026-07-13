@@ -25,6 +25,7 @@
     <button data-view="journey" class="active">เส้นทาง</button>
     <button data-view="dictation">ฟัง–พิมพ์</button>
     <button data-view="texts">เรื่องอ่าน</button>
+    <button data-view="ghosts">ไล่ผี</button>
     <button data-view="stats">สถิติ</button>
   </nav>
   <button id="user-btn" class="userbtn" title="ออกจากระบบ" hidden></button>
@@ -103,6 +104,37 @@
     <p class="hint">วางเรื่องสั้นหรือบทความภาษาไทยเป็นไฟล์ <code>.txt</code> ในโฟลเดอร์
       <code>texts/</code> (บรรทัดแรกคือชื่อเรื่อง) แล้วพิมพ์ตามได้ทั้งเรื่อง</p>
     <div id="texts-list" class="cardlist"></div>
+  </section>
+
+  <!-- พิมพ์ไล่ผี: the night game (js/ghosts.js) — pixel ghosts on the canvas,
+       their words floating above it as crisp DOM text -->
+  <section id="view-ghosts" class="view" hidden>
+    <div id="gh-setup">
+      <div class="journey-bar">
+        <div id="gh-stats"></div>
+        <div class="journey-actions">
+          <button class="btn gold" id="gh-start">ออกล่า 🕯</button>
+        </div>
+      </div>
+      <p class="hint">กลางคืน ผีลอยออกจากป่ามาหาศาลพระภูมิ — ผีแต่ละตนถือคำหนึ่งคำ
+        พิมพ์คำนั้นให้ครบคือคาถาไล่มัน ตัวอักษรแรกเลือกเป้า พิมพ์ผิดผีขยับเข้ามาใกล้
+        (กด Backspace จนว่างเพื่อเปลี่ยนเป้า) · ผีถึงศาลเทียนดับหนึ่งเล่ม
+        ดับครบสามเล่มคือจบคืน · สามระลอกแล้วเปรตจะมา — ไล่มันด้วยสุภาษิตทั้งบท</p>
+      <div class="region-chips" id="gh-nights"></div>
+    </div>
+    <div id="gh-session" hidden>
+      <div class="play-head gh-head">
+        <span id="gh-title" class="play-title"></span>
+        <span id="gh-hud" class="gh-hud"></span>
+      </div>
+      <div class="mapwrap gh-wrap" id="gh-wrap">
+        <canvas id="gh-canvas" width="320" height="180"></canvas>
+        <div id="gh-labels"></div>
+        <div id="gh-banner" class="gh-banner" hidden></div>
+      </div>
+      <input id="gh-typebox" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="พิมพ์คำของผีเพื่อไล่มัน…">
+      <div class="play-actions"><button class="btn ghost" id="gh-quit">กลับ</button></div>
+    </div>
   </section>
 
   <section id="view-stats" class="view" hidden>
