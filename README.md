@@ -33,9 +33,11 @@ The gamification is deliberately self-referential — you compete with yourself 
 - **Finishing a level unlocks the next** — stars are quality medals on top, they never gate progress
 - **1 star** = finish with ≥80% accuracy — accuracy is per keystroke, and Thai's
   stacked vowels/tone marks make that unforgiving (a typical solid run is ~85%)
-- **2 stars** = ≥87% accuracy, at no less than 85% of your recent median speed
-- **3 stars** = ≥93% accuracy at or above the median of your own last 10 runs —
-  always challenging, never impossible
+- **2 stars** = ≥88% accuracy at no less than the median speed of your own last
+  10 runs — clean *and* at full speed; each tier is roughly three times rarer
+  than the one below
+- **3 stars** = ≥93% accuracy, 5% above that median — always challenging,
+  never impossible
 - stars are re-derived from each run's raw numbers on read (rules in
   `records.js starsFor()`), so refining the rules regrades the whole journey
 - **PB** = fastest run at ≥95% accuracy, ever; celebrated with a chime and falling

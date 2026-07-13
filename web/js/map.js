@@ -355,17 +355,13 @@ function draw() {
       disc(p.x, p.y, 4, C.goldD);
       disc(p.x, p.y, 3, frame % 4 < 2 ? C.goldHi : C.cream);
     } else if (stars) {
-      // the stars are a visible ladder: ★ a mossy stone, ★★ the full green
-      // with a cream fleck, ★★★ a gold star that twinkles on the stone
-      if (stars === 1) {
-        disc(p.x, p.y, bonus ? 4 : 3, bonus ? C.goldD : conf.path[1]);
-        disc(p.x, p.y, bonus ? 3 : 2, bonus ? C.gold : C.leaf2);
-      } else {
-        disc(p.x, p.y, bonus ? 4 : 3, bonus ? C.goldD : C.leaf1);
-        disc(p.x, p.y, bonus ? 3 : 2, bonus ? C.gold : C.leaf2);
-        if (stars === 2) px(p.x, p.y, C.cream);
-        else starSpark(p.x, p.y);
-      }
+      // green = starred, and the cream pips literally count the stars:
+      // one pip ★, two pips ★★ — and ★★★ a gold star that twinkles
+      disc(p.x, p.y, bonus ? 4 : 3, bonus ? C.goldD : C.leaf1);
+      disc(p.x, p.y, bonus ? 3 : 2, bonus ? C.gold : C.leaf2);
+      if (stars === 1) px(p.x, p.y, C.cream);
+      else if (stars === 2) { px(p.x - 1, p.y, C.cream); px(p.x + 1, p.y, C.cream); }
+      else starSpark(p.x, p.y);
     } else if (level < st.next) {
       disc(p.x, p.y, 3, conf.path[1]); disc(p.x, p.y, 2, C.cream);
     } else {

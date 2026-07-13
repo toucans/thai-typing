@@ -85,18 +85,20 @@ export async function saveRun(run) {
 // Star rules, calibrated on real play data. Accuracy here is per keystroke —
 // every wrong key counts even if corrected, and Thai's stacked vowels and tone
 // marks make that unforgiving: a typical solid run sits near 85%, and 90%+ is
-// already a clean one. The thresholds sit inside that real distribution so all
-// four outcomes actually occur:
+// already a clean one. Each tier is roughly three times rarer than the one
+// below it (recalibrated 2026-07-13: the old ★★ speed check at 85% of baseline
+// passed almost every run, so ★★ was pure accuracy and speed counted for
+// nothing — now both upper tiers demand real speed):
 //  ★    a careful finish — accuracy >= 80%
-//  ★★   a clean run      — accuracy >= 87%, not far off your usual speed
-//  ★★★  clean AND fast   — accuracy >= 93% at or above your recent median cpm
+//  ★★   clean at full speed — accuracy >= 88% at or above your median cpm
+//  ★★★  excellence — accuracy >= 93%, 5% above your median cpm
 // The speed checks compare against your own last 10 runs (baseline below), so
 // every tier stays reachable — and none turns trivial — from level 1 to 1000.
 export function starsFor(acc, cpm, baseline) {
   let stars = 0;
   if (acc >= 0.80) stars = 1;
-  if (stars && acc >= 0.87 && (baseline === 0 || cpm >= baseline * 0.85)) stars = 2;
-  if (stars === 2 && acc >= 0.93 && (baseline === 0 || cpm >= baseline)) stars = 3;
+  if (stars && acc >= 0.88 && (baseline === 0 || cpm >= baseline)) stars = 2;
+  if (stars === 2 && acc >= 0.93 && (baseline === 0 || cpm >= baseline * 1.05)) stars = 3;
   return stars;
 }
 

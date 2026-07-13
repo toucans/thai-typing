@@ -120,8 +120,8 @@ async function finish() {
       ${pb ? '<div class="modal-pb">🏆 สถิติใหม่!' + (delta > 0 ? ` เร็วขึ้น ${delta}` : '') + '</div>'
            : (delta !== null && delta < 0 ? `<div>ห่างสถิติ ${Math.abs(Math.round(delta))} ตัวอักษร/นาที</div>` : '')}
       ${stars === 0 ? '<div>แม่นยำ 80% ขึ้นไปจึงจะได้ดาว</div>'
-        : stars === 1 ? '<div>แม่นยำ 87% ขึ้นไปได้ ★★</div>'
-        : stars === 2 ? '<div>แม่นยำ 93% + เร็วเท่าค่ากลางของคุณได้ ★★★</div>' : ''}
+        : stars === 1 ? '<div>แม่นยำ 88% + เร็วเท่าค่ากลางของคุณได้ ★★</div>'
+        : stars === 2 ? '<div>แม่นยำ 93% + เร็วกว่าค่ากลาง 5% ได้ ★★★</div>' : ''}
     </div>
     ${blessing ? `
     <div class="blessing">
