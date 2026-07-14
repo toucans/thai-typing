@@ -108,6 +108,56 @@ function showPbHistory(pbs) {
   card.querySelector('#m-close').onclick = closeModal;
 }
 
+// ---- how to practice ---------------------------------------------------------------
+// The one thing that matters most, said briefly, in Thai and English with a
+// language toggle: you improve fastest by typing where you don't make mistakes.
+const GUIDE = {
+  th: {
+    lang: 'EN',
+    title: '💡 วิธีฝึกให้เก่งเร็วที่สุด',
+    intro: 'เร็วเป็นผลพลอยได้จากความแม่น — พิมพ์ที่ความเร็วที่ “ไม่ผิด” ไว้ก่อน แล้วความเร็วจะตามมาเอง',
+    points: [
+      ['🧠 สมองจำสิ่งที่นิ้วทำจริง ๆ',
+        'พิมพ์ถูกคือการสร้างทางเดินสะอาดจากความคิดไปถึงนิ้ว เร่งจนพิมพ์ผิดแล้วกด Backspace = ฝึกให้พิมพ์ผิดซ้ำ ฝังนิสัยเสียลงในกล้ามเนื้อ'],
+      ['🎯 จุดเหมาะสุดคือแม่น 95–98%',
+        'ไม่ต้องเป๊ะ 100% จนเกร็ง แต่ถ้าต่ำกว่า 95% แปลว่าเร็วเกินกว่าที่สมองจะจดจำการเคลื่อนไหวทัน ให้ผ่อนความเร็วลงจนหยุดผิด'],
+      ['🌊 นิ่ง ๆ นั่นแหละเร็ว',
+        'คนพิมพ์เร็วที่สุดดูผ่อนคลาย จังหวะสม่ำเสมอเหมือนเมโทรนอม เมื่อนิ้วรู้ตำแหน่งอักษรเอง มือจะเร่งเร็วขึ้นเอง ปล่อยให้ความแม่นสร้างความเร็วให้'],
+    ],
+    close: 'เข้าใจแล้ว',
+  },
+  en: {
+    lang: 'ไทย',
+    title: '💡 How to practice — the fastest way to improve',
+    intro: 'Speed is a by-product of accuracy. Type at a pace where you don’t make mistakes, and speed follows on its own.',
+    points: [
+      ['🧠 Your brain remembers what your fingers actually do',
+        'Typing accurately burns a clean path from thought to finger. Racing, mistyping, then hitting backspace trains your hands to make that same typo again — cementing bad habits into muscle memory.'],
+      ['🎯 The sweet spot is 95–98% accuracy',
+        'You don’t need tense, 100% perfection. But below 95% you’re moving too fast for your brain to lay down the movement — ease off the speed until the mistakes stop.'],
+      ['🌊 Smooth is fast',
+        'The fastest typists look relaxed, keeping a steady, metronome-like rhythm. Once your fingers know where the Thai letters are, your hands accelerate on their own. Let accuracy build the speed.'],
+    ],
+    close: 'Got it',
+  },
+};
+
+function showGuide(lang = 'th') {
+  const g = GUIDE[lang];
+  const pts = g.points.map(([h, b]) =>
+    `<div class="guide-pt"><b>${h}</b><p>${b}</p></div>`).join('');
+  const card = modal(`
+    <div class="guide-head">
+      <h2>${g.title}</h2>
+      <button class="btn ghost sm" id="guide-lang">${g.lang}</button>
+    </div>
+    <p class="guide-intro">${g.intro}</p>
+    ${pts}
+    <div class="play-actions"><button class="btn gold" id="m-close">${g.close}</button></div>`);
+  card.querySelector('#guide-lang').onclick = () => showGuide(lang === 'th' ? 'en' : 'th');
+  card.querySelector('#m-close').onclick = closeModal;
+}
+
 // ---- free texts --------------------------------------------------------------------
 async function renderTexts() {
   const list = $('#texts-list');
@@ -143,6 +193,8 @@ for (const b of document.querySelectorAll('#nav button')) {
     if (b.dataset.view === 'dictation') initDictation();
   });
 }
+
+$('#guide-btn').addEventListener('click', () => showGuide());
 
 const soundBtn = $('#sound-toggle');
 soundBtn.classList.toggle('off', !sound.enabled);

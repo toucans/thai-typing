@@ -44,6 +44,12 @@ The gamification is deliberately self-referential — you compete with yourself 
   leaves, and recorded permanently for the graph
 - plus a daily streak, a page-count odometer, and short (~1 min) levels so there is
   always time for "just one more"
+- **💡 วิธีฝึก** on the journey bar opens a short guide to the one thing that
+  matters most — you improve fastest by typing where you *don't* make mistakes
+  (the 95–98% zone), accuracy builds speed, not the other way round. Bilingual
+  (ไทย/EN toggle). The level-end card echoes it: finish below 95% accuracy and it
+  tells you to slow down until the mistakes stop, and always offers a way back to
+  the map
 
 **ฟัง–พิมพ์ (dictation)** — drop a video/audio file plus a same-named `.srt` into
 `media/` (gitignored). The app plays one subtitle cue, you type it from hearing;

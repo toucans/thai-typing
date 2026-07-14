@@ -445,6 +445,21 @@ h2.blessing-name { margin: .2rem 0 .4rem; }
 .modal-pb { color: var(--gold); font-weight: 700; }
 .modal-card .play-actions { margin-top: 1.2rem; }
 
+/* nudge shown after a level when accuracy fell below the 95% learning zone */
+.slow-note { margin-top: .5rem; padding: .5rem .7rem; border-radius: 10px;
+  background: color-mix(in srgb, var(--gold-soft) 55%, transparent);
+  color: var(--ink); font-size: .9rem; line-height: 1.55; }
+
+/* ---- how-to-practice guide ---- */
+.btn.sm { padding: .2rem .6rem; font-size: .82rem; }
+.guide-head { display: flex; align-items: flex-start; justify-content: space-between; gap: .6rem; }
+.guide-head h2 { flex: 1; text-align: start; font-size: 1.3rem; line-height: 1.3; }
+.guide-intro { text-align: start; color: var(--ink); font-size: .96rem; line-height: 1.6; margin: .2rem 0 .9rem; }
+.guide-pt { text-align: start; margin: .7rem 0; }
+.guide-pt b { display: block; color: var(--green-900); font-size: 1rem; margin-bottom: .15rem; }
+.guide-pt p { color: var(--ink-soft); font-size: .9rem; line-height: 1.6; margin: 0; }
+html[data-theme="dark"] .guide-pt b { color: var(--green-500); }
+
 #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 60; }
 
 /* ---- chart colors (per theme) ---- */

@@ -119,9 +119,11 @@ async function finish() {
       ความแม่นยำ ${Math.round(acc * 100)}%
       ${pb ? '<div class="modal-pb">🏆 สถิติใหม่!' + (delta > 0 ? ` เร็วขึ้น ${delta}` : '') + '</div>'
            : (delta !== null && delta < 0 ? `<div>ห่างสถิติ ${Math.abs(Math.round(delta))} ตัวอักษร/นาที</div>` : '')}
-      ${stars === 0 ? '<div>แม่นยำ 80% ขึ้นไปจึงจะได้ดาว</div>'
+      ${acc < 0.95
+        ? '<div class="slow-note">🐢 ช้าลงหน่อย — แม่นยำต่ำกว่า 95% แปลว่าเร็วเกินไป ผ่อนความเร็วลงจนหยุดผิด แล้วปล่อยให้ความแม่นสร้างความเร็วให้เอง</div>'
+        : (stars === 0 ? '<div>แม่นยำ 80% ขึ้นไปจึงจะได้ดาว</div>'
         : stars === 1 ? '<div>แม่นยำ 88% + เร็วเท่าค่ากลางของคุณได้ ★★</div>'
-        : stars === 2 ? '<div>แม่นยำ 93% + เร็วกว่าค่ากลาง 5% ได้ ★★★</div>' : ''}
+        : stars === 2 ? '<div>แม่นยำ 93% + เร็วกว่าค่ากลาง 5% ได้ ★★★</div>' : '')}
     </div>
     ${blessing ? `
     <div class="blessing">
@@ -132,9 +134,11 @@ async function finish() {
     </div>` : ''}
     <div class="play-actions">
       <button class="btn ghost" id="m-retry">เล่นอีกครั้ง</button>
-      ${nextLevel && nextLevel <= TOTAL_LEVELS
-        ? '<button class="btn gold" id="m-next">ด่านต่อไป →</button>'
+      ${S.mode === 'speed'
+        ? '<button class="btn" id="m-map">🗺 กลับแผนที่</button>'
         : '<button class="btn" id="m-close">กลับ</button>'}
+      ${nextLevel && nextLevel <= TOTAL_LEVELS
+        ? '<button class="btn gold" id="m-next">ด่านต่อไป →</button>' : ''}
     </div>`);
   card.querySelector('#m-retry').onclick = () => {
     closeModal();
@@ -142,6 +146,8 @@ async function finish() {
   };
   const next = card.querySelector('#m-next');
   if (next) next.onclick = () => { closeModal(); startLevel(nextLevel); };
+  const map = card.querySelector('#m-map');
+  if (map) map.onclick = () => { closeModal(); show('journey'); };
   const close = card.querySelector('#m-close');
   if (close) close.onclick = () => { closeModal(); show(S.backView); };
 }
