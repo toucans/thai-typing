@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>พิมพ์ไทย — ฝึกพิมพ์</title>
+<meta name="description" content="ฝึกพิมพ์ภาษาไทย เล่นได้จากคีย์บอร์ดใดก็ได้ ไม่ต้องตั้งค่าภาษาไทยในเครื่อง">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header>
+  <h1>พิมพ์ไทย</h1>
+  <div class="tools">
+    <button id="kbd-toggle" class="tool" title="แป้นพิมพ์บนจอ" aria-pressed="true">⌨</button>
+    <button id="theme" class="tool" title="สลับกลางวัน/กลางคืน">☾</button>
+  </div>
+</header>
+
+<main>
+  <div class="stats">
+    <div class="stat"><b id="cpm">0</b><span>ตัวอักษร/นาที</span></div>
+    <div class="stat"><b id="acc">100%</b><span>ความแม่นยำ</span></div>
+    <div class="stat"><b id="done">0</b><span>คำที่พิมพ์</span></div>
+    <div class="stat"><b id="best">0</b><span>สถิติในเครื่องนี้</span></div>
+    <button id="restart" class="btn">เริ่มใหม่</button>
+  </div>
+
+  <section id="stream" class="stream" aria-live="off"></section>
+
+  <div id="echo" class="echo empty" aria-hidden="true"></div>
+
+  <p class="hint">พิมพ์คำที่ไฮไลต์ แล้วเคาะ <kbd>เว้นวรรค</kbd> เพื่อไปคำถัดไป — ปุ่มบนจอจะบอกว่าตัวอักษรถัดไปอยู่ที่ไหน</p>
+
+  <div id="keyboard" class="keyboard"></div>
+</main>
+
+<footer>
+  ฝึกพิมพ์อย่างเดียว ไม่มีการเก็บข้อมูล — เวอร์ชันเต็ม (ด่าน สถิติ ตามคำบอก) อยู่หลัง VPN ที่บ้าน
+</footer>
+
+<script type="module" src="game.js"></script>
+</body>
+</html>

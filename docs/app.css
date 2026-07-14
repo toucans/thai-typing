@@ -1,0 +1,127 @@
+/* Standalone practice page — rice-paper, jungle green, temple gold, matching the
+   full app's palette. Self-contained: fonts under fonts/ (copied from the app by
+   tools/build-pages.sh), no external requests. */
+
+@font-face { font-family:'Sarabun'; font-weight:400; font-display:swap;
+  src:url(fonts/sarabun-400-thai.woff2) format('woff2');
+  unicode-range:U+02D7,U+0303,U+0331,U+0E01-0E5B,U+200C-200D,U+25CC; }
+@font-face { font-family:'Sarabun'; font-weight:400; font-display:swap;
+  src:url(fonts/sarabun-400-latin.woff2) format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F,U+2122,U+2212; }
+@font-face { font-family:'Sarabun'; font-weight:600; font-display:swap;
+  src:url(fonts/sarabun-600-thai.woff2) format('woff2');
+  unicode-range:U+02D7,U+0303,U+0331,U+0E01-0E5B,U+200C-200D,U+25CC; }
+@font-face { font-family:'Sarabun'; font-weight:600; font-display:swap;
+  src:url(fonts/sarabun-600-latin.woff2) format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F,U+2122,U+2212; }
+@font-face { font-family:'Srisakdi'; font-weight:700; font-display:swap;
+  src:url(fonts/srisakdi-700-thai.woff2) format('woff2');
+  unicode-range:U+02D7,U+0303,U+0331,U+0E01-0E5B,U+200C-200D,U+25CC; }
+@font-face { font-family:'Srisakdi'; font-weight:700; font-display:swap;
+  src:url(fonts/srisakdi-700-latin.woff2) format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F,U+2122,U+2212; }
+
+:root {
+  --paper:#f6f1e4; --card:#fffdf6; --ink:#2c2a24; --ink-soft:#7a7261;
+  --green-900:#1b4332; --green-700:#2d6a4f; --green-500:#40916c; --green-100:#dcebe1;
+  --gold:#b8860b; --gold-hi:#d4a72c; --gold-soft:#eeddab; --red:#b23a3f; --red-soft:#f3dcda;
+  --line:#e4dcc6;
+}
+html[data-theme="dark"] {
+  --paper:#131a15; --card:#1b2620; --ink:#e8e2d1; --ink-soft:#9b937e;
+  --green-900:#9fd3b4; --green-700:#2f7a58; --green-500:#58b183; --green-100:#24352b;
+  --gold:#d2a52e; --gold-hi:#e8c258; --gold-soft:#4a3d17; --red:#e08080; --red-soft:#4a2624;
+  --line:#2c3a30;
+}
+
+* { box-sizing:border-box; }
+html,body { margin:0; }
+body {
+  color:var(--ink); background:var(--paper);
+  font-family:'Sarabun','Noto Sans Thai','Leelawadee UI',Tahoma,sans-serif;
+  min-height:100vh; display:flex; flex-direction:column;
+  -webkit-text-size-adjust:100%;
+}
+
+header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:.7rem 1.1rem; border-bottom:1px solid var(--line);
+}
+h1 { margin:0; font-family:'Srisakdi','Noto Serif Thai',serif; font-weight:700;
+  font-size:1.9rem; color:var(--gold); line-height:1; }
+.tools { display:flex; gap:.4rem; }
+.tool {
+  font-size:1.1rem; width:2.3rem; height:2.3rem; border-radius:.6rem;
+  border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer;
+}
+.tool:hover { border-color:var(--gold); }
+.tool[aria-pressed="true"] { background:var(--green-100); border-color:var(--green-500); }
+
+main { flex:1; width:100%; max-width:920px; margin:0 auto; padding:1.2rem 1rem 2rem; }
+
+.stats { display:flex; flex-wrap:wrap; align-items:center; gap:.6rem 1.4rem; margin-bottom:1rem; }
+.stat { display:flex; flex-direction:column; line-height:1.15; }
+.stat b { font-size:1.5rem; color:var(--green-900); font-weight:600; }
+.stat span { font-size:.72rem; color:var(--ink-soft); }
+.btn {
+  margin-left:auto; font:inherit; font-weight:600; padding:.5rem 1rem; border-radius:.6rem;
+  border:1px solid var(--green-500); background:var(--green-700); color:#fff; cursor:pointer;
+}
+html[data-theme="dark"] .btn { color:#0f1a13; }
+.btn:hover { background:var(--green-500); }
+
+.stream {
+  background:var(--card); border:1px solid var(--line); border-radius:.9rem;
+  padding:1rem 1.1rem; font-size:1.9rem; line-height:2.1; height:6.6em; overflow:hidden;
+  word-spacing:.35em;
+}
+.w { color:var(--ink-soft); }
+.w.done { color:var(--green-500); opacity:.6; }
+.w.cur {
+  color:var(--ink); background:var(--gold-soft); border-radius:.35rem;
+  padding:.05em .2em; box-shadow:0 0 0 2px var(--gold-soft);
+}
+.w.cur.bad { background:var(--red-soft); box-shadow:0 0 0 2px var(--red-soft); }
+
+.echo {
+  margin:.7rem 0 0; min-height:2.4rem; padding:.4rem .8rem; border-radius:.6rem;
+  border:1px dashed var(--line); font-size:1.5rem; color:var(--green-900);
+  background:var(--card); letter-spacing:.02em;
+}
+.echo.bad { color:var(--red); border-color:var(--red); }
+.echo.empty::before { content:'พิมพ์ที่นี่…'; color:var(--ink-soft); font-size:1rem; }
+
+.hint { color:var(--ink-soft); font-size:.85rem; margin:.9rem 0 1.2rem; }
+kbd { font:inherit; background:var(--green-100); border:1px solid var(--line);
+  border-radius:.3rem; padding:0 .3em; }
+
+/* on-screen keyboard */
+.keyboard { display:flex; flex-direction:column; gap:.4rem; align-items:center;
+  user-select:none; }
+.keyboard.hidden { display:none; }
+.kbd-row { display:flex; gap:.35rem; justify-content:center; width:100%; }
+.kbd-key {
+  position:relative; flex:1 1 0; min-width:0; aspect-ratio:1/1; max-width:3rem;
+  display:flex; align-items:center; justify-content:center;
+  border:1px solid var(--line); border-radius:.45rem; background:var(--card);
+  font-size:1.15rem; color:var(--ink);
+}
+.kbd-base { line-height:1; }
+.kbd-shift { position:absolute; top:.12rem; right:.22rem; font-size:.62rem; color:var(--ink-soft); }
+.kbd-key.next { background:var(--green-500); color:#fff; border-color:var(--green-700);
+  box-shadow:0 0 0 3px var(--green-100); }
+.kbd-key.next .kbd-shift { color:rgba(255,255,255,.75); }
+.kbd-key.next-shift { background:var(--gold); color:#fff; border-color:var(--gold-hi);
+  box-shadow:0 0 0 3px var(--gold-soft); }
+.kbd-mod { flex:0 0 3.2rem; aspect-ratio:auto; height:2.4rem; font-size:1rem; color:var(--ink-soft); }
+.kbd-space { flex:0 0 46%; aspect-ratio:auto; height:2.4rem; font-size:.85rem; color:var(--ink-soft); }
+
+footer { text-align:center; color:var(--ink-soft); font-size:.78rem;
+  padding:1rem; border-top:1px solid var(--line); }
+
+@media (max-width:560px) {
+  .stream { font-size:1.5rem; }
+  .kbd-key { font-size:.95rem; border-radius:.35rem; }
+  .kbd-shift { font-size:.5rem; }
+  h1 { font-size:1.6rem; }
+}

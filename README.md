@@ -239,3 +239,35 @@ now just sits as an archive.
 Registered in the dashboard's `~/dashboard/projects.json` (its nginx proxies
 `/thai-typing/` → `127.0.0.1:8768`, prefix stripped — hence relative URLs only in
 the app).
+
+## Public standalone (GitHub Pages)
+
+`docs/` is a **backend-free** build of just the typing drill, published on
+GitHub Pages so you can practise from any computer without the VPN. It is
+served at `main:/docs` (Settings → Pages → *Deploy from a branch* → `main`,
+`/docs`; no GitHub Actions needed). The full app — accounts, the 1000-level
+journey, stats, dictation — stays behind the VPN on the NUC; none of its
+`api/*` endpoints are reachable from Pages, and the box's server still binds to
+`127.0.0.1` only. Pages hosts static files with no path to the box, so
+publishing it exposes nothing.
+
+Two things make it work standalone:
+
+- **No login, no levels, no server.** `docs/game.js` is a small self-contained
+  loop: an endless word stream sampled by the real generator (`levelWords`), no
+  progress saved beyond a local best score in `localStorage`.
+- **Any keyboard types Thai.** `docs/kedmanee.js` maps the *physical* key
+  (`KeyboardEvent.code`, layout-independent) through the standard Kedmanee Thai
+  layout, so a Danish keyboard with no Thai layout installed plays fine — and an
+  on-screen keyboard lights the next key to press. Every character in the word
+  pool is reachable (the two ANSI-only letters ฃ ฅ aren't in the pool).
+
+`docs/` is a **generated artifact**: the authored files (`index.html`,
+`app.css`, `game.js`, `kedmanee.js`) live there, but the shared word/sentence
+pools, segmenter, and fonts are copied in from `web/` by the build script so the
+source of truth stays single. Rebuild and commit after changing word lists or
+fonts:
+
+```sh
+./tools/build-pages.sh   # refreshes docs/lib/ and docs/fonts/ from web/
+```

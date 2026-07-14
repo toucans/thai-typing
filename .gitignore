@@ -1,6 +1,8 @@
 # Machine data and big binaries stay out of git (see README). texts/ IS tracked:
-# plain-text stories are content, not data.
-data/
+# plain-text stories are content, not data. Anchor to the root runtime data dir
+# (users/*.jsonl) -- an unanchored `data/` also swallows web/js/data/, which is
+# tracked content (the word/sentence pools the game is built from).
+/data/
 media/*
 !media/.gitkeep
 __pycache__/
