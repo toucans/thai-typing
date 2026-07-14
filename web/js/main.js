@@ -102,7 +102,7 @@ function showPbHistory(pbs) {
   }).reverse().join(''); // newest on top
   const card = modal(`
     <h2>🏆 วันทำลายสถิติ</h2>
-    <div class="modal-sub">ทุกครั้งที่ความเร็วสูงสุด (แม่นยำ ≥95%) ขยับขึ้น · ตัวอักษร/นาที</div>
+    <div class="modal-sub">ทุกครั้งที่ความเร็วสูงสุด (แม่นยำ ≥90%) ขยับขึ้น · ตัวอักษร/นาที</div>
     <div class="pb-rows">${rows}</div>
     <div class="play-actions"><button class="btn" id="m-close">ปิด</button></div>`);
   card.querySelector('#m-close').onclick = closeModal;
@@ -119,8 +119,8 @@ const GUIDE = {
     points: [
       ['🧠 สมองจำสิ่งที่นิ้วทำจริง ๆ',
         'พิมพ์ถูกคือการสร้างทางเดินสะอาดจากความคิดไปถึงนิ้ว เร่งจนพิมพ์ผิดแล้วกด Backspace = ฝึกให้พิมพ์ผิดซ้ำ ฝังนิสัยเสียลงในกล้ามเนื้อ'],
-      ['🎯 จุดเหมาะสุดคือแม่น 95–98%',
-        'ไม่ต้องเป๊ะ 100% จนเกร็ง แต่ถ้าต่ำกว่า 95% แปลว่าเร็วเกินกว่าที่สมองจะจดจำการเคลื่อนไหวทัน ให้ผ่อนความเร็วลงจนหยุดผิด'],
+      ['🎯 รักษาความแม่นให้อยู่ในช่วง 90 กว่า ๆ',
+        'ไม่ต้องเป๊ะ 100% จนเกร็ง ที่นี่นับทุกครั้งที่กดผิด (แม้ลบแล้วพิมพ์ใหม่) แม่น 90% ขึ้นไปก็ถือว่าพิมพ์สะอาดแล้ว ถ้าหล่นไปแถว 80 ต้น ๆ แปลว่าเร็วเกินกว่าที่สมองจะจดจำการเคลื่อนไหวทัน ให้ผ่อนความเร็วลงจนหยุดผิด'],
       ['🌊 นิ่ง ๆ นั่นแหละเร็ว',
         'คนพิมพ์เร็วที่สุดดูผ่อนคลาย จังหวะสม่ำเสมอเหมือนเมโทรนอม เมื่อนิ้วรู้ตำแหน่งอักษรเอง มือจะเร่งเร็วขึ้นเอง ปล่อยให้ความแม่นสร้างความเร็วให้'],
     ],
@@ -133,8 +133,8 @@ const GUIDE = {
     points: [
       ['🧠 Your brain remembers what your fingers actually do',
         'Typing accurately burns a clean path from thought to finger. Racing, mistyping, then hitting backspace trains your hands to make that same typo again — cementing bad habits into muscle memory.'],
-      ['🎯 The sweet spot is 95–98% accuracy',
-        'You don’t need tense, 100% perfection. But below 95% you’re moving too fast for your brain to lay down the movement — ease off the speed until the mistakes stop.'],
+      ['🎯 Keep your accuracy in the 90s',
+        'You don’t need tense, 100% perfection. This trainer counts every stray keystroke — even ones you delete and retype — so 90%+ already means a clean, well-grooved run. Slip into the low 80s and you’re moving too fast for your brain to lay down the movement — ease off until the mistakes stop.'],
       ['🌊 Smooth is fast',
         'The fastest typists look relaxed, keeping a steady, metronome-like rhythm. Once your fingers know where the Thai letters are, your hands accelerate on their own. Let accuracy build the speed.'],
     ],

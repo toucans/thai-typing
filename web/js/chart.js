@@ -30,7 +30,7 @@ export function renderChart(el, runs) {
   const dots = speed.map((r) =>
     `<circle class="c-dot" cx="${x(r.t)}" cy="${y(r.cpm)}" r="3"/>`).join('');
 
-  // running PB (records.pbHistory: >=95% accuracy, same rule as everywhere else)
+  // running PB (records.pbHistory: >=90% accuracy, same rule as everywhere else)
   const pts = pbHistory(runs);
   let line = '';
   if (pts.length) {

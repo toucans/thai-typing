@@ -443,9 +443,11 @@ h2.blessing-name { margin: .2rem 0 .4rem; }
 .modal-cpm { font-family: var(--display); font-size: 2.8rem; line-height: 1.25; color: var(--green-700); font-weight: 700; margin: .2rem 0; }
 .modal-sub { color: var(--ink-soft); margin-bottom: 1rem; }
 .modal-pb { color: var(--gold); font-weight: 700; }
+/* accuracy PB — the leading-indicator reward, greened apart from the gold speed PB */
+.modal-pb.clean { color: var(--green-700); }
 .modal-card .play-actions { margin-top: 1.2rem; }
 
-/* nudge shown after a level when accuracy fell below the 95% learning zone */
+/* nudge shown after a level when accuracy fell below a solid run (~85%) */
 .slow-note { margin-top: .5rem; padding: .5rem .7rem; border-radius: 10px;
   background: color-mix(in srgb, var(--gold-soft) 55%, transparent);
   color: var(--ink); font-size: .9rem; line-height: 1.55; }

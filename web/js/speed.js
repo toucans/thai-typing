@@ -91,7 +91,11 @@ async function finish() {
 
   const st = stats(await loadRuns());
   const stars = starsFor(acc, cpm, st.baseline); // rules live in records.js
-  const pb = acc >= 0.95 && cpm > st.pb;
+  const pb = acc >= 0.90 && cpm > st.pb;
+  // the mirror reward: a new accuracy best is a record too, so slowing down to
+  // type cleanly is celebrated exactly like a speed PB. Floored at a solid run
+  // (0.85, ~the median) so early flails don't trigger it every time.
+  const cleanPb = acc > st.accPb && acc >= 0.85;
 
   const run = {
     game: S.mode, cpm, acc, chars: S.correctChars, errors: S.wrong,
@@ -105,7 +109,7 @@ async function finish() {
   const blessing = S.mode === 'speed' && S.level > st.maxDone
     ? BY_LEVEL.get(S.level) : null;
 
-  if (pb || blessing) { sound.pb(); confetti(); } else { sound.level(); }
+  if (pb || cleanPb || blessing) { sound.pb(); confetti(); } else { sound.level(); }
 
   const delta = st.pb ? Math.round((cpm - st.pb) * 10) / 10 : null;
   const starHtml = [1, 2, 3].map((n) =>
@@ -117,13 +121,13 @@ async function finish() {
     <div class="modal-cpm">${Math.round(cpm)} <small style="font-size:.9rem">ตัวอักษร/นาที</small></div>
     <div class="modal-sub">
       ความแม่นยำ ${Math.round(acc * 100)}%
-      ${pb ? '<div class="modal-pb">🏆 สถิติใหม่!' + (delta > 0 ? ` เร็วขึ้น ${delta}` : '') + '</div>'
+      ${pb ? '<div class="modal-pb">🏆 สถิติความเร็วใหม่!' + (delta > 0 ? ` เร็วขึ้น ${delta}` : '') + '</div>'
            : (delta !== null && delta < 0 ? `<div>ห่างสถิติ ${Math.abs(Math.round(delta))} ตัวอักษร/นาที</div>` : '')}
-      ${acc < 0.95
-        ? '<div class="slow-note">🐢 ช้าลงหน่อย — แม่นยำต่ำกว่า 95% แปลว่าเร็วเกินไป ผ่อนความเร็วลงจนหยุดผิด แล้วปล่อยให้ความแม่นสร้างความเร็วให้เอง</div>'
-        : (stars === 0 ? '<div>แม่นยำ 80% ขึ้นไปจึงจะได้ดาว</div>'
-        : stars === 1 ? '<div>แม่นยำ 88% + เร็วเท่าค่ากลางของคุณได้ ★★</div>'
-        : stars === 2 ? '<div>แม่นยำ 93% + เร็วกว่าค่ากลาง 5% ได้ ★★★</div>' : '')}
+      ${cleanPb ? `<div class="modal-pb clean">🎯 แม่นที่สุดเท่าที่เคยพิมพ์! ${Math.round(acc * 100)}%</div>` : ''}
+      ${acc < 0.85
+        ? '<div class="slow-note">🐢 ช้าลงหน่อย — ต่ำกว่า 85% แปลว่าเร็วเกินกว่าที่มือจะจำได้ ผ่อนความเร็วลงจนหยุดผิด แล้วปล่อยให้ความแม่นสร้างความเร็วให้เอง</div>'
+        : (stars === 1 ? '<div>รักษาความแม่น 88% ที่จังหวะสบาย ๆ ของคุณ แล้วดาวดวงที่สองจะมาเอง</div>'
+        : stars === 2 ? '<div>พิมพ์ให้นิ่งที่ 93% ไปเรื่อย ๆ ความเร็วจะไต่ขึ้นเองจนได้ ★★★</div>' : '')}
     </div>
     ${blessing ? `
     <div class="blessing">

@@ -40,15 +40,21 @@ The gamification is deliberately self-referential — you compete with yourself 
   never impossible
 - stars are re-derived from each run's raw numbers on read (rules in
   `records.js starsFor()`), so refining the rules regrades the whole journey
-- **PB** = fastest run at ≥95% accuracy, ever; celebrated with a chime and falling
-  leaves, and recorded permanently for the graph
+- **Speed PB** = fastest run at ≥90% accuracy, ever; celebrated with a chime and
+  falling leaves, and recorded permanently for the graph
+- **Accuracy PB** = your cleanest run ever (≥85%) — the mirror reward, celebrated
+  the same way, so slowing down to type accurately is a record too, not just a
+  concession. Rewarding the leading indicator (accuracy), not only the lagging
+  one (speed), is what keeps the medals pulling the *same* way as the วิธีฝึก guide
 - plus a daily streak, a page-count odometer, and short (~1 min) levels so there is
   always time for "just one more"
 - **💡 วิธีฝึก** on the journey bar opens a short guide to the one thing that
-  matters most — you improve fastest by typing where you *don't* make mistakes
-  (the 95–98% zone), accuracy builds speed, not the other way round. Bilingual
-  (ไทย/EN toggle). The level-end card echoes it: finish below 95% accuracy and it
-  tells you to slow down until the mistakes stop, and always offers a way back to
+  matters most — you improve fastest by typing where you *don't* make mistakes.
+  Because accuracy here is per keystroke (~10 pts harsher than the usual 95–98%
+  typing-pedagogy figure), the guide targets this game's own clean line, **the
+  90s**; accuracy builds speed, not the other way round. Bilingual (ไทย/EN toggle).
+  The level-end card echoes it: finish below ~85% (a solid run) and it tells you to
+  slow down until the mistakes stop, and always offers a way back to
   the map
 
 **ฟัง–พิมพ์ (dictation)** — drop a video/audio file plus a same-named `.srt` into
