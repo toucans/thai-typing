@@ -44,11 +44,13 @@ function begin(cfg) {
     return sp;
   });
   S.spans[0].classList.add('cur');
-  // clearing and refilling the stream happens before any layout, so the browser
-  // never clamps the previous level's scrollTop — reset it or line one starts
-  // hidden above the two-line window
-  stream.scrollTop = 0;
   show('play');
+  // reset AFTER show(): the stream lives in the play view, which is hidden until
+  // now when a เรื่องอ่าน story is launched from its list. Setting scrollTop while
+  // the element is display:none is a no-op (nothing to scroll), so the browser
+  // would reveal it on a stale offset with line one hidden above the two-line
+  // window. show() lays it out; only then can we pin line one to the top.
+  stream.scrollTop = 0;
   if (S.mode === 'speed') music.playForLevel(S.level);
   else music.playForName(S.name || S.title);
   const box = $('#typebox');
