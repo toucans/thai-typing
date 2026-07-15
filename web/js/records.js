@@ -164,9 +164,14 @@ export function stats(runs) {
     ? recent.reduce((s, r) => s + r.cpm, 0) / recent.length : 0;
   const dictWords = runs.filter((r) => r.game === 'dictation')
     .reduce((s, r) => s + (r.words || 0), 0);
+  // เรื่องอ่าน is its own mode: reading runs never touch the speed PB or graph,
+  // so surface their own effort (stories finished) and best pace here.
+  const textRuns = runs.filter((r) => r.game === 'text');
+  const textsRead = textRuns.length;
+  const textPb = textRuns.reduce((m, r) => (r.cpm > m ? r.cpm : m), 0);
   const ghostRuns = runs.filter((r) => r.game === 'ghosts');
   const ghostsBanished = ghostRuns.reduce((s, r) => s + (r.ghosts || 0), 0);
   const ghostNight = ghostRuns.reduce((m, r) => (r.cleared && r.night > m ? r.night : m), 0);
 
-  return { starsByLevel, maxDone, pb, pbAt, accPb, baseline, streak, totalChars, totalSecs, avg30, dictWords, ghostsBanished, ghostNight };
+  return { starsByLevel, maxDone, pb, pbAt, accPb, baseline, streak, totalChars, totalSecs, avg30, dictWords, textsRead, textPb, ghostsBanished, ghostNight };
 }

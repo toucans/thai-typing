@@ -72,6 +72,8 @@ async function renderStats() {
     [`🔥 ${st.streak}`, 'วันติดกัน'],
     [st.totalChars.toLocaleString('th-TH'), `ตัวอักษรที่พิมพ์ · ≈ ${Math.max(1, Math.round(st.totalChars / 1800))} หน้ากระดาษ`],
     [`${hours} ชม. ${mins} น.`, 'เวลาฝึกทั้งหมด'],
+    [st.textsRead.toLocaleString('th-TH'),
+      `เรื่องอ่านที่พิมพ์จบ${st.textPb ? ` · เร็วสุด ${Math.round(st.textPb)} ตัวอักษร/นาที` : ''}`],
     [st.dictWords.toLocaleString('th-TH'), 'คำจากแบบฝึกฟัง–พิมพ์'],
     [st.ghostsBanished.toLocaleString('th-TH'),
       `ผีที่ไล่ไปแล้ว${st.ghostNight ? ` · ลึกสุดคืนที่ ${st.ghostNight}` : ''}`],
