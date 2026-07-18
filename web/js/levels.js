@@ -10,7 +10,7 @@ import { WORDS } from './data/words.js';
 import { SENTENCES } from './data/sentences.js';
 import { segmentThai } from './segment.js';
 
-export const WORDS_PER_LEVEL = 25;
+export const WORDS_PER_LEVEL = 50;
 
 function mulberry32(a) {
   return function () {
@@ -28,7 +28,7 @@ export function levelWords(level) {
     const words = [];
     const breaks = []; // like segmentThaiBreaks: true = a space follows that word
     const used = new Set();
-    while (words.length < 18 && used.size < SENTENCES.length) {
+    while (words.length < 36 && used.size < SENTENCES.length) {
       const s = SENTENCES[Math.floor(rng() * SENTENCES.length)];
       if (used.has(s)) continue;
       used.add(s);
