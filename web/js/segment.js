@@ -1,6 +1,6 @@
 // Thai word segmentation — dependency-free on purpose: besides the web app
-// (via ui.js), the kobo appliance's build step imports this module over HTTP
-// from the running server, so the two frontends segment identically.
+// (via ui.js), tools/build-pages.sh copies this module into the standalone
+// Pages build (docs/lib/), so the two frontends segment identically.
 //
 // Browsers and Deno ship ICU dictionary-based Thai segmentation via
 // Intl.Segmenter, so no preprocessing step is needed. Explicit '|' (or

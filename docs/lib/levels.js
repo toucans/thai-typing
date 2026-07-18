@@ -1,9 +1,9 @@
 // GENERATED COPY -- do not edit. Source of truth: web/js/levels.js
 // Regenerate with tools/build-pages.sh.
 // Speed-journey level generation — dependency-free on purpose: besides
-// speed.js, the kobo appliance's build step imports this module over HTTP to
-// verify its Go port stays bit-identical (levels are shared state between
-// the frontends: ด่าน 217 must hold the same words everywhere).
+// speed.js, tools/build-pages.sh copies this module into the standalone
+// Pages build (docs/lib/), which samples the same deterministic generator
+// (levels are shared state: ด่าน 217 must hold the same words everywhere).
 //
 // Levels are generated, not stored: a seeded PRNG samples the
 // frequency-ordered word pool, with the sampling window widening as levels

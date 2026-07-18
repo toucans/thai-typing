@@ -51,8 +51,8 @@ export function show(view) {
 }
 
 // ---- Thai word segmentation -------------------------------------------------
-// Lives in segment.js (dependency-free so the kobo appliance's build step can
-// import it too); re-exported here for the modes that already import from ui.
+// Lives in segment.js (dependency-free so the standalone Pages build can copy
+// it too); re-exported here for the modes that already import from ui.
 export { segmentThai, segmentThaiBreaks } from './segment.js';
 
 // ---- modal -------------------------------------------------------------------
