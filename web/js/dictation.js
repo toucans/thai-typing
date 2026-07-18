@@ -310,5 +310,17 @@ export function initDictationInput() {
     }
   });
   $('#dict-replay').addEventListener('click', () => { if (D) { playCue(1); box.focus(); } });
-  $('#dict-finish').addEventListener('click', () => { if (D) finishSession(); });
+  $('#dict-finish').addEventListener('click', () => {
+    if (!D) return;
+    // easy to fat-finger next to the replay button — ask first
+    const card = modal(`
+      <h2>จบรอบนี้เลยไหม?</h2>
+      <div class="modal-sub">จะบันทึกผลเท่าที่พิมพ์ไปแล้ว</div>
+      <div class="play-actions">
+        <button class="btn ghost" id="m-cancel">พิมพ์ต่อ</button>
+        <button class="btn" id="m-yes">จบรอบ</button>
+      </div>`);
+    card.querySelector('#m-cancel').onclick = () => { closeModal(); $('#dict-typebox').focus(); };
+    card.querySelector('#m-yes').onclick = () => { closeModal(); finishSession(); };
+  });
 }
