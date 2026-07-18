@@ -306,6 +306,10 @@ func serveFile(w http.ResponseWriter, r *http.Request, path string, cache bool) 
 	defer f.Close()
 	if cache {
 		w.Header().Set("Cache-Control", "max-age=86400")
+	} else {
+		// no build step means no cache-busting hashes: force revalidation so a
+		// deployed change is never masked by heuristic caching (LAN 304s are cheap)
+		w.Header().Set("Cache-Control", "no-cache")
 	}
 	// ServeContent sets Content-Type by extension and handles Range/206/416,
 	// Accept-Ranges, and conditional requests.
