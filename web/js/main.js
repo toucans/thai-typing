@@ -201,7 +201,7 @@ $('#guide-btn').addEventListener('click', () => showGuide());
 // เส้นทาง levels run words together like real prose by default (matching
 // เรื่องอ่าน); this toggle brings the spaces between words back
 const spaceBtn = $('#space-toggle');
-const paintSpaceBtn = (on) => { spaceBtn.textContent = `${on ? '☑' : '☐'} เว้นวรรคระหว่างคำ`; };
+const paintSpaceBtn = (on) => { spaceBtn.textContent = `เว้นวรรค: ${on ? 'เปิด' : 'ปิด'}`; };
 paintSpaceBtn(levelSpaces.enabled);
 spaceBtn.addEventListener('click', () => paintSpaceBtn(levelSpaces.toggle()));
 
