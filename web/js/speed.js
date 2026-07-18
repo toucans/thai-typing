@@ -13,11 +13,22 @@ import { BY_LEVEL, thaiNum } from './data/mongkhon.js';
 
 let S = null; // current session
 
+// เส้นทาง levels run words together like real Thai prose by default; the
+// journey-bar toggle brings the classic word-gap-word stream back.
+export const levelSpaces = {
+  enabled: localStorage.getItem('tt.levelSpaces') === 'on',
+  toggle() {
+    this.enabled = !this.enabled;
+    localStorage.setItem('tt.levelSpaces', this.enabled ? 'on' : 'off');
+    return this.enabled;
+  },
+};
+
 export function startLevel(level) {
-  const { words, bonus } = levelWords(level);
+  const { words, breaks, bonus } = levelWords(level);
   setRegion(Math.floor((level - 1) / REGION_SIZE));
   begin({
-    mode: 'speed', level, words,
+    mode: 'speed', level, words, breaks,
     title: bonus ? `ด่าน ${level} · โบนัสสุภาษิต 🍃` : `ด่าน ${level}`,
     backView: 'journey',
   });
@@ -32,13 +43,15 @@ function begin(cfg) {
   $('#play-title').textContent = S.title;
   $('#play-progress').style.width = '0';
   const stream = $('#wordstream');
-  // เรื่องอ่าน runs words together with no gaps, like natural Thai prose
-  stream.classList.toggle('nospace', S.mode === 'text');
+  // words run together with no gaps, like natural Thai prose: always in
+  // เรื่องอ่าน, and in เส้นทาง unless the journey-bar toggle turned spaces on
+  S.nospace = S.mode === 'text' || !levelSpaces.enabled;
+  stream.classList.toggle('nospace', S.nospace);
   stream.innerHTML = '';
   S.spans = S.words.map((w, i) => {
     const sp = document.createElement('span');
     sp.textContent = w;
-    // in เรื่องอ่าน words butt together; a 'brk' span keeps the space the source had
+    // where words butt together, a 'brk' span keeps the space the source had
     if (S.breaks && S.breaks[i]) sp.classList.add('brk');
     stream.appendChild(sp);
     return sp;
@@ -55,10 +68,14 @@ function begin(cfg) {
   else music.playForName(S.name || S.title);
   const box = $('#typebox');
   box.value = '';
-  // reading mode flows word-to-word on its own; other modes commit with a space
-  box.placeholder = S.mode === 'text'
-    ? 'พิมพ์ตามเรื่อง เว้นวรรคเมื่อเจอช่องว่าง…'
-    : 'พิมพ์คำ แล้วเคาะวรรคเพื่อส่ง…'; // shown until the first keystroke
+  // no-gap modes flow word-to-word on their own; with spaces, commit with a space
+  box.placeholder = !S.nospace
+    ? 'พิมพ์คำ แล้วเคาะวรรคเพื่อส่ง…' // shown until the first keystroke
+    : S.mode === 'text'
+      ? 'พิมพ์ตามเรื่อง เว้นวรรคเมื่อเจอช่องว่าง…'
+      : S.breaks
+        ? 'พิมพ์คำติดกัน เว้นวรรคระหว่างสุภาษิต…' // bonus proverb levels
+        : 'พิมพ์คำติดกันได้เลย ไม่ต้องเคาะวรรค…';
   box.focus();
 }
 
@@ -182,9 +199,9 @@ export function initSpeed() {
       else { S.wrong++; sound.thud(); }
     }
     S.spans[S.idx].classList.toggle('bad', !target.startsWith(nv));
-    // เรื่องอ่าน: words run together, so a finished word advances on its own —
+    // no-gap modes: words run together, so a finished word advances on its own —
     // no space needed. A space is only for real sentence breaks (S.breaks[idx]).
-    if (S.mode === 'text' && !(S.breaks && S.breaks[S.idx]) && nv === target) {
+    if (S.nospace && !(S.breaks && S.breaks[S.idx]) && nv === target) {
       box.value = '';
       commitWord(nv);
     }

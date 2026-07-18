@@ -26,14 +26,18 @@ export function levelWords(level) {
   // every 10th level is a bonus: proverbs and nature lines instead of word salad
   if (level % 10 === 0) {
     const words = [];
+    const breaks = []; // like segmentThaiBreaks: true = a space follows that word
     const used = new Set();
     while (words.length < 18 && used.size < SENTENCES.length) {
       const s = SENTENCES[Math.floor(rng() * SENTENCES.length)];
       if (used.has(s)) continue;
       used.add(s);
-      words.push(...segmentThai(s));
+      if (breaks.length) breaks[breaks.length - 1] = true; // space between proverbs
+      const parts = segmentThai(s);
+      words.push(...parts);
+      breaks.push(...parts.map(() => false));
     }
-    return { words, bonus: true };
+    return { words, breaks, bonus: true };
   }
   const pool = Math.min(WORDS.length, 90 + level * 3);
   const words = [];

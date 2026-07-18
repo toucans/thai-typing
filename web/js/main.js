@@ -1,7 +1,7 @@
 // Bootstrap and the three "browse" views: journey (level map), texts, stats.
 // The play views live in speed.js / dictation.js.
 import { loadRuns, stats, pbHistory, currentUser, login, createUser, logout } from './records.js';
-import { startLevel, startText, initSpeed } from './speed.js';
+import { startLevel, startText, initSpeed, levelSpaces } from './speed.js';
 import { initDictation, initDictationInput } from './dictation.js';
 import { initGhosts, renderGhosts } from './ghosts.js';
 import { renderChart } from './chart.js';
@@ -197,6 +197,13 @@ for (const b of document.querySelectorAll('#nav button')) {
 }
 
 $('#guide-btn').addEventListener('click', () => showGuide());
+
+// เส้นทาง levels run words together like real prose by default (matching
+// เรื่องอ่าน); this toggle brings the spaces between words back
+const spaceBtn = $('#space-toggle');
+const paintSpaceBtn = (on) => { spaceBtn.textContent = `เว้นวรรค: ${on ? 'เปิด' : 'ปิด'}`; };
+paintSpaceBtn(levelSpaces.enabled);
+spaceBtn.addEventListener('click', () => paintSpaceBtn(levelSpaces.toggle()));
 
 const soundBtn = $('#sound-toggle');
 soundBtn.classList.toggle('off', !sound.enabled);
