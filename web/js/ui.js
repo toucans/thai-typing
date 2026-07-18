@@ -40,6 +40,9 @@ export function show(view) {
   for (const s of document.querySelectorAll('.view')) s.hidden = true;
   const section = $(`#view-${view}`);
   section.hidden = false;
+  // ฟัง–พิมพ์ trades the hero landscape for a bigger video player closer to
+  // the header (hero.js skips its animation while hidden — offsetParent is null)
+  $('#hero').hidden = view === 'dictation';
   fx.viewIn(section);
   for (const b of document.querySelectorAll('#nav button')) {
     b.classList.toggle('active', b.dataset.view === view);
