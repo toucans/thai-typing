@@ -58,10 +58,12 @@ The gamification is deliberately self-referential — you compete with yourself 
   the map
 
 **ฟัง–พิมพ์ (dictation)** — drop a video/audio file plus a same-named `.srt` into
-`media/` (gitignored). The app plays one subtitle cue, you type it from hearing;
-each word is judged the instant it is complete — green or red, wrong words are
-retyped (with the correct spelling shown after two misses), and missed cues come
-back for a review round. Progress per file is resumable.
+`media/` (gitignored). The app plays one subtitle cue and you type it; each word
+is judged the instant it is complete — green or red, wrong words are retyped, and
+missed cues come back for a review round. Two modes, picked on the setup screen:
+**ฟังแล้วพิมพ์** hides the text (type from hearing; the correct spelling appears
+after two misses) and **ดูแล้วพิมพ์** shows the whole cue to copy-type, like
+เส้นทาง/เรื่องอ่าน with the audio alongside. Progress per file is resumable.
 
 **เรื่องอ่าน (texts)** — drop any Thai `.txt` into `texts/` (first line = title)
 and type through it. This is the "stories" path: source stories anywhere, in plain

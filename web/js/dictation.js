@@ -1,7 +1,11 @@
-// The dictation game: play one subtitle cue, type what you heard, get green/red
-// feedback the moment each word is complete — then the next cue plays.
+// The dictation game: play one subtitle cue, type it, get green/red feedback
+// the moment each word is complete — then the next cue plays. Two modes,
+// chosen on the setup screen (persisted as tt.dictMode):
+//  - ฟังแล้วพิมพ์ (listen): the cue text is hidden — retrieval from the ear
+//  - ดูแล้วพิมพ์ (read): the cue text is shown and you copy-type it, like
+//    เส้นทาง/เรื่องอ่าน, with the audio as accompaniment
 //
-// Learning principles applied:
+// Learning principles applied (listen mode):
 //  - retrieval first: the target text is never shown while you type
 //  - feedback exactly at word boundary (Intl.Segmenter knows where words end)
 //  - errorful learning: a wrong word must be retyped; after two misses the
@@ -12,6 +16,7 @@ import { saveRun } from './records.js';
 import { $, show, modal, closeModal, segmentThai } from './ui.js';
 
 let D = null; // current session
+let readMode = localStorage.getItem('tt.dictMode') === 'read';
 
 // ---- srt parsing --------------------------------------------------------------
 function parseTime(h, m, s, ms) {
@@ -93,7 +98,7 @@ async function start(pair, resumeCue) {
   media.src = pair.media;
   media.classList.toggle('audio-only', /\.(mp3|m4a|ogg|opus|wav)$/i.test(pair.media));
   D = {
-    pair, cues, media,
+    pair, cues, media, read: readMode,
     queue: cues.map((_, i) => i).slice(Math.min(resumeCue, cues.length - 1)),
     review: [], inReview: false,
     qpos: 0, tokens: [], wordIdx: 0, attempts: 0, cuesDone: 0,
@@ -101,7 +106,10 @@ async function start(pair, resumeCue) {
   };
   $('#dict-setup').hidden = true;
   $('#dict-session').hidden = false;
-  $('#dict-typebox').placeholder = 'ฟังแล้วพิมพ์…'; // shown until the first keystroke
+  // shown until the first keystroke
+  $('#dict-typebox').placeholder = readMode ? 'พิมพ์ตามคำที่เห็น…' : 'ฟังแล้วพิมพ์…';
+  $('#dict-keys').innerHTML = `<span class="kbd">Tab</span> ฟังซ้ำ · <span class="kbd">Shift+Tab</span> ช้าลง`
+    + (readMode ? '' : ' · <span class="kbd">Esc</span> เฉลยคำ'); // nothing to reveal in read mode
   show('dictation');
   loadCue();
 }
@@ -148,10 +156,13 @@ function renderWords() {
       sp.textContent = tok.display;
       sp.className = tok.firstTryWrong ? 'err' : 'ok';
     } else if (i === D.wordIdx) {
-      sp.textContent = '▁▁';
-      sp.className = 'slot';
+      sp.textContent = D.read ? tok.display : '▁▁';
+      sp.className = D.read ? 'now' : 'slot';
     } else {
-      sp.textContent = ''; // future words hidden: retrieval, not copying
+      // read mode shows the whole cue to copy; listen mode hides what's ahead —
+      // retrieval, not copying
+      sp.textContent = D.read ? tok.display : '';
+      if (D.read) sp.className = 'next';
     }
     div.appendChild(sp);
   });
@@ -207,6 +218,7 @@ async function finishSession() {
     words: D.wordsTotal, acc: Math.round(acc * 1000) / 1000,
     secs: Math.round(secs),
     chars: D.tokensTyped || 0,
+    ...(D.read ? { read: true } : {}), // ดูแล้วพิมพ์ runs are marked in the log
   });
   sound.level();
   localStorage.removeItem(`tt.dict.${D.pair.name}`);
@@ -254,11 +266,27 @@ function checkWord() {
     box.classList.remove('flash-red');
     void box.offsetWidth; // restart the animation
     box.classList.add('flash-red');
-    if (D.attempts >= 2) $('#dict-ghost').textContent = tok.target; // corrective ghost
+    if (D.attempts >= 2 && !D.read) $('#dict-ghost').textContent = tok.target; // corrective ghost
   }
 }
 
 export function initDictationInput() {
+  // mode chips on the setup screen; the choice applies to the next session
+  const modes = $('#dict-modes');
+  const paintModes = () => {
+    for (const b of modes.querySelectorAll('.chip')) {
+      b.classList.toggle('sel', (b.dataset.mode === 'read') === readMode);
+    }
+  };
+  paintModes();
+  modes.addEventListener('click', (e) => {
+    const b = e.target.closest('.chip');
+    if (!b) return;
+    readMode = b.dataset.mode === 'read';
+    localStorage.setItem('tt.dictMode', readMode ? 'read' : 'listen');
+    paintModes();
+  });
+
   const box = $('#dict-typebox');
   box.addEventListener('input', (e) => {
     if (!D) return;
@@ -271,7 +299,7 @@ export function initDictationInput() {
     if (e.key === 'Tab') {
       e.preventDefault();
       playCue(e.shiftKey ? 0.7 : 1);
-    } else if (e.key === 'Escape') {
+    } else if (e.key === 'Escape' && !D.read) { // read mode: nothing hidden to reveal
       e.preventDefault();
       const tok = D.tokens[D.wordIdx];
       if (tok) {

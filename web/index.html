@@ -82,13 +82,17 @@
       <p class="hint">วางไฟล์เสียงหรือวิดีโอพร้อมซับ <code>.srt</code> ชื่อเดียวกันไว้ในโฟลเดอร์
         <code>media/</code> บนเครื่อง แล้วรีเฟรชหน้านี้ — ระบบตัดคำอัตโนมัติ
         (แก้จุดที่ตัดผิดได้ด้วยเครื่องหมาย <code>|</code> ในไฟล์ซับ)</p>
+      <div class="region-chips" id="dict-modes">
+        <button class="chip" data-mode="listen">👂 ฟังแล้วพิมพ์ <small>ซับซ่อนไว้ ฝึกจำจากเสียง</small></button>
+        <button class="chip" data-mode="read">👁 ดูแล้วพิมพ์ <small>เห็นซับทั้งท่อน พิมพ์ตามที่เห็น</small></button>
+      </div>
       <div id="media-list" class="cardlist"></div>
     </div>
     <div id="dict-session" hidden>
       <video id="dict-media" playsinline></video>
       <div class="dict-head">
         <span id="dict-cue-no"></span>
-        <span class="dict-keys">
+        <span class="dict-keys" id="dict-keys">
           <span class="kbd">Tab</span> ฟังซ้ำ · <span class="kbd">Shift+Tab</span> ช้าลง · <span class="kbd">Esc</span> เฉลยคำ
         </span>
       </div>

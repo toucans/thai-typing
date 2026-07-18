@@ -373,6 +373,10 @@ h2.blessing-name { margin: .2rem 0 .4rem; }
 .dict-words .err { color: var(--red); }
 .dict-words .slot { color: var(--gold); animation: blink 1.1s infinite; }
 @keyframes blink { 50% { opacity: .25; } }
+/* ดูแล้วพิมพ์ (read mode): the whole cue is visible — current word highlighted
+   like the wordstream's, upcoming words dimmed so the eye stays on it */
+.dict-words .now { background: var(--gold-soft); }
+.dict-words .next { opacity: .55; }
 .dict-ghost { min-height: 1.6rem; text-align: center; font-size: 1.2rem; color: var(--gold);
   letter-spacing: .04em; margin-bottom: .3rem; }
 
