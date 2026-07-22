@@ -131,6 +131,29 @@
     <div id="news-list" class="cardlist"></div>
   </section>
 
+  <!-- ข่าว reader: the full article laid out like the front page it came from
+       (js/reader.js) — byline, Srisakdi headline, gold rule, hero photo, body —
+       and you type it through in place. All article text arrives from outside
+       and is placed with textContent; the image is the server's cached copy. -->
+  <section id="view-reader" class="view" hidden>
+    <div class="reader-head">
+      <span id="reader-count" class="reader-count"></span>
+      <button class="btn ghost" id="reader-quit">ออกจากข่าว</button>
+    </div>
+    <div class="progressbar"><div id="reader-progress"></div></div>
+    <article class="reader-page card" id="reader-page">
+      <div class="reader-byline" id="reader-byline"></div>
+      <h1 class="reader-headline" id="reader-headline"></h1>
+      <div class="reader-rule" aria-hidden="true"></div>
+      <img id="reader-hero-img" class="reader-hero" alt="" loading="lazy" hidden>
+      <p id="reader-partial" class="reader-partial" hidden>
+        ⚠ เปิดเนื้อหาเต็มไม่สำเร็จ — นี่คือความนำจากฟีดข่าว</p>
+      <div class="reader-body" id="reader-body"></div>
+    </article>
+    <input id="reader-typebox" class="reader-typebox" type="text" autocomplete="off"
+           autocapitalize="off" spellcheck="false" aria-label="พิมพ์ตามบทความ">
+  </section>
+
   <!-- พิมพ์ไล่ผี: the night game (js/ghosts.js) — pixel ghosts on the canvas,
        their words floating above it as crisp DOM text -->
   <section id="view-ghosts" class="view" hidden>

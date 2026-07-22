@@ -120,6 +120,10 @@ func doGET(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, 200, scanTexts())
 	case path == "/api/news":
 		sendJSON(w, 200, getNews())
+	case path == "/api/article": // full-article reader (article.go)
+		getArticle(w, r)
+	case path == "/api/news-image":
+		getNewsImage(w, r)
 	case strings.HasPrefix(path, "/media/"):
 		// ranged serving (206) lets <video>/<audio> seek -- ServeContent does it.
 		serveFile(w, r, safeJoin(mediaDir, path[len("/media/"):]), false)

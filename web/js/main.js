@@ -3,6 +3,7 @@
 import { loadRuns, stats, pbHistory, currentUser, login, createUser, logout } from './records.js';
 import { startLevel, startText, initSpeed, levelSpaces } from './speed.js';
 import { initDictation, initDictationInput } from './dictation.js';
+import { initReader, startArticle } from './reader.js';
 import { initGhosts, renderGhosts } from './ghosts.js';
 import { renderChart } from './chart.js';
 import { sound } from './audio.js';
@@ -266,12 +267,32 @@ async function renderNews(force) {
     const h = document.createElement('b'); h.textContent = a.title;         // untrusted: textContent
     const lead = document.createElement('small'); lead.textContent = a.lead; // untrusted: textContent
     card.append(meta, h, lead);
-    card.onclick = () => {
-      const body = a.lead && a.lead.length > a.title.length ? a.lead : a.title;
-      const { words, breaks } = segmentThaiBreaks(body);
-      startText('ข่าว: ' + a.title, `📰 ${a.title}`, words, breaks, { backView: 'news', run: { src: a.source } });
-    };
+    card.onclick = () => openArticle(a, card, meta);
     list.appendChild(card);
+  }
+}
+
+// Opening a story fetches the full article (server-extracted and disk-cached)
+// and reads it in the reader view. If the source can't give a real article
+// right now — server down, extraction refused — fall back to the old path:
+// the RSS lead through the wordstream. A story is never a dead card.
+async function openArticle(a, card, meta) {
+  const was = meta.textContent;
+  meta.textContent = 'กำลังเปิดข่าว…';
+  card.disabled = true;
+  let art = null;
+  try {
+    const res = await fetch(`api/article?src=${encodeURIComponent(a.source)}&link=${encodeURIComponent(a.link)}`);
+    art = await res.json();
+  } catch { /* offline / server error: fall back below */ }
+  meta.textContent = was;
+  card.disabled = false;
+  if (art && art.ok && art.paragraphs?.length) {
+    startArticle(art, a);
+  } else {
+    const body = a.lead && a.lead.length > a.title.length ? a.lead : a.title;
+    const { words, breaks } = segmentThaiBreaks(body);
+    startText('ข่าว: ' + a.title, `📰 ${a.title}`, words, breaks, { backView: 'news', run: { src: a.source } });
   }
 }
 
@@ -383,6 +404,7 @@ async function boot() {
 }
 
 initSpeed();
+initReader();
 initGhosts();
 initDictationInput();
 initMap({ onPlay: startLevel });

@@ -411,6 +411,50 @@ h2.blessing-name { margin: .2rem 0 .4rem; }
 .newscard.typed { opacity: .62; }
 .newscard.typed .news-src { color: var(--green-700); }
 
+/* ---- ข่าว reader: a real front page, in this app's paper and gold ----------
+   Same tokens, same motifs as everything else: the manuscript's gold inner
+   rule (wordstream-frame's), the mediacard's photo shadow, the wordstream's
+   cur/bad/ok/err word colors — so typing feels identical, only laid out as
+   the article it really is. */
+.reader-head { display: flex; justify-content: space-between; align-items: center;
+  gap: 1rem; margin: .3rem 0 .6rem; }
+.reader-count { color: var(--ink-soft); font-size: .9rem; font-variant-numeric: tabular-nums; }
+.reader-page {
+  position: relative; max-width: 680px; margin: 0 auto 1rem; cursor: text;
+  padding: clamp(1.5rem, 5vw, 2.8rem);
+}
+.reader-page::before { /* the manuscript's gold inner rule */
+  content: ''; position: absolute; inset: 9px; pointer-events: none;
+  border: 1px solid color-mix(in srgb, var(--gold) 28%, transparent);
+  border-radius: 11px;
+}
+.reader-byline { color: var(--gold); font-size: .82rem; letter-spacing: .06em; }
+.reader-headline {
+  font-family: var(--display); font-weight: 700; color: var(--green-900);
+  font-size: clamp(1.7rem, 4.5vw, 2.4rem); line-height: 1.5; margin: .25rem 0 .5rem;
+}
+.reader-rule { height: 1px; margin: 0 0 1.1rem;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 65%, transparent), transparent); }
+.reader-hero { display: block; width: 100%; border-radius: 12px; margin: 0 0 1.1rem;
+  box-shadow: 0 4px 14px rgb(27 67 50 / .14); }
+.reader-partial { color: var(--ink-soft); font-size: .88rem; margin: 0 0 1rem;
+  padding: .45rem .8rem; border-radius: 10px;
+  background: color-mix(in srgb, var(--gold-soft) 45%, transparent); }
+/* the article body is what you read AND type: upcoming words stay full-ink
+   (it's an article, not a drill), only the current word carries a highlight */
+.reader-body { font-size: 1.35rem; line-height: 2.05; color: var(--ink); }
+.reader-body p { margin: 0 0 1.05em; }
+.reader-body p:last-child { margin-bottom: 0; }
+.reader-body span { border-radius: 7px; }
+.reader-body .brk { margin-right: .45em; }
+.reader-body .cur { background: var(--gold-soft); }
+.reader-body .cur.bad { background: var(--red-soft); color: var(--red); }
+.reader-body .ok { color: var(--green-500); }
+.reader-body .err { color: var(--red); text-decoration: underline wavy; text-decoration-thickness: 1px; }
+/* keystrokes land in an input you never see; the gold word is the caret */
+.reader-typebox { position: fixed; bottom: 0; left: 0; width: 1px; height: 1px;
+  opacity: 0; border: none; padding: 0; }
+
 /* ---- stats ---- */
 .stat-cards { display: grid; gap: .8rem; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   margin-bottom: 1.2rem; }
@@ -515,6 +559,7 @@ html[data-theme="dark"] .modal-stars .star.on { color: var(--gold); }
   header { flex-wrap: wrap; }
   .hero-title #region-name { font-size: 1.6rem; }
   .wordstream { font-size: 1.4rem; }
+  .reader-body { font-size: 1.15rem; }
   .map-tip { font-size: .72rem; }
 }
 

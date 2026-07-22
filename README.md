@@ -72,19 +72,44 @@ text, and they become typing material with zero processing.
 **ข่าว (news)** — เรื่องอ่าน's *live* source, and the one thing in the app fetched
 from outside. The Go server pulls four Thai news feeds as **RSS** (Thairath,
 Khaosod, Prachatai, Matichon — `newsFeeds` in `main.go`), the single outbound
-dependency; each headline + lead paragraph becomes a typing story with a real
-**source · time** byline, typed through the same play flow as texts. This is a
-deliberate, contained dent in the app's self-containment: everything else —
-levels, ghosts, the map, the music — is *generated from a seed*, which is exactly
-why it can read as synthetic; news is real, current, and un-generatable, and the
-realness comes precisely from reaching outside. The dent is kept small the
-monk-like way: **RSS, not scraping** (the most durable option); **four feeds** so
-one dying isn't fatal; the feed list is a one-line edit; and every fetch is
-**cached to `<data-dir>/news/cache.json`**, so a down feed or an offline box still
-serves the last good pull, flagged `stale`. Untrusted feed text is placed with
-`textContent`, never `innerHTML`, and the server strips HTML/entities to plain
-Thai first. Stays off the Pages standalone build (backend-dependent, like
-dictation and the journey).
+dependency; the list view shows each source's headlines + leads with a real
+**source · time** byline. This is a deliberate, contained dent in the app's
+self-containment: everything else — levels, ghosts, the map, the music — is
+*generated from a seed*, which is exactly why it can read as synthetic; news is
+real, current, and un-generatable, and the realness comes precisely from
+reaching outside. The dent is kept small the monk-like way: the feed list is a
+one-line edit, **four feeds** so one dying isn't fatal, and every fetch is
+**cached to `<data-dir>/news/cache.json`**, so a down feed or an offline box
+still serves the last good pull, flagged `stale`.
+
+Opening a story reads the **whole real article** in a reader view
+(`web/js/reader.js`): source · date byline, the headline in Srisakdi under a
+gold rule, the hero photo, the full body in Sarabun — and you type it through
+*in place*, word by word down the column, with the same scoring, results card
+and run record as every other text (`finishSession` in `speed.js`). The server
+side (`article.go`, `GET /api/article`) fetches the article on first open and
+extracts it **standard-first**: headline/date/image from **JSON-LD**
+(schema.org `NewsArticle`) with `og:` meta and the RSS item as fallbacks, the
+body from each site's article container (one marker string per host — the
+entire per-source knowledge), split on block boundaries and junk-filtered with
+`regexp`/`strings` only — no HTML-tree dependency needed, so the server stays
+**pure stdlib**. Source tiers as verified 2026-07: **ไทยรัฐ, ข่าวสด, มติชน,
+ประชาไท all yield full text** (ไทยรัฐ also carries a JSON-LD `articleBody` as a
+second full-text path); any story whose body can't be extracted degrades to the
+RSS lead, labeled `partial` in the reader — never a dead card, and a source
+that rots away just falls back to leads until its marker is re-tuned.
+
+Extractions are cached to `<data-dir>/news/articles/<hash>.json` (a full
+extraction is immutable — cached forever; a partial one is retried on each
+open). The hero image is **never hotlinked**: the server downloads it once to
+`<data-dir>/news/img/` and serves it same-origin via `/api/news-image` — no
+external requests from the browser, and the photo survives the source deleting
+it. Every outbound fetch (article and image) is **allowlisted to the feeds'
+own hosts** (plus ไทยรัฐ's `static.` CDN host), https-only, enforced on every
+redirect hop — the client names the URL, so an unguarded fetch would be an
+SSRF hole into the LAN. Untrusted article text is placed with `textContent`,
+never `innerHTML`. Stays off the Pages standalone build (backend-dependent,
+like dictation and the journey).
 
 **พิมพ์ไล่ผี (the night hunt)** — Typing of the Dead, in Thai folklore terms
 (`web/js/ghosts.js`). Ghosts of the Thai pantheon — ผีอำ, ผีปอบ, กระสือ,
@@ -123,10 +148,12 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
 
 ## Architecture
 
-- `main.go` — Go stdlib only, one binary on `127.0.0.1:8768`: serves the static
-  app, lists `media/` + `texts/`, streams media with Range support, and appends
-  finished runs to `<data-dir>/users/<name>.jsonl` (data dir set with `-data`;
-  see below).
+- `main.go` + `article.go` — Go stdlib only, one binary on `127.0.0.1:8768`:
+  serves the static app, lists `media/` + `texts/`, streams media with Range
+  support, pulls the news feeds (`/api/news`) and extracts full articles +
+  images for the ข่าว reader (`/api/article`, `/api/news-image` — see the ข่าว
+  section for the extraction cascade and SSRF allowlist), and appends finished
+  runs to `<data-dir>/users/<name>.jsonl` (data dir set with `-data`; see below).
 - `web/` — vanilla HTML/CSS/JS ES modules. No framework, no build step, no npm.
   Key clicks and chimes are synthesized with WebAudio — no sound assets.
 - **Design** — Thai and nature throughout, hand-made rather than themed:

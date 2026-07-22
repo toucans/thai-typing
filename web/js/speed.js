@@ -100,12 +100,18 @@ function commitWord(typed) {
   if (ok) { S.correctChars += target.length; sound.word(); } else { sound.error(); }
   S.idx++;
   $('#play-progress').style.width = `${(S.idx / S.words.length) * 100}%`;
-  if (S.idx >= S.words.length) return finish();
+  if (S.idx >= S.words.length) return finishSession(S);
   S.spans[S.idx].classList.add('cur');
   scrollCurrentIntoView();
 }
 
-async function finish() {
+// The one scoring/results implementation, shared by every text-shaped mode:
+// the wordstream (levels, เรื่องอ่าน) and the ข่าว reader (reader.js) both end
+// here, so cpm/acc/stars math and the run-record contract stay in one place.
+// The session must carry: mode, title, words, correctChars, keys, wrong, t0,
+// backView — plus name/extra (text runs), level (speed runs), and optionally
+// restart() for a mode whose "เล่นอีกครั้ง" isn't begin() (the reader).
+export async function finishSession(S) {
   S.done = true;
   const secs = (performance.now() - S.t0) / 1000;
   const cpm = Math.round((S.correctChars / (secs / 60)) * 10) / 10;
@@ -169,6 +175,7 @@ async function finish() {
     </div>`);
   card.querySelector('#m-retry').onclick = () => {
     closeModal();
+    if (S.restart) return S.restart();
     S.mode === 'speed' ? startLevel(S.level) : begin({ ...S });
   };
   const next = card.querySelector('#m-next');
