@@ -317,7 +317,11 @@ func getNews() map[string]any {
 	}
 	wg.Wait()
 
+	// The client lists one source at a time, so cap per source (not globally) —
+	// no feed gets starved by a high-volume neighbour. Sources ride along in feed
+	// order so the client can render its chips even for a feed that returned zero.
 	seen := map[string]bool{}
+	perSource := map[string]int{}
 	var items []newsItem
 	for _, rs := range results {
 		for _, it := range rs {
@@ -325,20 +329,26 @@ func getNews() map[string]any {
 			if key == "" {
 				key = it.Source + "|" + it.Title
 			}
-			if seen[key] {
+			if seen[key] || perSource[it.Source] >= 20 {
 				continue
 			}
 			seen[key] = true
+			perSource[it.Source]++
 			items = append(items, it)
 		}
 	}
 	sort.SliceStable(items, func(i, j int) bool { return items[i].T > items[j].T })
-	if len(items) > 48 {
-		items = items[:48]
+
+	sources := make([]string, len(newsFeeds))
+	for i, f := range newsFeeds {
+		sources[i] = f.name
 	}
 
 	if len(items) > 0 {
-		payload := map[string]any{"items": items, "fetchedAt": time.Now().UnixMilli(), "stale": false}
+		payload := map[string]any{
+			"items": items, "sources": sources,
+			"fetchedAt": time.Now().UnixMilli(), "stale": false,
+		}
 		saveNewsCache(payload)
 		return payload
 	}

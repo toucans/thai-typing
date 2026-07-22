@@ -187,29 +187,52 @@ async function renderTexts() {
 // ---- news ----------------------------------------------------------------------------
 // เรื่องอ่าน's live source: real Thai headlines+leads the Go server pulls as RSS.
 // Kept in memory once fetched (like runs) so tab-switching is instant; the refresh
-// button forces a re-fetch. External feed text is untrusted, so it is placed with
-// textContent, never innerHTML.
-let newsCache = null;
+// button forces a re-fetch. Sources are kept apart — chips pick one สำนักข่าว and
+// the list shows only its stories, never a mixed feed. External feed text is
+// untrusted, so it is placed with textContent, never innerHTML.
+let newsCache = null, newsSource = null;
 async function renderNews(force) {
-  const list = $('#news-list'), status = $('#news-status'), btn = $('#news-refresh');
+  const list = $('#news-list'), status = $('#news-status'), btn = $('#news-refresh'), chips = $('#news-sources');
   if (!newsCache || force) {
     list.innerHTML = '<p class="hint">กำลังดึงข่าว…</p>';
-    status.textContent = '';
+    status.textContent = ''; chips.innerHTML = '';
     btn.disabled = true;
     try { newsCache = await (await fetch('api/news')).json(); } catch { newsCache = null; }
+    newsSource = null; // re-pick the default source against the fresh pull
     btn.disabled = false;
   }
   if (!newsCache || !newsCache.items || !newsCache.items.length) {
+    chips.innerHTML = '';
     list.innerHTML = '<p class="hint">ดึงข่าวไม่สำเร็จ — ลองกด “ดึงข่าวล่าสุด” อีกครั้ง</p>';
     return;
   }
+
+  const count = (s) => newsCache.items.filter((i) => i.source === s).length;
+  const sources = newsCache.sources?.length
+    ? newsCache.sources : [...new Set(newsCache.items.map((i) => i.source))];
+  // default to the first source that actually returned stories
+  if (!newsSource || !sources.includes(newsSource) || !count(newsSource)) {
+    newsSource = sources.find(count) || sources[0];
+  }
+
+  // source chips: one สำนักข่าว at a time; a source that returned nothing is shown disabled
+  chips.innerHTML = '';
+  for (const s of sources) {
+    const n = count(s);
+    const chip = document.createElement('button');
+    chip.className = 'chip' + (s === newsSource ? ' sel' : '') + (n ? '' : ' locked');
+    chip.innerHTML = `${s} <small>${n}</small>`;
+    if (n) chip.onclick = () => { newsSource = s; renderNews(); };
+    chips.appendChild(chip);
+  }
+
   const when = newsCache.fetchedAt ? relTime(newsCache.fetchedAt) : '';
-  status.innerHTML = `<span>ข่าวล่าสุด <b>${newsCache.items.length}</b> เรื่อง</span>`
+  status.innerHTML = `<span><b>${newsSource}</b> · ${count(newsSource)} เรื่อง</span>`
     + (when ? `<span>${newsCache.stale ? '⚠ ' : ''}อัปเดตเมื่อ ${when}</span>` : '');
 
   const tfmt = new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   list.innerHTML = '';
-  for (const a of newsCache.items) {
+  for (const a of newsCache.items.filter((i) => i.source === newsSource)) {
     const card = document.createElement('button');
     card.className = 'mediacard newscard';
     const meta = document.createElement('span');
