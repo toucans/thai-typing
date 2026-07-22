@@ -164,14 +164,29 @@ export function stats(runs) {
     ? recent.reduce((s, r) => s + r.cpm, 0) / recent.length : 0;
   const dictWords = runs.filter((r) => r.game === 'dictation')
     .reduce((s, r) => s + (r.words || 0), 0);
-  // เรื่องอ่าน is its own mode: reading runs never touch the speed PB or graph,
-  // so surface their own effort (stories finished) and best pace here.
-  const textRuns = runs.filter((r) => r.game === 'text');
+  // เรื่องอ่าน and ข่าว share the text engine (game === 'text'), but they are
+  // counted apart: news runs carry a 'ข่าว: ' name prefix and a `src` (สำนักข่าว).
+  // Reading runs never touch the speed PB or graph, so surface their own effort
+  // (stories finished) and best pace here; news gets the same, plus a per-source
+  // tally and the set of headlines already typed (to mark them in the list).
+  const isNews = (r) => (r.name || '').startsWith('ข่าว: ');
+  const textRuns = runs.filter((r) => r.game === 'text' && !isNews(r));
+  const newsRuns = runs.filter((r) => r.game === 'text' && isNews(r));
   const textsRead = textRuns.length;
   const textPb = textRuns.reduce((m, r) => (r.cpm > m ? r.cpm : m), 0);
+  const newsRead = newsRuns.length;
+  const newsPb = newsRuns.reduce((m, r) => (r.cpm > m ? r.cpm : m), 0);
+  const newsChars = newsRuns.reduce((s, r) => s + (r.chars || 0), 0);
+  const newsBySource = {};
+  const newsTitles = new Set();
+  for (const r of newsRuns) {
+    const s = r.src || '—';
+    newsBySource[s] = (newsBySource[s] || 0) + 1;
+    newsTitles.add((r.name || '').replace(/^ข่าว: /, ''));
+  }
   const ghostRuns = runs.filter((r) => r.game === 'ghosts');
   const ghostsBanished = ghostRuns.reduce((s, r) => s + (r.ghosts || 0), 0);
   const ghostNight = ghostRuns.reduce((m, r) => (r.cleared && r.night > m ? r.night : m), 0);
 
-  return { starsByLevel, maxDone, pb, pbAt, accPb, baseline, streak, totalChars, totalSecs, avg30, dictWords, textsRead, textPb, ghostsBanished, ghostNight };
+  return { starsByLevel, maxDone, pb, pbAt, accPb, baseline, streak, totalChars, totalSecs, avg30, dictWords, textsRead, textPb, newsRead, newsPb, newsChars, newsBySource, newsTitles, ghostsBanished, ghostNight };
 }

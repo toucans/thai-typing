@@ -74,6 +74,8 @@ async function renderStats() {
     [`${hours} ชม. ${mins} น.`, 'เวลาฝึกทั้งหมด'],
     [st.textsRead.toLocaleString('th-TH'),
       `เรื่องอ่านที่พิมพ์จบ${st.textPb ? ` · เร็วสุด ${Math.round(st.textPb)} ตัวอักษร/นาที` : ''}`],
+    [st.newsRead.toLocaleString('th-TH'),
+      `ข่าวที่พิมพ์จบ${st.newsPb ? ` · เร็วสุด ${Math.round(st.newsPb)} ตัวอักษร/นาที` : ''}`],
     [st.dictWords.toLocaleString('th-TH'), 'คำจากแบบฝึกฟัง–พิมพ์'],
     [st.ghostsBanished.toLocaleString('th-TH'),
       `ผีที่ไล่ไปแล้ว${st.ghostNight ? ` · ลึกสุดคืนที่ ${st.ghostNight}` : ''}`],
@@ -207,6 +209,10 @@ async function renderNews(force) {
     return;
   }
 
+  // your own history feeds the stats: lifetime totals, per-source typed counts,
+  // and which headlines you've already typed (kept in memory, cheap to re-derive)
+  const st = stats(await loadRuns());
+
   const count = (s) => newsCache.items.filter((i) => i.source === s).length;
   const sources = newsCache.sources?.length
     ? newsCache.sources : [...new Set(newsCache.items.map((i) => i.source))];
@@ -215,13 +221,31 @@ async function renderNews(force) {
     newsSource = sources.find(count) || sources[0];
   }
 
-  // source chips: one สำนักข่าว at a time; a source that returned nothing is shown disabled
+  // lifetime news stats, in the same stat-card language as the สถิติ page
+  const statStrip = $('#news-stats');
+  if (st.newsRead) {
+    const pages = Math.max(1, Math.round(st.newsChars / 1800));
+    const cards = [
+      [st.newsRead.toLocaleString('th-TH'), 'ข่าวที่พิมพ์แล้ว'],
+      [st.newsPb ? Math.round(st.newsPb) : '–', 'เร็วสุด (ตัวอักษร/นาที)'],
+      [st.newsChars.toLocaleString('th-TH'), `ตัวอักษรจากข่าว · ≈ ${pages} หน้า`],
+    ];
+    statStrip.innerHTML = cards.map(([num, label]) =>
+      `<div class="stat"><div class="stat-num">${num}</div><div class="stat-label">${label}</div></div>`).join('');
+    statStrip.hidden = false;
+  } else {
+    statStrip.hidden = true; // nothing typed yet — no empty strip
+  }
+
+  // source chips: one สำนักข่าว at a time; the small line shows how many stories
+  // are available now and, once you've typed some, a ✓ tally from this source
   chips.innerHTML = '';
   for (const s of sources) {
     const n = count(s);
+    const typed = st.newsBySource[s] || 0;
     const chip = document.createElement('button');
     chip.className = 'chip' + (s === newsSource ? ' sel' : '') + (n ? '' : ' locked');
-    chip.innerHTML = `${s} <small>${n}</small>`;
+    chip.innerHTML = `${s} <small>${n}${typed ? ` · ✓${typed}` : ''}</small>`;
     if (n) chip.onclick = () => { newsSource = s; renderNews(); };
     chips.appendChild(chip);
   }
@@ -233,18 +257,19 @@ async function renderNews(force) {
   const tfmt = new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   list.innerHTML = '';
   for (const a of newsCache.items.filter((i) => i.source === newsSource)) {
+    const typed = st.newsTitles.has(a.title);
     const card = document.createElement('button');
-    card.className = 'mediacard newscard';
+    card.className = 'mediacard newscard' + (typed ? ' typed' : '');
     const meta = document.createElement('span');
     meta.className = 'news-src';
-    meta.textContent = a.source + (a.t ? ' · ' + tfmt.format(new Date(a.t)) : '');
+    meta.textContent = (typed ? '✓ ' : '') + a.source + (a.t ? ' · ' + tfmt.format(new Date(a.t)) : '');
     const h = document.createElement('b'); h.textContent = a.title;         // untrusted: textContent
     const lead = document.createElement('small'); lead.textContent = a.lead; // untrusted: textContent
     card.append(meta, h, lead);
     card.onclick = () => {
       const body = a.lead && a.lead.length > a.title.length ? a.lead : a.title;
       const { words, breaks } = segmentThaiBreaks(body);
-      startText('ข่าว: ' + a.title, `📰 ${a.title}`, words, breaks);
+      startText('ข่าว: ' + a.title, `📰 ${a.title}`, words, breaks, { backView: 'news', run: { src: a.source } });
     };
     list.appendChild(card);
   }
@@ -298,7 +323,14 @@ $('#theme-toggle').addEventListener('click', () => {
   redrawHero();  // …and over the landscape
 });
 
-document.addEventListener('runs-changed', renderJourney);
+document.addEventListener('runs-changed', () => {
+  renderJourney();
+  // a finished ข่าว run returns to this tab via the modal, which doesn't re-run
+  // the renderer — refresh the (possibly hidden) news view so its stats are
+  // current when revealed. No-op fetch: renderNews() without force reuses the
+  // in-memory feed.
+  if (newsCache) renderNews();
+});
 
 // ---- login gate -----------------------------------------------------------------
 // The server owns all save data; localStorage remembers only who you are. Runs

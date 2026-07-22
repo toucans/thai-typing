@@ -34,8 +34,11 @@ export function startLevel(level) {
   });
 }
 
-export function startText(name, title, words, breaks) {
-  begin({ mode: 'text', name, words, breaks, title, backView: 'texts' });
+// เรื่องอ่าน and ข่าว both run here. opts lets ข่าว return to its own tab
+// (backView) and stamp the run with extra fields (run: { src }) so news stats
+// can be attributed to a สำนักข่าว.
+export function startText(name, title, words, breaks, opts = {}) {
+  begin({ mode: 'text', name, words, breaks, title, backView: opts.backView || 'texts', extra: opts.run || null });
 }
 
 function begin(cfg) {
@@ -122,6 +125,7 @@ async function finish() {
   };
   if (S.mode === 'speed') { run.level = S.level; run.pb = pb; }
   if (S.name) run.name = S.name;
+  if (S.extra) Object.assign(run, S.extra); // e.g. { src } for a ข่าว run
   await saveRun(run);
 
   // finishing a shrine level for the first time opens its มงคลชีวิต blessing

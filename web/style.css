@@ -402,6 +402,14 @@ h2.blessing-name { margin: .2rem 0 .4rem; }
 .news-status { display: flex; flex-wrap: wrap; gap: .3rem 1.1rem; align-items: baseline;
   color: var(--ink-soft); font-size: .92rem; }
 .news-status b { color: var(--green-900); }
+/* lifetime news stats: same stat-card language as the สถิติ page, sized down to
+   sit quietly above the source chips */
+.news-stats { margin: 0 0 1rem; }
+.news-stats .stat { padding: .7rem .9rem; }
+.news-stats .stat-num { font-size: 1.5rem; }
+/* a headline you've already typed: dimmed, with the ✓ in its byline picked out */
+.newscard.typed { opacity: .62; }
+.newscard.typed .news-src { color: var(--green-700); }
 
 /* ---- stats ---- */
 .stat-cards { display: grid; gap: .8rem; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
