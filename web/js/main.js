@@ -204,15 +204,23 @@ async function renderNews(force) {
     newsSource = null; // re-pick the default source against the fresh pull
     btn.disabled = false;
   }
+  // your own history feeds the stats: lifetime totals, per-source typed counts,
+  // and which headlines you've already typed (kept in memory, cheap to re-derive)
+  const runs = await loadRuns();
+  const st = stats(runs);
+
+  // the reading log: every article typed all the way through, behind a button.
+  // Wired before the feed check — your history is yours even when feeds are down.
+  const newsRuns = runs.filter((r) => r.game === 'text' && (r.name || '').startsWith('ข่าว: '));
+  const doneBtn = $('#news-done-btn');
+  doneBtn.disabled = !newsRuns.length;
+  doneBtn.onclick = () => showNewsDone(newsRuns);
+
   if (!newsCache || !newsCache.items || !newsCache.items.length) {
     chips.innerHTML = '';
     list.innerHTML = '<p class="hint">ดึงข่าวไม่สำเร็จ — ลองกด “ดึงข่าวล่าสุด” อีกครั้ง</p>';
     return;
   }
-
-  // your own history feeds the stats: lifetime totals, per-source typed counts,
-  // and which headlines you've already typed (kept in memory, cheap to re-derive)
-  const st = stats(await loadRuns());
 
   const count = (s) => newsCache.items.filter((i) => i.source === s).length;
   const sources = newsCache.sources?.length
@@ -270,6 +278,48 @@ async function renderNews(force) {
     card.onclick = () => openArticle(a, card, meta);
     list.appendChild(card);
   }
+}
+
+// The reading log: one row per article typed to the end, newest first — when,
+// which สำนักข่าว, the headline, and your best pace on it (×n if retyped).
+// Titles came from outside as feed text, so every row is built with
+// createElement + textContent — no article string ever reaches innerHTML.
+function showNewsDone(newsRuns) {
+  const byTitle = new Map(); // runs are chronological: the last write wins on t
+  for (const r of newsRuns) {
+    const title = (r.name || '').replace(/^ข่าว: /, '');
+    const prev = byTitle.get(title);
+    byTitle.set(title, {
+      title, src: r.src || '—', t: r.t,
+      cpm: Math.max(r.cpm || 0, prev ? prev.cpm : 0), n: (prev ? prev.n : 0) + 1,
+    });
+  }
+  const items = [...byTitle.values()].sort((a, b) => b.t.localeCompare(a.t));
+  const card = modal(`
+    <h2>✓ ข่าวที่พิมพ์จบ</h2>
+    <div class="modal-sub">${items.length.toLocaleString('th-TH')} เรื่อง · ใหม่สุดก่อน · ตัวอักษร/นาทีที่เร็วสุดของเรื่องนั้น</div>
+    <div class="pb-rows" id="done-rows"></div>
+    <div class="play-actions"><button class="btn" id="m-close">ปิด</button></div>`);
+  const dfmt = new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+  const rows = card.querySelector('#done-rows');
+  for (const a of items) {
+    const row = document.createElement('div');
+    row.className = 'pb-row';
+    const date = document.createElement('span');
+    date.className = 'pb-date';
+    date.textContent = `${dfmt.format(new Date(a.t))} · ${a.src}`; // src is feed text: textContent
+    const where = document.createElement('span');
+    where.className = 'pb-where done-title';
+    where.textContent = a.title + (a.n > 1 ? ` ×${a.n}` : ''); // untrusted: textContent
+    const cpm = document.createElement('span');
+    cpm.className = 'pb-cpm';
+    const b = document.createElement('b');
+    b.textContent = Math.round(a.cpm);
+    cpm.appendChild(b);
+    row.append(date, where, cpm);
+    rows.appendChild(row);
+  }
+  card.querySelector('#m-close').onclick = closeModal;
 }
 
 // Opening a story fetches the full article (server-extracted and disk-cached)
