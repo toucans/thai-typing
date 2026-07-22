@@ -451,6 +451,9 @@ h2.blessing-name { margin: .2rem 0 .4rem; }
 .reader-body .cur.bad { background: var(--red-soft); color: var(--red); }
 .reader-body .ok { color: var(--green-500); }
 .reader-body .err { color: var(--red); text-decoration: underline wavy; text-decoration-thickness: 1px; }
+/* tokens with no Thai (English names, numbers, %) are read, not typed —
+   dimmed so the eye knows the cursor will step over them */
+.reader-body .skip { color: var(--ink-soft); }
 /* keystrokes land in an input you never see; the gold word is the caret */
 .reader-typebox { position: fixed; bottom: 0; left: 0; width: 1px; height: 1px;
   opacity: 0; border: none; padding: 0; }

@@ -25,7 +25,7 @@ export function startArticle(art, item) {
   R = {
     mode: 'text', name, title: '📰 ' + (art.headline || item.title),
     backView: 'news', extra: { src: item.source },
-    words: [], breaks: [], paraEnd: [], spans: [],
+    words: [], breaks: [], paraEnd: [], spans: [], skip: [],
     idx: 0, keys: 0, wrong: 0, correctChars: 0, t0: null, done: false,
     restart: () => startArticle(art, item),
   };
@@ -55,12 +55,16 @@ export function startArticle(art, item) {
       R.breaks.push(breaks[i]);
       R.paraEnd.push(i === words.length - 1);
       R.spans.push(sp);
+      // you type the Thai; tokens with none of it — English names, numbers,
+      // percentages, dashes — are read, not typed: passed over automatically
+      R.skip.push(!/[฀-๿]/.test(w));
     });
     body.appendChild(p);
   }
-  if (!R.words.length) { show('news'); return; } // nothing typeable — bail out
+  if (!R.words.length || R.skip.every(Boolean)) { show('news'); return; } // nothing typeable
 
-  R.spans[0].classList.add('cur');
+  passSkips();
+  R.spans[R.idx].classList.add('cur');
   paintProgress();
 
   show('reader');
@@ -94,6 +98,15 @@ function scrollCurrent() {
   }
 }
 
+// Step over skip words (no Thai to type): marked passed, never scored — they
+// don't add to correctChars, so cpm stays a measure of what you actually typed.
+function passSkips() {
+  while (R.idx < R.words.length && R.skip[R.idx]) {
+    R.spans[R.idx].classList.add('skip');
+    R.idx++;
+  }
+}
+
 function commitWord(typed) {
   const target = R.words[R.idx];
   const sp = R.spans[R.idx];
@@ -102,6 +115,7 @@ function commitWord(typed) {
   sp.classList.add(ok ? 'ok' : 'err');
   if (ok) { R.correctChars += target.length; sound.word(); } else { sound.error(); }
   R.idx++;
+  passSkips();
   paintProgress();
   if (R.idx >= R.words.length) { R.done = true; return finishSession(R); }
   R.spans[R.idx].classList.add('cur');

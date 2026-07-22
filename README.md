@@ -86,7 +86,9 @@ Opening a story reads the **whole real article** in a reader view
 (`web/js/reader.js`): source · date byline, the headline in Srisakdi under a
 gold rule, the hero photo, the full body in Sarabun — and you type it through
 *in place*, word by word down the column, with the same scoring, results card
-and run record as every other text (`finishSession` in `speed.js`). The server
+and run record as every other text (`finishSession` in `speed.js`). You type
+the Thai; tokens with none of it — English names, numbers, percentages — are
+shown dimmed and stepped over automatically, and never counted in the score. The server
 side (`article.go`, `GET /api/article`) fetches the article on first open and
 extracts it **standard-first**: headline/date/image from **JSON-LD**
 (schema.org `NewsArticle`) with `og:` meta and the RSS item as fallbacks, the
