@@ -20,13 +20,16 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"encoding/xml"
 	"flag"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -48,9 +51,21 @@ var mediaExts = map[string]bool{
 var userRe = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9._-]{0,30}[a-z0-9])?$`)
 
 var (
-	webDir, mediaDir, textsDir, usersDir string
-	runsLock                             sync.Mutex
+	webDir, mediaDir, textsDir, usersDir, newsDir string
+	runsLock                                      sync.Mutex
 )
+
+// The one outbound dependency in the app: real Thai news, fetched as RSS (the
+// most durable, boring option — no scraping), so เรื่องอ่าน has a live source
+// with real provenance instead of only authored texts. A dead or moved feed is
+// a one-line edit here; the last good fetch is cached to disk so an offline box
+// or a down feed still gives you something to type.
+var newsFeeds = []struct{ name, url string }{
+	{"ไทยรัฐ", "https://www.thairath.co.th/rss/news"},
+	{"ข่าวสด", "https://www.khaosod.co.th/feed"},
+	{"ประชาไท", "https://prachatai.com/rss.xml"},
+	{"มติชน", "https://www.matichon.co.th/feed"},
+}
 
 func main() {
 	addr := flag.String("addr", host+":"+port, "listen address")
@@ -70,6 +85,7 @@ func main() {
 		dd = filepath.Join(root, "data")
 	}
 	usersDir = filepath.Join(dd, "users")
+	newsDir = filepath.Join(dd, "news") // last-good news fetch, cached to disk
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handle)
@@ -102,6 +118,8 @@ func doGET(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, 200, scanMedia())
 	case path == "/api/texts":
 		sendJSON(w, 200, scanTexts())
+	case path == "/api/news":
+		sendJSON(w, 200, getNews())
 	case strings.HasPrefix(path, "/media/"):
 		// ranged serving (206) lets <video>/<audio> seek -- ServeContent does it.
 		serveFile(w, r, safeJoin(mediaDir, path[len("/media/"):]), false)
@@ -263,6 +281,181 @@ func scanTexts() map[string]any {
 		texts = append(texts, map[string]any{"name": fn, "title": title, "path": "texts/" + fn})
 	}
 	return map[string]any{"texts": texts}
+}
+
+// --- news (the one outbound fetch) -----------------------------------------
+
+type rssFeed struct {
+	Items []struct {
+		Title       string `xml:"title"`
+		Link        string `xml:"link"`
+		Description string `xml:"description"`
+		PubDate     string `xml:"pubDate"`
+	} `xml:"channel>item"`
+}
+
+type newsItem struct {
+	Source string `json:"source"`
+	Title  string `json:"title"`
+	Lead   string `json:"lead"`
+	Link   string `json:"link"`
+	T      int64  `json:"t"` // publish time, epoch ms (0 if unparseable)
+}
+
+// getNews fetches every feed concurrently and merges the items newest-first.
+// Any items at all → fresh (and cached to disk). Only if every feed is
+// unreachable do we fall back to the on-disk cache, flagged stale.
+func getNews() map[string]any {
+	results := make([][]newsItem, len(newsFeeds))
+	var wg sync.WaitGroup
+	for i, f := range newsFeeds {
+		wg.Add(1)
+		go func(i int, name, url string) {
+			defer wg.Done()
+			results[i] = fetchFeed(name, url)
+		}(i, f.name, f.url)
+	}
+	wg.Wait()
+
+	seen := map[string]bool{}
+	var items []newsItem
+	for _, rs := range results {
+		for _, it := range rs {
+			key := it.Link
+			if key == "" {
+				key = it.Source + "|" + it.Title
+			}
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			items = append(items, it)
+		}
+	}
+	sort.SliceStable(items, func(i, j int) bool { return items[i].T > items[j].T })
+	if len(items) > 48 {
+		items = items[:48]
+	}
+
+	if len(items) > 0 {
+		payload := map[string]any{"items": items, "fetchedAt": time.Now().UnixMilli(), "stale": false}
+		saveNewsCache(payload)
+		return payload
+	}
+	if cached := loadNewsCache(); cached != nil {
+		cached["stale"] = true // reachable feeds gave nothing; this is the last good copy
+		return cached
+	}
+	return map[string]any{"items": []any{}, "stale": true, "error": "no feeds reachable"}
+}
+
+func fetchFeed(name, url string) []newsItem {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (thai-typing)")
+	client := &http.Client{Timeout: 12 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil
+	}
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20)) // 4 MiB is plenty for a feed
+	if err != nil {
+		return nil
+	}
+	var feed rssFeed
+	if xml.Unmarshal(data, &feed) != nil {
+		return nil
+	}
+	var out []newsItem
+	for _, it := range feed.Items {
+		title := cleanText(it.Title)
+		lead := cleanText(it.Description)
+		if lead == "" {
+			lead = title
+		}
+		if title == "" || !hasThai(lead) { // skip empties and non-Thai (e.g. sponsor rows)
+			continue
+		}
+		out = append(out, newsItem{
+			Source: name, Title: title, Lead: clampLead(lead),
+			Link: strings.TrimSpace(it.Link), T: parseRSSDate(it.PubDate),
+		})
+	}
+	return out
+}
+
+var tagRe = regexp.MustCompile(`<[^>]*>`)
+var wsRe = regexp.MustCompile(`\s+`)
+
+// cleanText strips the HTML feeds embed in titles/descriptions down to the plain
+// Thai prose you actually type: tags out, entities decoded, WordPress boilerplate
+// ("The post … appeared first on", "[…]", "อ่านต่อ") trimmed, whitespace collapsed.
+func cleanText(s string) string {
+	s = tagRe.ReplaceAllString(s, " ")
+	s = html.UnescapeString(s)
+	if i := strings.Index(s, "The post "); i >= 0 {
+		s = s[:i]
+	}
+	s = strings.NewReplacer("[…]", " ", "[...]", " ", "อ่านต่อ", " ", "Read More", " ").Replace(s)
+	return strings.TrimSpace(wsRe.ReplaceAllString(s, " "))
+}
+
+// clampLead keeps a lead to ~one comfortable typing minute; Thai has no spaces,
+// so an over-length excerpt is just cut on a rune boundary with an ellipsis.
+func clampLead(s string) string {
+	r := []rune(s)
+	if len(r) <= 500 {
+		return s
+	}
+	return strings.TrimSpace(string(r[:500])) + "…"
+}
+
+func hasThai(s string) bool {
+	for _, r := range s {
+		if r >= 0x0E00 && r <= 0x0E7F {
+			return true
+		}
+	}
+	return false
+}
+
+func parseRSSDate(s string) int64 {
+	s = strings.TrimSpace(s)
+	for _, layout := range []string{time.RFC1123Z, time.RFC1123,
+		"Mon, 2 Jan 2006 15:04:05 -0700", time.RFC3339} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t.UnixMilli()
+		}
+	}
+	return 0
+}
+
+func saveNewsCache(payload map[string]any) {
+	os.MkdirAll(newsDir, 0o755)
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if enc.Encode(payload) == nil {
+		os.WriteFile(filepath.Join(newsDir, "cache.json"), buf.Bytes(), 0o644)
+	}
+}
+
+func loadNewsCache() map[string]any {
+	data, err := os.ReadFile(filepath.Join(newsDir, "cache.json"))
+	if err != nil {
+		return nil
+	}
+	var m map[string]any
+	if json.Unmarshal(data, &m) != nil {
+		return nil
+	}
+	return m
 }
 
 // --- helpers ---------------------------------------------------------------

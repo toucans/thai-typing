@@ -393,6 +393,16 @@ h2.blessing-name { margin: .2rem 0 .4rem; }
 .mediacard .seg-preview { margin-top: .4rem; font-size: .8rem; color: var(--gold); background: none;
   border: none; cursor: pointer; padding: 0; text-decoration: underline; }
 
+/* news cards: a source·time byline over the headline, the lead paragraph clamped
+   to a few lines so the grid stays even — the real provenance the fables lack */
+.newscard .news-src { display: block; font-size: .78rem; color: var(--gold);
+  letter-spacing: .02em; margin-bottom: .3rem; }
+.newscard small { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  overflow: hidden; line-height: 1.55; }
+.news-status { display: flex; flex-wrap: wrap; gap: .3rem 1.1rem; align-items: baseline;
+  color: var(--ink-soft); font-size: .92rem; }
+.news-status b { color: var(--green-900); }
+
 /* ---- stats ---- */
 .stat-cards { display: grid; gap: .8rem; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   margin-bottom: 1.2rem; }

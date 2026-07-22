@@ -25,6 +25,7 @@
     <button data-view="journey" class="active">เส้นทาง</button>
     <button data-view="dictation">ฟัง–พิมพ์</button>
     <button data-view="texts">เรื่องอ่าน</button>
+    <button data-view="news">ข่าว</button>
     <button data-view="ghosts">ไล่ผี</button>
     <button data-view="stats">สถิติ</button>
   </nav>
@@ -110,6 +111,22 @@
     <p class="hint">วางเรื่องสั้นหรือบทความภาษาไทยเป็นไฟล์ <code>.txt</code> ในโฟลเดอร์
       <code>texts/</code> (บรรทัดแรกคือชื่อเรื่อง) แล้วพิมพ์ตามได้ทั้งเรื่อง</p>
     <div id="texts-list" class="cardlist"></div>
+  </section>
+
+  <!-- ข่าว: เรื่องอ่าน's live source — real Thai news pulled as RSS by the Go
+       server (js: renderNews in main.js), typed through the same play flow.
+       The one thing in the app fetched from outside; that's the point — real,
+       current, un-generated content the journey and the fables can't be. -->
+  <section id="view-news" class="view" hidden>
+    <div class="journey-bar">
+      <div id="news-status" class="news-status"></div>
+      <div class="journey-actions">
+        <button class="btn gold" id="news-refresh">↻ ดึงข่าวล่าสุด</button>
+      </div>
+    </div>
+    <p class="hint">พิมพ์ตามข่าวไทยล่าสุดของวันนี้ — ภาษาไทยจริงจากหน้าข่าว
+      (ไทยรัฐ · ข่าวสด · ประชาไท · มติชน) แตะข่าวเพื่อพิมพ์ตามพาดหัวและเนื้อข่าว</p>
+    <div id="news-list" class="cardlist"></div>
   </section>
 
   <!-- พิมพ์ไล่ผี: the night game (js/ghosts.js) — pixel ghosts on the canvas,

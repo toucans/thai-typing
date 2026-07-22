@@ -184,8 +184,59 @@ async function renderTexts() {
   }
 }
 
+// ---- news ----------------------------------------------------------------------------
+// เรื่องอ่าน's live source: real Thai headlines+leads the Go server pulls as RSS.
+// Kept in memory once fetched (like runs) so tab-switching is instant; the refresh
+// button forces a re-fetch. External feed text is untrusted, so it is placed with
+// textContent, never innerHTML.
+let newsCache = null;
+async function renderNews(force) {
+  const list = $('#news-list'), status = $('#news-status'), btn = $('#news-refresh');
+  if (!newsCache || force) {
+    list.innerHTML = '<p class="hint">กำลังดึงข่าว…</p>';
+    status.textContent = '';
+    btn.disabled = true;
+    try { newsCache = await (await fetch('api/news')).json(); } catch { newsCache = null; }
+    btn.disabled = false;
+  }
+  if (!newsCache || !newsCache.items || !newsCache.items.length) {
+    list.innerHTML = '<p class="hint">ดึงข่าวไม่สำเร็จ — ลองกด “ดึงข่าวล่าสุด” อีกครั้ง</p>';
+    return;
+  }
+  const when = newsCache.fetchedAt ? relTime(newsCache.fetchedAt) : '';
+  status.innerHTML = `<span>ข่าวล่าสุด <b>${newsCache.items.length}</b> เรื่อง</span>`
+    + (when ? `<span>${newsCache.stale ? '⚠ ' : ''}อัปเดตเมื่อ ${when}</span>` : '');
+
+  const tfmt = new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  list.innerHTML = '';
+  for (const a of newsCache.items) {
+    const card = document.createElement('button');
+    card.className = 'mediacard newscard';
+    const meta = document.createElement('span');
+    meta.className = 'news-src';
+    meta.textContent = a.source + (a.t ? ' · ' + tfmt.format(new Date(a.t)) : '');
+    const h = document.createElement('b'); h.textContent = a.title;         // untrusted: textContent
+    const lead = document.createElement('small'); lead.textContent = a.lead; // untrusted: textContent
+    card.append(meta, h, lead);
+    card.onclick = () => {
+      const body = a.lead && a.lead.length > a.title.length ? a.lead : a.title;
+      const { words, breaks } = segmentThaiBreaks(body);
+      startText('ข่าว: ' + a.title, `📰 ${a.title}`, words, breaks);
+    };
+    list.appendChild(card);
+  }
+}
+
+function relTime(ms) {
+  const s = Math.round((Date.now() - ms) / 1000);
+  if (s < 60) return 'สักครู่ที่ผ่านมา';
+  const m = Math.round(s / 60); if (m < 60) return `${m} นาทีที่แล้ว`;
+  const h = Math.round(m / 60); if (h < 24) return `${h} ชั่วโมงที่แล้ว`;
+  return `${Math.round(h / 24)} วันที่แล้ว`;
+}
+
 // ---- boot ---------------------------------------------------------------------------
-const renderers = { journey: renderJourney, stats: renderStats, texts: renderTexts, ghosts: renderGhosts, dictation: null };
+const renderers = { journey: renderJourney, stats: renderStats, texts: renderTexts, news: renderNews, ghosts: renderGhosts, dictation: null };
 
 for (const b of document.querySelectorAll('#nav button')) {
   b.addEventListener('click', () => {
@@ -197,6 +248,7 @@ for (const b of document.querySelectorAll('#nav button')) {
 }
 
 $('#guide-btn').addEventListener('click', () => showGuide());
+$('#news-refresh').addEventListener('click', () => renderNews(true));
 
 // เส้นทาง levels run words together like real prose by default (matching
 // เรื่องอ่าน); this toggle brings the spaces between words back

@@ -69,6 +69,23 @@ after two misses) and **ดูแล้วพิมพ์** shows the whole cue 
 and type through it. This is the "stories" path: source stories anywhere, in plain
 text, and they become typing material with zero processing.
 
+**ข่าว (news)** — เรื่องอ่าน's *live* source, and the one thing in the app fetched
+from outside. The Go server pulls four Thai news feeds as **RSS** (Thairath,
+Khaosod, Prachatai, Matichon — `newsFeeds` in `main.go`), the single outbound
+dependency; each headline + lead paragraph becomes a typing story with a real
+**source · time** byline, typed through the same play flow as texts. This is a
+deliberate, contained dent in the app's self-containment: everything else —
+levels, ghosts, the map, the music — is *generated from a seed*, which is exactly
+why it can read as synthetic; news is real, current, and un-generatable, and the
+realness comes precisely from reaching outside. The dent is kept small the
+monk-like way: **RSS, not scraping** (the most durable option); **four feeds** so
+one dying isn't fatal; the feed list is a one-line edit; and every fetch is
+**cached to `<data-dir>/news/cache.json`**, so a down feed or an offline box still
+serves the last good pull, flagged `stale`. Untrusted feed text is placed with
+`textContent`, never `innerHTML`, and the server strips HTML/entities to plain
+Thai first. Stays off the Pages standalone build (backend-dependent, like
+dictation and the journey).
+
 **พิมพ์ไล่ผี (the night hunt)** — Typing of the Dead, in Thai folklore terms
 (`web/js/ghosts.js`). Ghosts of the Thai pantheon — ผีอำ, ผีปอบ, กระสือ,
 นางตานี, กระหัง, drawn as string-art pixel sprites over a painted night
