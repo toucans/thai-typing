@@ -410,6 +410,11 @@ h2.blessing-name { margin: .2rem 0 .4rem; }
 /* a headline you've already typed: dimmed, with the ✓ in its byline picked out */
 .newscard.typed { opacity: .62; }
 .newscard.typed .news-src { color: var(--green-700); }
+/* the reading-log page: same grid, ✓ byline in green at full strength; a card
+   whose story left the feed is a plain record — no lift, no pointer */
+.newscard.done .news-src { color: var(--green-700); }
+.mediacard:disabled { cursor: default; }
+.mediacard:disabled:hover { border-color: rgb(0 0 0 / .08); box-shadow: none; transform: none; }
 
 /* ---- ข่าว reader: a real front page, in this app's paper and gold ----------
    Same tokens, same motifs as everything else: the manuscript's gold inner
@@ -482,8 +487,6 @@ h2.blessing-name { margin: .2rem 0 .4rem; }
 .pb-row:last-child { border-bottom: none; }
 .pb-date { color: var(--ink-soft); font-size: .88rem; white-space: nowrap; }
 .pb-where { color: var(--ink); flex: 1; text-align: end; font-size: .92rem; }
-/* the completed-news list reuses the pb rows; titles read better start-aligned */
-.pb-where.done-title { text-align: start; }
 .pb-cpm b { color: var(--green-900); font-size: 1.05rem; }
 .pb-gain { color: var(--gold); font-size: .8rem; }
 #chart svg { width: 100%; height: auto; display: block; }

@@ -193,7 +193,7 @@ async function renderTexts() {
 // button forces a re-fetch. Sources are kept apart — chips pick one สำนักข่าว and
 // the list shows only its stories, never a mixed feed. External feed text is
 // untrusted, so it is placed with textContent, never innerHTML.
-let newsCache = null, newsSource = null;
+let newsCache = null, newsSource = null, newsPage = 'feed'; // 'feed' | 'done'
 async function renderNews(force) {
   const list = $('#news-list'), status = $('#news-status'), btn = $('#news-refresh'), chips = $('#news-sources');
   if (!newsCache || force) {
@@ -209,28 +209,18 @@ async function renderNews(force) {
   const runs = await loadRuns();
   const st = stats(runs);
 
-  // the reading log: every article typed all the way through, behind a button.
+  // the reading log is the view's second page: the same card grid, but showing
+  // every article you've typed to the end. The ✓ button flips between the two.
   // Wired before the feed check — your history is yours even when feeds are down.
   const newsRuns = runs.filter((r) => r.game === 'text' && (r.name || '').startsWith('ข่าว: '));
+  if (!newsRuns.length) newsPage = 'feed';
   const doneBtn = $('#news-done-btn');
   doneBtn.disabled = !newsRuns.length;
-  doneBtn.onclick = () => showNewsDone(newsRuns);
+  doneBtn.textContent = newsPage === 'done' ? '← ข่าวล่าสุด' : '✓ ข่าวที่พิมพ์จบ';
+  doneBtn.onclick = () => { newsPage = newsPage === 'feed' ? 'done' : 'feed'; renderNews(); };
 
-  if (!newsCache || !newsCache.items || !newsCache.items.length) {
-    chips.innerHTML = '';
-    list.innerHTML = '<p class="hint">ดึงข่าวไม่สำเร็จ — ลองกด “ดึงข่าวล่าสุด” อีกครั้ง</p>';
-    return;
-  }
-
-  const count = (s) => newsCache.items.filter((i) => i.source === s).length;
-  const sources = newsCache.sources?.length
-    ? newsCache.sources : [...new Set(newsCache.items.map((i) => i.source))];
-  // default to the first source that actually returned stories
-  if (!newsSource || !sources.includes(newsSource) || !count(newsSource)) {
-    newsSource = sources.find(count) || sources[0];
-  }
-
-  // lifetime news stats, in the same stat-card language as the สถิติ page
+  // lifetime news stats, in the same stat-card language as the สถิติ page —
+  // shown on both pages (the feed and the reading log)
   const statStrip = $('#news-stats');
   if (st.newsRead) {
     const pages = Math.max(1, Math.round(st.newsChars / 1800));
@@ -244,6 +234,22 @@ async function renderNews(force) {
     statStrip.hidden = false;
   } else {
     statStrip.hidden = true; // nothing typed yet — no empty strip
+  }
+
+  if (newsPage === 'done') return renderNewsDone(newsRuns, list, status, chips);
+
+  if (!newsCache || !newsCache.items || !newsCache.items.length) {
+    chips.innerHTML = '';
+    list.innerHTML = '<p class="hint">ดึงข่าวไม่สำเร็จ — ลองกด “ดึงข่าวล่าสุด” อีกครั้ง</p>';
+    return;
+  }
+
+  const count = (s) => newsCache.items.filter((i) => i.source === s).length;
+  const sources = newsCache.sources?.length
+    ? newsCache.sources : [...new Set(newsCache.items.map((i) => i.source))];
+  // default to the first source that actually returned stories
+  if (!newsSource || !sources.includes(newsSource) || !count(newsSource)) {
+    newsSource = sources.find(count) || sources[0];
   }
 
   // source chips: one สำนักข่าว at a time; the small line shows how many stories
@@ -280,11 +286,12 @@ async function renderNews(force) {
   }
 }
 
-// The reading log: one row per article typed to the end, newest first — when,
-// which สำนักข่าว, the headline, and your best pace on it (×n if retyped).
-// Titles came from outside as feed text, so every row is built with
-// createElement + textContent — no article string ever reaches innerHTML.
-function showNewsDone(newsRuns) {
+// The reading log page: the same card grid as the feed, one card per article
+// typed to the end (deduped, newest first) — ✓ สำนักข่าว · date typed over the
+// headline, your best pace below, ×n when retyped. A story still in today's
+// feed stays clickable to type again; older ones are plain records. Titles are
+// feed text, so everything is placed with textContent — never innerHTML.
+function renderNewsDone(newsRuns, list, status, chips) {
   const byTitle = new Map(); // runs are chronological: the last write wins on t
   for (const r of newsRuns) {
     const title = (r.name || '').replace(/^ข่าว: /, '');
@@ -295,31 +302,29 @@ function showNewsDone(newsRuns) {
     });
   }
   const items = [...byTitle.values()].sort((a, b) => b.t.localeCompare(a.t));
-  const card = modal(`
-    <h2>✓ ข่าวที่พิมพ์จบ</h2>
-    <div class="modal-sub">${items.length.toLocaleString('th-TH')} เรื่อง · ใหม่สุดก่อน · ตัวอักษร/นาทีที่เร็วสุดของเรื่องนั้น</div>
-    <div class="pb-rows" id="done-rows"></div>
-    <div class="play-actions"><button class="btn" id="m-close">ปิด</button></div>`);
-  const dfmt = new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
-  const rows = card.querySelector('#done-rows');
+
+  chips.innerHTML = '';
+  status.innerHTML = `<span><b>ข่าวที่พิมพ์จบ</b> · ${items.length.toLocaleString('th-TH')} เรื่อง</span>`;
+
+  const tfmt = new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  list.innerHTML = '';
   for (const a of items) {
-    const row = document.createElement('div');
-    row.className = 'pb-row';
-    const date = document.createElement('span');
-    date.className = 'pb-date';
-    date.textContent = `${dfmt.format(new Date(a.t))} · ${a.src}`; // src is feed text: textContent
-    const where = document.createElement('span');
-    where.className = 'pb-where done-title';
-    where.textContent = a.title + (a.n > 1 ? ` ×${a.n}` : ''); // untrusted: textContent
-    const cpm = document.createElement('span');
-    cpm.className = 'pb-cpm';
-    const b = document.createElement('b');
-    b.textContent = Math.round(a.cpm);
-    cpm.appendChild(b);
-    row.append(date, where, cpm);
-    rows.appendChild(row);
+    const live = newsCache?.items?.find((i) => i.title === a.title); // still in the feed → retypeable
+    const card = document.createElement('button');
+    card.className = 'mediacard newscard done';
+    const meta = document.createElement('span');
+    meta.className = 'news-src';
+    meta.textContent = `✓ ${a.src} · ${tfmt.format(new Date(a.t))}`; // src is feed text: textContent
+    const h = document.createElement('b'); h.textContent = a.title;   // untrusted: textContent
+    const sub = document.createElement('small');
+    sub.textContent = `เร็วสุด ${Math.round(a.cpm)} ตัวอักษร/นาที`
+      + (a.n > 1 ? ` · พิมพ์ ${a.n} ครั้ง` : '')
+      + (live ? ' · แตะเพื่อพิมพ์อีกครั้ง' : '');
+    card.append(meta, h, sub);
+    if (live) card.onclick = () => openArticle(live, card, meta);
+    else card.disabled = true;
+    list.appendChild(card);
   }
-  card.querySelector('#m-close').onclick = closeModal;
 }
 
 // Opening a story fetches the full article (server-extracted and disk-cached)
