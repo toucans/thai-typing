@@ -19,8 +19,10 @@ function segmentChunk(text) {
   const out = [];
   for (const s of segmenter.segment(text)) {
     const t = s.segment;
-    // attach stray punctuation / repeat marks (ๆ ฯ …) to the preceding word
-    if (!s.isWordLike && out.length) { out[out.length - 1] += t; continue; }
+    // Thai repeat/abbreviation marks (ๆ ฯ …) ride with the word they follow;
+    // other punctuation stays its own token so a closing " or ) is passed
+    // over by skip-aware modes exactly like an opening one
+    if (!s.isWordLike && out.length && /[฀-๿]/.test(t)) { out[out.length - 1] += t; continue; }
     out.push(t);
   }
   return out;
