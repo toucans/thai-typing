@@ -152,7 +152,11 @@ export function initReader() {
     }
   });
   // the input is visually hidden; touching the article brings the keyboard back
-  $('#reader-page').addEventListener('click', () => { if (R && !R.done) box.focus(); });
+  // — but not when the click ends a text selection: focusing the box would
+  // collapse the selection the reader just dragged out to read or copy
+  $('#reader-page').addEventListener('click', () => {
+    if (R && !R.done && getSelection().isCollapsed) box.focus();
+  });
   $('#reader-quit').addEventListener('click', () => {
     R = null;
     show('news');
