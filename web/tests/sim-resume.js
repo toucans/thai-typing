@@ -1,8 +1,8 @@
 // An episode is longer than a sitting, so where you stopped has to survive the
 // sitting. Two ways a round ends, and they must not be the same:
 //
-//   the cues ran out    -> the media is done, start it fresh next time
-//   you pressed จบรอบนี้ -> come back to the cue you were on
+//   the cues ran out  -> the media is done, start it fresh next time
+//   you left the view -> come back to the cue you were on
 //
 // The place is kept in two stores and the furthest wins: localStorage (written
 // every cue, exact, but per-device) and a cursor on the server (api/resume,
@@ -79,7 +79,7 @@ localStorage.removeItem(KEY);
 localStorage.setItem('tt.dictMode', 'listen');
 
 const records = await import('./records.ts');
-const { initDictation, initDictationInput } = await import('./dictation.ts');
+const { initDictation, initDictationInput, leaveDictation } = await import('./dictation.ts');
 const box = el('dict-typebox');
 const fire = (t, ev) => (box.listeners[t] || []).forEach((f) => f(ev));
 const type = (s) => { box.value = s; fire('input', { data: s.slice(-1) }); flush(); };
@@ -101,10 +101,9 @@ const typeCue = async () => {
   flush(); flush();
   await new Promise((r) => queueMicrotask(r));
 };
+// stopping is just leaving: no button, no confirm
 const stopForTheNight = async () => {
-  (el('dict-finish').listeners.click || []).forEach((f) => f());
-  flush();
-  if (globalThis.__modalGo) globalThis.__modalGo(); // the จบรอบ confirm
+  leaveDictation();
   for (let i = 0; i < 8; i++) await new Promise((r) => queueMicrotask(r));
   flush();
 };
@@ -124,10 +123,20 @@ check('the place reaches the server while you type, without ending the round',
 await stopForTheNight();
 const run1 = records.saved[0];
 console.log('--- run 1:', JSON.stringify(run1));
-check('stopping still saves the run', run1 && run1.cues === 3, JSON.stringify(run1));
+check('leaving the view saves the round, with no button pressed',
+  run1 && run1.cues === 3, JSON.stringify(run1));
 check('the run log carries no cursor — it is finished runs only',
   run1.lastCue === undefined, JSON.stringify(run1));
 check('stopping keeps the place on this device', saved() === '3', `saved=${saved()}`);
+
+// ---- leaving without typing anything is not a round --------------------------
+records.saved.length = 0;
+await open();
+leaveDictation();
+for (let i = 0; i < 4; i++) await new Promise((r) => queueMicrotask(r));
+flush();
+check('glancing at a file and leaving writes nothing', records.saved.length === 0,
+  JSON.stringify(records.saved));
 
 // ---- sitting two: reopen ------------------------------------------------------
 records.saved.length = 0;

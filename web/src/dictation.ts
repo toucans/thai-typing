@@ -691,10 +691,11 @@ function modalNote(title: string, text: string): void {
 
 // `complete` separates the two ways a round ends: the cues ran out (start the
 // media fresh next time) or you stopped for the night (come back to this cue).
-// They used to be the same call, so จบรอบนี้ — the only control offered for
-// stopping mid-episode, and one that promises to save what you have typed —
-// threw away your place.
-async function finishSession(D: Session, complete: boolean): Promise<void> {
+// They used to be the same call, so stopping mid-episode threw away your place.
+// Write the round. `complete` means the cues ran out, which is the only ending
+// that clears the resume cursor; `leaving` means the page is on its way out, so
+// the request has to be allowed to outlive it.
+async function saveSession(D: Session, complete: boolean, leaving = false): Promise<void> {
   const acc = D.wordsTotal ? 1 - D.wordsWrong / D.wordsTotal : 1;
   const secs = (performance.now() - D.t0) / 1000;
   const mastered = [...new Set(D.mastered)];
@@ -705,12 +706,19 @@ async function finishSession(D: Session, complete: boolean): Promise<void> {
     chars: D.tokensTyped || 0,
     ...(D.read ? { read: true } : { misses: D.misses, mastered, ignored: [...new Set(D.ignored)] }),
   };
-  await saveRun(run);
-  sound.level();
+  await saveRun(run, leaving);
   // ending a round is the moment the place matters most: send it now rather
   // than waiting out the timer
   if (complete) clearResume(D.pair.name);
-  else await flushResume();
+  else await flushResume(leaving);
+}
+
+// The explicit ending: the cues ran out, so there is a score to show.
+async function finishSession(D: Session, complete: boolean): Promise<void> {
+  await saveSession(D, complete);
+  sound.level();
+  const acc = D.wordsTotal ? 1 - D.wordsWrong / D.wordsTotal : 1;
+  const mastered = [...new Set(D.mastered)];
   const drilled = mastered.length
     ? `<div class="modal-sub">ทบทวนจนสะกดได้เอง ${mastered.length} คำ</div>` : '';
   // say where you will pick up, so stopping mid-episode is plainly safe
@@ -724,6 +732,20 @@ async function finishSession(D: Session, complete: boolean): Promise<void> {
     ${place}
     <div class="play-actions"><button class="btn" id="m-close">กลับ</button></div>`);
   on(card, '#m-close', () => { closeModal(); exitSession(); });
+}
+
+// Leaving the view, or the page, ends the round: the words you missed and the
+// ones you retired are what the next session opens on, so they must not depend
+// on remembering to press something. Nothing is written if you typed nothing —
+// glancing at ฟัง–พิมพ์ and going elsewhere is not a round.
+export function leaveDictation(pageGoing = false): void {
+  const session = D;
+  D = null;
+  void flushResume(pageGoing); // the cursor goes either way
+  if (!session) return;
+  $<HTMLVideoElement>('#dict-media').pause();
+  if (session.wordsTotal) void saveSession(session, false, pageGoing);
+  if (!pageGoing) exitSession();
 }
 
 function exitSession(): void {
@@ -763,8 +785,8 @@ function readModeInput(D: Session, typed: string): void {
 
 // ---- input --------------------------------------------------------------------------
 export function initDictationInput(): void {
-  // a closing tab still gets its last cue out of the door
-  addEventListener('pagehide', () => { void flushResume(true); });
+  // a closing tab still ends the round properly: cursor and run both go out
+  addEventListener('pagehide', () => { leaveDictation(true); });
 
   // mode chips on the setup screen; the choice applies to the next session
   const modes = $('#dict-modes');
@@ -850,19 +872,4 @@ export function initDictationInput(): void {
   });
 
   $('#dict-replay').addEventListener('click', () => { if (D) { playCue(D, 1); box.focus(); } });
-  $('#dict-finish').addEventListener('click', () => {
-    const session = D;
-    if (!session) return;
-    // easy to fat-finger next to the replay button — ask first
-    const card = modal(`
-      <h2>จบรอบนี้เลยไหม?</h2>
-      <div class="modal-sub">จะบันทึกผลเท่าที่พิมพ์ไปแล้ว
-        และจำไว้ว่าค้างอยู่ที่ท่อนที่ ${session.cueAt + 1}</div>
-      <div class="play-actions">
-        <button class="btn ghost" id="m-cancel">พิมพ์ต่อ</button>
-        <button class="btn" id="m-yes">จบรอบ</button>
-      </div>`);
-    on(card, '#m-cancel', () => { closeModal(); $('#dict-typebox').focus(); });
-    on(card, '#m-yes', () => { closeModal(); void finishSession(session, false); });
-  });
 }

@@ -69,11 +69,14 @@ export async function loadRuns(force = false): Promise<Run[]> {
   return cache.concat(pending);
 }
 
-export async function saveRun(run: NewRun): Promise<void> {
+// `keepalive` is for the run written as the page is going away: without it the
+// browser is free to cancel the request on unload, which is exactly the case
+// that has to work.
+export async function saveRun(run: NewRun, keepalive = false): Promise<void> {
   const full = { ...run, t: new Date().toISOString() } as Run;
   try {
     const res = await fetch('api/runs', {
-      method: 'POST', body: JSON.stringify({ ...full, user }),
+      method: 'POST', keepalive, body: JSON.stringify({ ...full, user }),
     });
     if (!res.ok) throw new Error();
     cache = cache.concat([full]);

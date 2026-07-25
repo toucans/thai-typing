@@ -2,7 +2,7 @@
 // The play views live in speed.ts / dictation.ts.
 import { loadRuns, stats, pbHistory, currentUser, login, createUser, logout } from './records.ts';
 import { startLevel, startText, initSpeed, levelSpaces } from './speed.ts';
-import { initDictation, initDictationInput } from './dictation.ts';
+import { initDictation, initDictationInput, leaveDictation } from './dictation.ts';
 import { initReader, startArticle } from './reader.ts';
 import { renderChart } from './chart.ts';
 import { sound } from './audio.ts';
@@ -394,6 +394,7 @@ for (const b of document.querySelectorAll<HTMLElement>('#nav button')) {
   b.addEventListener('click', () => {
     const view = b.dataset.view;
     if (!view) return;
+    if (view !== 'dictation') leaveDictation(); // leaving ฟัง–พิมพ์ ends the round
     show(view);
     void renderers[view]?.();
     if (view === 'dictation') void initDictation();

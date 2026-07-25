@@ -69,9 +69,16 @@ when it has moved, plus a `keepalive` flush on `pagehide`) — not only when a
 round ends. `localStorage` gets every cue as well: exact, free, and still there
 when the server isn't. Resume takes the furthest point either store knows, so
 neither can lose ground, and a failed post is retried on the next tick rather
-than dropped. จบรอบนี้ saves the run *and* the place and says which cue you'll
-come back to; only reaching the end of the cues clears the mark, so a finished
+than dropped. Only reaching the end of the cues clears the mark, so a finished
 file starts fresh.
+
+**Leaving is how a round ends.** There is no จบรอบนี้ button: switching to
+another view or closing the tab writes the run — the misses, the words drilled
+to mastery, the ไม่ต้องจำ list and the score — because those are what the *next*
+session opens on, and they shouldn't depend on remembering to press something.
+Runs are events and replay in order, so a session split across two writes
+carries over identically to one written in a single go. Typing nothing and
+leaving writes nothing: glancing at a file is not a round.
 
 The cursor is **not** in the run log. That log is append-only finished runs, and
 "store events, derive state" only holds if nothing else is mixed in — a cursor is
