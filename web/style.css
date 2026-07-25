@@ -395,6 +395,8 @@ h2.blessing-name { margin: .2rem 0 .4rem; }
   font-weight: 600; }
 .dict-phase { min-height: 1.2rem; text-align: center; font-size: .88rem;
   color: var(--ink-soft); margin-bottom: .35rem; }
+.linkbtn { font: inherit; color: var(--gold); background: none; border: none;
+  padding: 0; cursor: pointer; text-decoration: underline; }
 #dict-typebox[readonly] { border-color: var(--ink-soft); opacity: .55; }
 
 .cardlist { display: grid; gap: .7rem; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }

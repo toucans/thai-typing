@@ -22,6 +22,10 @@
 //  3. come back to it. A recalled word is rescheduled at expanding gaps, and
 //     anything still unmastered when the session ends carries to the next one
 //     through the run log.
+//  4. but not on every word. Ctrl+Enter marks a word ไม่ต้องจำ — out of the
+//     schedule, the carry-over list and the score, shown and copied from then
+//     on. Transliterated names are why: their spelling is arbitrary and
+//     generalises to nothing, so the loop's cost buys nothing back.
 import { sound } from './audio.js';
 import { saveRun, loadRuns } from './records.js';
 import { $, show, modal, closeModal, segmentThai } from './ui.js';
@@ -110,25 +114,30 @@ async function previewSegmentation(pair) {
   card.querySelector('#m-close').onclick = closeModal;
 }
 
-// ---- carried-over words ------------------------------------------------------------
-// The run log is the only store: each dictation run records the words it missed
-// and the words it drilled to mastery. Replaying those events in order gives each
-// word a current state, and anything whose latest event is a miss is still owed.
-async function carriedDue(mediaName) {
+// ---- what earlier sessions left behind -----------------------------------------------
+// The run log is the only store: each dictation run records the words it missed,
+// the words it drilled to mastery, and the words told to stop asking. Replaying
+// those events in order gives each word a current state — anything whose latest
+// event is a miss is still owed, and anything ever ignored is out of scope for
+// good.
+async function mediaHistory(mediaName) {
   let runs = [];
-  try { runs = await loadRuns(); } catch { return []; }
+  try { runs = await loadRuns(); } catch { return { due: [], ignored: new Set() }; }
   const state = new Map(); // word -> {due:boolean, cue:number}
+  const ignored = new Set();
   const mine = runs
     .filter((r) => r.game === 'dictation' && r.name === mediaName)
     .sort((a, b) => (a.t || '').localeCompare(b.t || ''));
   for (const r of mine) {
     for (const m of r.misses || []) state.set(m.w, { due: true, cue: m.cue ?? 0 });
     for (const w of r.mastered || []) if (state.has(w)) state.get(w).due = false;
+    for (const w of r.ignored || []) ignored.add(w);
   }
-  return [...state.entries()]
-    .filter(([, v]) => v.due)
+  const due = [...state.entries()]
+    .filter(([w, v]) => v.due && !ignored.has(w))
     .slice(0, DUE_CARRIED_MAX)
     .map(([w, v]) => ({ w, cue: v.cue, due: 0, reps: 0, fails: 0, carried: true }));
+  return { due, ignored };
 }
 
 // ---- session ---------------------------------------------------------------------
@@ -144,21 +153,24 @@ async function start(pair, resumeCue) {
     qpos: 0, tokens: [], wordIdx: 0,
     phase: 'guess', attempts: 0, nudged: false,
     drill: [], drillNow: null, wordsSeen: 0,
-    misses: [], mastered: [], flushRounds: 0,
+    misses: [], mastered: [], ignored: [], ignoreSet: new Set(), flushRounds: 0,
     cuesDone: 0, wordsTotal: 0, wordsWrong: 0, tokensTyped: 0,
     t0: performance.now(),
   };
   // words still owed from earlier sessions on this media open the round
   if (!readMode) {
-    const due = await carriedDue(pair.name).catch(() => []);
+    const { due, ignored } = await mediaHistory(pair.name)
+      .catch(() => ({ due: [], ignored: new Set() }));
     // only keep the ones whose cue still holds the word (the .srt may have changed)
     D.drill = due.filter((d) => cues[d.cue] && cues[d.cue].text.includes(d.w));
+    D.ignoreSet = ignored;
   }
   $('#dict-setup').hidden = true;
   $('#dict-session').hidden = false;
   $('#dict-typebox').placeholder = readMode ? 'พิมพ์ตามคำที่เห็น…' : 'ฟังแล้วพิมพ์…';
   $('#dict-keys').innerHTML = `<span class="kbd">Tab</span> ฟังซ้ำ · <span class="kbd">Shift+Tab</span> ช้าลง`
-    + (readMode ? '' : ' · <span class="kbd">Enter</span> ส่งคำตอบ · <span class="kbd">Esc</span> ยอมแพ้คำนี้');
+    + (readMode ? '' : ' · <span class="kbd">Enter</span> ส่งคำตอบ · <span class="kbd">Esc</span> ยอมแพ้คำนี้'
+      + ' · <span class="kbd">Ctrl+Enter</span> ไม่ต้องจำคำนี้');
   show('dictation');
   if (D.drill.length) {
     modalNote('🍂 ทบทวนคำเก่า', `มี ${D.drill.length} คำจากรอบก่อนที่ยังสะกดไม่ได้ — เก็บให้จบก่อน`);
@@ -205,6 +217,20 @@ function resetWordState() {
   $('#dict-phase').textContent = '';
 }
 
+// Start on whatever word wordIdx is pointing at. A word previously marked
+// ไม่ต้องจำ never goes back into the retrieval loop — it is simply shown and
+// copied, so the cue still reads as a sentence and the typing rhythm holds.
+function beginWord() {
+  resetWordState();
+  if (!D.read && D.ignoreSet.has(currentTarget())) enterCopy();
+  renderWords();
+}
+
+function enterCopy() {
+  D.phase = 'copy';
+  $('#dict-phase').innerHTML = 'คำนี้ตั้งไว้ว่าไม่ต้องจำ — พิมพ์ตามได้เลย';
+}
+
 function loadCue() {
   D.drillNow = null;
   const ci = currentCueIndex();
@@ -212,8 +238,7 @@ function loadCue() {
   D.wordIdx = 0;
   skipEmptyTargets();
   $('#dict-cue-no').textContent = `ท่อนที่ ${ci + 1} / ${D.cues.length}`;
-  resetWordState();
-  renderWords();
+  beginWord();
   if (!D.flushRounds) localStorage.setItem(`tt.dict.${D.pair.name}`, String(ci));
   playCue(1);
 }
@@ -231,8 +256,7 @@ function startDrill(item) {
     return loadNext();
   }
   $('#dict-cue-no').textContent = `ทบทวน${item.carried ? 'คำเก่า' : ''} · ${item.reps + 1}/${DRILL_GAPS.length}`;
-  resetWordState();
-  renderWords();
+  beginWord();
   playCue(1);
 }
 
@@ -267,8 +291,10 @@ function renderWords() {
       sp.textContent = tok.display;
       sp.className = tok.firstTryWrong ? 'err' : 'ok';
     } else if (i === D.wordIdx) {
-      sp.textContent = D.read ? tok.display : '▁▁';
-      sp.className = D.read ? 'now' : 'slot';
+      // an ignored word is shown rather than blanked: it is copied, not recalled
+      const shown = D.read || D.phase === 'copy';
+      sp.textContent = shown ? tok.display : '▁▁';
+      sp.className = shown ? 'now' : 'slot';
     } else {
       // read mode shows the whole cue to copy; listen mode hides what's ahead —
       // retrieval, not copying
@@ -333,6 +359,39 @@ function recordMiss(target) {
   }
 }
 
+// ไม่ต้องจำ: this word is not worth the retrieval loop. Transliterated names are
+// the case that matters — their Thai spelling is arbitrary and generalises to
+// nothing, so drilling อายาโนโคจิ three times buys nothing a native word would.
+// Marking one takes it out of the schedule, out of the carry-over list, and out
+// of the accuracy count (rolling back this word's score if it was already
+// counted), then shows it to be copied so the sentence still reads.
+function ignoreWord() {
+  const target = currentTarget();
+  if (!target || D.ignoreSet.has(target)) return;
+  D.ignoreSet.add(target);
+  D.ignored.push(target);
+
+  const tok = D.tokens[D.wordIdx];
+  if (!D.drillNow && D.attempts) { // un-score it: an ignored word never counts
+    D.wordsTotal--;
+    if (tok.firstTryWrong) { D.wordsWrong--; tok.firstTryWrong = false; }
+  }
+  D.misses = D.misses.filter((m) => m.w !== target);
+  D.mastered = D.mastered.filter((w) => w !== target);
+  for (const d of D.drill.filter((d) => d.w === target)) dropDrill(d);
+
+  // If it was being drilled, the drill is over; otherwise stay on the word and
+  // let it be copied through.
+  if (D.drillNow) {
+    D.drillNow = null;
+    D.wordsSeen++;
+    return loadNext();
+  }
+  resetWordState();
+  enterCopy();
+  renderWords();
+}
+
 // Study: the answer is on screen and the box is inert. It sits above the typing
 // bar, deliberately not in it — an answer in the same line you type into makes
 // the whole thing a transcription exercise.
@@ -346,7 +405,11 @@ function enterStudy(guess, target) {
     $('#dict-diff').hidden = false;
   }
   $('#dict-ghost').textContent = target;
-  $('#dict-phase').textContent = 'จำรูปคำไว้ — กด Enter แล้วพิมพ์จากความจำ';
+  // the opt-out is offered here, where you have just seen the word and can tell
+  // whether it is worth learning — a transliterated name usually isn't
+  $('#dict-phase').innerHTML =
+    'จำรูปคำไว้ — กด Enter แล้วพิมพ์จากความจำ · <button class="linkbtn" id="dict-skip">ไม่ต้องจำคำนี้</button>';
+  $('#dict-skip').onclick = () => { if (D) ignoreWord(); };
   box.focus();
 }
 
@@ -405,8 +468,7 @@ function passWord(clean) {
 function advanceWord() {
   D.wordIdx++;
   skipEmptyTargets();
-  resetWordState();
-  renderWords();
+  beginWord();
   if (D.wordIdx >= D.tokens.length) cueDone();
 }
 
@@ -443,7 +505,7 @@ async function finishSession() {
     words: D.wordsTotal, acc: Math.round(acc * 1000) / 1000,
     secs: Math.round(secs),
     chars: D.tokensTyped || 0,
-    ...(D.read ? { read: true } : { misses: D.misses, mastered }),
+    ...(D.read ? { read: true } : { misses: D.misses, mastered, ignored: [...new Set(D.ignored)] }),
   });
   sound.level();
   localStorage.removeItem(`tt.dict.${D.pair.name}`);
@@ -466,6 +528,21 @@ function exitSession() {
   $('#dict-session').hidden = true;
   $('#dict-setup').hidden = false;
   initDictation();
+}
+
+// Copy-through: an ignored word is on screen and just has to be typed. It moves
+// no counters — not scored, not scheduled — it only keeps the sentence intact.
+function copyThrough(typed) {
+  const target = currentTarget();
+  if (typed.normalize('NFC') !== target) {
+    sound.error();
+    flashBox();
+    return;
+  }
+  D.tokensTyped += target.length;
+  D.wordsSeen++;
+  sound.word();
+  advanceWord();
 }
 
 // ---- read mode ------------------------------------------------------------------------
@@ -522,6 +599,7 @@ export function initDictationInput() {
     if (!target || box.value.length < target.length) return;
     if (D.phase === 'guess') submitGuess(box.value.slice(0, target.length));
     else if (D.phase === 'recall') checkRecall(box.value.slice(0, target.length));
+    else if (D.phase === 'copy') copyThrough(box.value.slice(0, target.length));
   });
 
   box.addEventListener('keydown', (e) => {
@@ -533,10 +611,20 @@ export function initDictationInput() {
     }
     if (D.read) return;
 
+    // Ctrl+Enter: ไม่ต้องจำ. Bound to a modifier rather than a character because
+    // the Kedmanee layout has no free printable key — under Thai input every
+    // physical key already produces a letter.
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      ignoreWord();
+      return;
+    }
+
     if (e.key === 'Enter') {
       e.preventDefault();
       if (D.phase === 'study') enterRecall();
       else if (D.phase === 'recall') checkRecall(box.value);
+      else if (D.phase === 'copy') copyThrough(box.value);
       else if (box.value) submitGuess(box.value);
       return;
     }
@@ -544,6 +632,7 @@ export function initDictationInput() {
     if (e.key === 'Escape') {
       e.preventDefault();
       if (D.phase === 'study') return;          // the answer is already up
+      if (D.phase === 'copy') return;           // nothing hidden about this one
       if (D.phase === 'recall') {               // forgot it again — look once more
         enterStudy('', currentTarget());
         return;
