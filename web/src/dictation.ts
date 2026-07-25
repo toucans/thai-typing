@@ -27,6 +27,13 @@
 //     over exactly like punctuation: shown as context, never typed.
 //     Transliterated names are why: their spelling is arbitrary and generalises
 //     to nothing, so neither recalling nor copying one buys anything back.
+//  5. and not for a slipped finger. `guess === target` cannot tell "I can't
+//     spell this" from "my hand moved 2mm", and treating the two alike is
+//     expensive: one typo otherwise buys a study screen, a cover-and-recall,
+//     three spaced drills and an accuracy hit. Shift+Enter (or พิมพ์ผิด on the
+//     study screen) says it was the fingers: the word scores as spelled right,
+//     leaves the schedule, and — unlike ไม่ต้องจำ — is asked again as normal,
+//     because you do want to keep meeting it.
 import { sound } from './audio.ts';
 import { saveRun, loadRuns } from './records.ts';
 import { $, show, modal, closeModal, hasThai, inserted, on, segmentThai } from './ui.ts';
@@ -58,6 +65,7 @@ interface DrillItem {
   reps: number;
   fails: number;
   carried?: boolean;
+  preMissReps?: number; // reps before the current miss, so พิมพ์ผิด can restore them
 }
 
 // The session. `phase` is the guess → study → recall state machine; `drillNow`
@@ -240,6 +248,7 @@ async function start(pair: MediaPair, resumeCue: number): Promise<void> {
   $<HTMLInputElement>('#dict-typebox').placeholder = readMode ? 'พิมพ์ตามคำที่เห็น…' : 'ฟังแล้วพิมพ์…';
   $('#dict-keys').innerHTML = `<span class="kbd">Tab</span> ฟังซ้ำ · <span class="kbd">Shift+Tab</span> ช้าลง`
     + (readMode ? '' : ' · <span class="kbd">Enter</span> ส่งคำตอบ · <span class="kbd">Esc</span> ยอมแพ้คำนี้'
+      + ' · <span class="kbd">Shift+Enter</span> พิมพ์ผิด'
       + ' · <span class="kbd">Ctrl+Enter</span> ไม่ต้องจำคำนี้');
   show('dictation');
   if (session.drill.length) {
@@ -410,6 +419,7 @@ function submitGuess(D: Session, typed: string): void {
   if (first) {
     if (D.drillNow) {
       D.drillNow.fails++;
+      D.drillNow.preMissReps = D.drillNow.reps;
       D.drillNow.reps = 0; // a miss resets the schedule
     } else {
       D.wordsTotal++;
@@ -467,6 +477,38 @@ function ignoreWord(D: Session): void {
   advanceWord(D); // it is context from here on, not something to type
 }
 
+// พิมพ์ผิด: that was a slipped finger, not a spelling you don't have. Undoes
+// exactly what the miss did — the word scores as spelled right first time, its
+// miss is struck from the run log (so it is not owed next session) and its drill
+// is dropped (so it does not come back three times). It is deliberately NOT
+// added to the ignore set: unlike ไม่ต้องจำ this word is worth meeting again, so
+// the very next cue that holds it asks for it as normal.
+function typoWord(D: Session): void {
+  const target = currentTarget(D);
+  const tok = D.tokens[D.wordIdx];
+  const item = D.drillNow;
+  // only meaningful once this word has actually been marked wrong
+  if (!target || (!item && !tok?.firstTryWrong)) return;
+
+  if (item) {
+    // a slip mid-drill: the repetition stands and the schedule is not reset
+    item.fails--;
+    item.reps = item.preMissReps ?? item.reps;
+    D.tokensTyped += target.length;
+    sound.word();
+    passWord(D, true);
+    return;
+  }
+
+  D.wordsWrong--; // wordsTotal stays: the word was answered, and answered right
+  if (tok) tok.firstTryWrong = false;
+  D.misses = D.misses.filter((m) => m.w !== target);
+  for (const d of D.drill.filter((d) => d.w === target)) dropDrill(D, d);
+  D.tokensTyped += target.length;
+  sound.word();
+  advanceWord(D);
+}
+
 // Study: the answer is on screen and the box is inert. It sits above the typing
 // bar, deliberately not in it — an answer in the same line you type into makes
 // the whole thing a transcription exercise.
@@ -483,8 +525,11 @@ function enterStudy(D: Session, guess: string, target: string): void {
   // the opt-out is offered here, where you have just seen the word and can tell
   // whether it is worth learning — a transliterated name usually isn't
   $('#dict-phase').innerHTML =
-    'จำรูปคำไว้ — กด Enter แล้วพิมพ์จากความจำ · <button class="linkbtn" id="dict-skip">ไม่ต้องจำคำนี้</button>';
+    'จำรูปคำไว้ — กด Enter แล้วพิมพ์จากความจำ'
+    + ' · <button class="linkbtn" id="dict-skip">ไม่ต้องจำคำนี้</button>'
+    + ' · <button class="linkbtn" id="dict-typo">พิมพ์ผิด</button>';
   $('#dict-skip').onclick = () => { if (D) ignoreWord(D); };
+  $('#dict-typo').onclick = () => { if (D) typoWord(D); };
   box.focus();
 }
 
@@ -678,6 +723,14 @@ export function initDictationInput(): void {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       ignoreWord(D);
+      return;
+    }
+
+    // Shift+Enter: พิมพ์ผิด. Same reason as Ctrl+Enter above — under Thai input
+    // every printable key already produces a letter, so a modifier it is.
+    if (e.key === 'Enter' && e.shiftKey) {
+      e.preventDefault();
+      if (D.phase === 'study') typoWord(D);
       return;
     }
 

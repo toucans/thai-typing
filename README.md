@@ -98,6 +98,16 @@ and the loop is built out of exactly those:
    over exactly like punctuation** — shown greyed out so the cue still reads as a
    sentence, never typed. The choice is permanent per file, recorded as `ignored`
    in the run log.
+5. **Not for a slipped finger.** `guess === target` cannot tell "I can't spell
+   this" from "my hand moved 2mm", and charging the same price for both is
+   expensive: one typo otherwise buys a study screen, a cover-and-recall, three
+   spaced drills and an accuracy hit. `Shift+Enter` (or the พิมพ์ผิด button, next
+   to ไม่ต้องจำ on the study screen) says it was the fingers. The word then scores
+   as spelled right first time, its miss is struck from the run log so it isn't
+   owed next session, and its drill is dropped. Unlike ไม่ต้องจำ it is **not**
+   banned — you do want to keep meeting a word you know, so the next cue holding
+   it asks for it as normal. A slip *inside* a drill advances that word's
+   schedule rather than resetting it.
 
 Accuracy is still scored on first guesses only, and drill repetitions are
 excluded from it — otherwise the number would reward giving up early. สถิติ
@@ -325,7 +335,7 @@ now just sits as an archive.
 `install.sh` is idempotent — re-run it after any change. For a frontend-only
 edit the short loop is `cd web && deno task check && deno task build`; the Go
 server serves `web/` straight from the checkout, so no restart is needed.
-`./web/tests/run.sh` is the whole safety net (56 checks) — there is no chromium
+`./web/tests/run.sh` is the whole safety net (69 checks) — there is no chromium
 on this box, so it stands in for a browser: `smoke.js` builds the bundle, boots
 it against a stub DOM and types a story through เรื่องอ่าน end to end, then the
 `sim-*.js` simulations drive the real ฟัง–พิมพ์ state machine.

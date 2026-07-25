@@ -65,8 +65,8 @@ const cache = new Map();
 const lookup = (sel) => {
   asked.add(sel);
   const id = sel.startsWith('#') ? sel.slice(1) : null;
-  // #dict-skip is injected into #dict-phase's markup at runtime, not in index.html
-  if (id && !ids.has(id) && id !== 'dict-skip') return null;
+  // #dict-skip and #dict-typo are injected into #dict-phase at runtime, not in index.html
+  if (id && !ids.has(id) && id !== 'dict-skip' && id !== 'dict-typo') return null;
   if (!cache.has(sel)) {
     cache.set(sel, /canvas|pixelmap|hero-art|hero-fx|confetti/.test(sel) ? new Canvas(sel) : new El(sel));
   }
