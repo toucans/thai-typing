@@ -23,9 +23,10 @@
 //     anything still unmastered when the session ends carries to the next one
 //     through the run log.
 //  4. but not on every word. Ctrl+Enter marks a word ไม่ต้องจำ — out of the
-//     schedule, the carry-over list and the score, shown and copied from then
-//     on. Transliterated names are why: their spelling is arbitrary and
-//     generalises to nothing, so the loop's cost buys nothing back.
+//     schedule, the carry-over list and the score, and from then on stepped
+//     over exactly like punctuation: shown as context, never typed.
+//     Transliterated names are why: their spelling is arbitrary and generalises
+//     to nothing, so neither recalling nor copying one buys anything back.
 import { sound } from './audio.js';
 import { saveRun, loadRuns } from './records.js';
 import { $, show, modal, closeModal, segmentThai } from './ui.js';
@@ -217,18 +218,9 @@ function resetWordState() {
   $('#dict-phase').textContent = '';
 }
 
-// Start on whatever word wordIdx is pointing at. A word previously marked
-// ไม่ต้องจำ never goes back into the retrieval loop — it is simply shown and
-// copied, so the cue still reads as a sentence and the typing rhythm holds.
 function beginWord() {
   resetWordState();
-  if (!D.read && D.ignoreSet.has(currentTarget())) enterCopy();
   renderWords();
-}
-
-function enterCopy() {
-  D.phase = 'copy';
-  $('#dict-phase').innerHTML = 'คำนี้ตั้งไว้ว่าไม่ต้องจำ — พิมพ์ตามได้เลย';
 }
 
 function loadCue() {
@@ -236,11 +228,14 @@ function loadCue() {
   const ci = currentCueIndex();
   D.tokens = cueTokens(D.cues[ci].text);
   D.wordIdx = 0;
-  skipEmptyTargets();
+  skipNonTargets();
   $('#dict-cue-no').textContent = `ท่อนที่ ${ci + 1} / ${D.cues.length}`;
   beginWord();
   if (!D.flushRounds) localStorage.setItem(`tt.dict.${D.pair.name}`, String(ci));
   playCue(1);
+  // a cue of nothing but names and punctuation has nothing to type: play it,
+  // show it, move on (cueDone defers, so this can't recurse into the next cue)
+  if (D.wordIdx >= D.tokens.length) cueDone();
 }
 
 // A drill replays the cue the word came from — the word alone, out of context,
@@ -283,7 +278,12 @@ function renderWords() {
   div.innerHTML = '';
   D.tokens.forEach((tok, i) => {
     const sp = document.createElement('span');
-    if (D.drillNow) {
+    if (!D.read && tok.target && D.ignoreSet.has(tok.target)) {
+      // ไม่ต้องจำ: shown so the cue still reads as a sentence, greyed so it is
+      // clear it was never typed and isn't being scored
+      sp.textContent = tok.display;
+      sp.className = 'skipped';
+    } else if (D.drillNow) {
       // the drill blanks its one word and shows the rest as context
       sp.textContent = i === D.wordIdx ? '▁▁' : tok.display;
       sp.className = i === D.wordIdx ? 'slot' : 'next';
@@ -291,10 +291,8 @@ function renderWords() {
       sp.textContent = tok.display;
       sp.className = tok.firstTryWrong ? 'err' : 'ok';
     } else if (i === D.wordIdx) {
-      // an ignored word is shown rather than blanked: it is copied, not recalled
-      const shown = D.read || D.phase === 'copy';
-      sp.textContent = shown ? tok.display : '▁▁';
-      sp.className = shown ? 'now' : 'slot';
+      sp.textContent = D.read ? tok.display : '▁▁';
+      sp.className = D.read ? 'now' : 'slot';
     } else {
       // read mode shows the whole cue to copy; listen mode hides what's ahead —
       // retrieval, not copying
@@ -305,8 +303,15 @@ function renderWords() {
   });
 }
 
-function skipEmptyTargets() {
-  while (D.wordIdx < D.tokens.length && !D.tokens[D.wordIdx].target) D.wordIdx++;
+// Advance past everything that isn't something to type: punctuation-only tokens,
+// and words marked ไม่ต้องจำ. Those are shown as context and stepped over — the
+// whole point of marking one is not to spend keystrokes on it.
+function skipNonTargets() {
+  while (D.wordIdx < D.tokens.length) {
+    const tok = D.tokens[D.wordIdx];
+    if (!tok.target || (!D.read && D.ignoreSet.has(tok.target))) { D.wordIdx++; continue; }
+    break;
+  }
 }
 
 function currentTarget() {
@@ -387,9 +392,7 @@ function ignoreWord() {
     D.wordsSeen++;
     return loadNext();
   }
-  resetWordState();
-  enterCopy();
-  renderWords();
+  advanceWord(); // it is context from here on, not something to type
 }
 
 // Study: the answer is on screen and the box is inert. It sits above the typing
@@ -467,7 +470,7 @@ function passWord(clean) {
 
 function advanceWord() {
   D.wordIdx++;
-  skipEmptyTargets();
+  skipNonTargets();
   beginWord();
   if (D.wordIdx >= D.tokens.length) cueDone();
 }
@@ -530,21 +533,6 @@ function exitSession() {
   initDictation();
 }
 
-// Copy-through: an ignored word is on screen and just has to be typed. It moves
-// no counters — not scored, not scheduled — it only keeps the sentence intact.
-function copyThrough(typed) {
-  const target = currentTarget();
-  if (typed.normalize('NFC') !== target) {
-    sound.error();
-    flashBox();
-    return;
-  }
-  D.tokensTyped += target.length;
-  D.wordsSeen++;
-  sound.word();
-  advanceWord();
-}
-
 // ---- read mode ------------------------------------------------------------------------
 // ดูแล้วพิมพ์ is the copy-typing mode on purpose (it trains the keyboard, not
 // spelling), so it keeps the old plain behaviour: wrong word, flash, retype.
@@ -599,7 +587,6 @@ export function initDictationInput() {
     if (!target || box.value.length < target.length) return;
     if (D.phase === 'guess') submitGuess(box.value.slice(0, target.length));
     else if (D.phase === 'recall') checkRecall(box.value.slice(0, target.length));
-    else if (D.phase === 'copy') copyThrough(box.value.slice(0, target.length));
   });
 
   box.addEventListener('keydown', (e) => {
@@ -624,7 +611,6 @@ export function initDictationInput() {
       e.preventDefault();
       if (D.phase === 'study') enterRecall();
       else if (D.phase === 'recall') checkRecall(box.value);
-      else if (D.phase === 'copy') copyThrough(box.value);
       else if (box.value) submitGuess(box.value);
       return;
     }
@@ -632,7 +618,6 @@ export function initDictationInput() {
     if (e.key === 'Escape') {
       e.preventDefault();
       if (D.phase === 'study') return;          // the answer is already up
-      if (D.phase === 'copy') return;           // nothing hidden about this one
       if (D.phase === 'recall') {               // forgot it again — look once more
         enterStudy('', currentTarget());
         return;

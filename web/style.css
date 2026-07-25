@@ -377,6 +377,9 @@ h2.blessing-name { margin: .2rem 0 .4rem; }
    like the wordstream's, upcoming words dimmed so the eye stays on it */
 .dict-words .now { background: var(--gold-soft); }
 .dict-words .next { opacity: .55; }
+/* ไม่ต้องจำ: there for context, stepped over rather than typed */
+.dict-words .skipped { color: var(--ink-soft); opacity: .5; text-decoration: line-through;
+  text-decoration-thickness: 1px; }
 .dict-ghost { min-height: 1.6rem; text-align: center; font-size: 1.6rem; color: var(--gold);
   letter-spacing: .04em; margin-bottom: .3rem; }
 /* The aligned miss diff: your attempt over the answer, one grapheme cluster per

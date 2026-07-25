@@ -93,11 +93,13 @@ and the loop is built out of exactly those:
 4. **Not on every word.** `Ctrl+Enter` (or the ไม่ต้องจำคำนี้ button on the study
    screen) marks a word as not worth the loop. Transliterated names are the case
    that matters: อายาโนโคจิ has an arbitrary Thai spelling that generalises to no
-   other word, so three drilled recalls of it buy nothing. An ignored word leaves
-   the schedule, the carry-over list and the accuracy count — including rolling
-   back the miss if it was already scored — and from then on it is simply shown
-   and copied so the cue still reads as a sentence. The choice is permanent per
-   file, recorded as `ignored` in the run log.
+   other word, so neither recalling it nor copying it buys anything — and in a
+   show where it is a main character's name, that is most of the session. An
+   ignored word leaves the schedule, the carry-over list and the accuracy count
+   (rolling back the miss if it was already scored) and from then on is **stepped
+   over exactly like punctuation** — shown greyed out so the cue still reads as a
+   sentence, never typed. The choice is permanent per file, recorded as `ignored`
+   in the run log.
 
 Accuracy is still scored on first guesses only, and drill repetitions are
 excluded from it — otherwise the number would reward giving up early. สถิติ
