@@ -10,7 +10,6 @@ import { sound } from './audio.js';
 import { music } from './music.js';
 import { fx } from './fx.js';
 import { $, show, modal, closeModal, setRegion, segmentThaiBreaks, REGIONS, REGION_SIZE, TOTAL_LEVELS } from './ui.js';
-import { tally } from './spell.js';
 import { initMap, drawMap, redrawMap, showMongkhon } from './map.js';
 import { redrawHero } from './hero.js';
 import { paintIcons } from './icons.js';
@@ -79,66 +78,17 @@ async function renderStats() {
     [st.newsRead.toLocaleString('th-TH'),
       `ข่าวที่พิมพ์จบ${st.newsPb ? ` · เร็วสุด ${Math.round(st.newsPb)} ตัวอักษร/นาที` : ''}`],
     [st.dictWords.toLocaleString('th-TH'), 'คำจากแบบฝึกฟัง–พิมพ์'],
-    [topSpellCat(st), 'จุดที่สะกดพลาดบ่อยที่สุด · แตะดูทั้งหมด', 'spell-card'],
+    [st.dictOwed.size.toLocaleString('th-TH'), 'คำที่ยังสะกดไม่ได้ · ยกไปทบทวนรอบหน้า'],
     [st.ghostsBanished.toLocaleString('th-TH'),
       `ผีที่ไล่ไปแล้ว${st.ghostNight ? ` · ลึกสุดคืนที่ ${st.ghostNight}` : ''}`],
   ];
-  $('#stat-cards').innerHTML = cards.map(([num, label, id]) =>
-    `<div class="stat${id ? ' stat-tap' : ''}"${id ? ` id="${id}"` : ''}>
-      <div class="stat-num">${num}</div><div class="stat-label">${label}</div></div>`).join('');
-  const spellCard = $('#spell-card');
-  if (spellCard) spellCard.onclick = () => showSpellBreakdown(st);
+  $('#stat-cards').innerHTML = cards.map(([num, label]) =>
+    `<div class="stat"><div class="stat-num">${num}</div><div class="stat-label">${label}</div></div>`).join('');
   renderChart($('#chart'), runs);
   const pbs = pbHistory(runs);
   const btn = $('#pb-list-btn');
   btn.disabled = !pbs.length;
   btn.onclick = () => showPbHistory(pbs);
-}
-
-// The headline of the spelling breakdown: the ambiguity class that has cost the
-// most misses. Naming it on the card is the point — "you missed 300 words" is
-// not actionable, "most of your misses are ตัวการันต์" is.
-function topSpellCat(st) {
-  const t = tally(st.dictMisses || []);
-  if (!t.length) return '–';
-  const share = Math.round((t[0].n / t.reduce((s, x) => s + x.n, 0)) * 100);
-  return `${t[0].label} <small class="stat-share">${share}%</small>`;
-}
-
-// Which of Thai's sound→script choices keeps costing you, and on which words.
-// Thai's classes are coupled — picking the wrong consonant forces the wrong tone
-// mark with it — so one miss can land in two rows; the percentages are shares of
-// misses, not a partition.
-function showSpellBreakdown(st) {
-  const rows = tally(st.dictMisses || []);
-  if (!rows.length) {
-    modal(`<h2>การสะกด</h2>
-      <div class="modal-sub">ยังไม่มีข้อมูล — เล่นโหมด 👂 ฟังแล้วพิมพ์ แล้วคำที่พลาดจะถูกจัดหมวดไว้ที่นี่</div>
-      <div class="play-actions"><button class="btn" id="m-close">ปิด</button></div>`)
-      .querySelector('#m-close').onclick = closeModal;
-    return;
-  }
-  const total = rows.reduce((s, r) => s + r.n, 0);
-  const body = rows.map((r) => {
-    const pct = Math.round((r.n / total) * 100);
-    const words = r.words.slice(0, 8)
-      .map(([w, n]) => `<span class="spell-word">${w}${n > 1 ? `<sub>${n}</sub>` : ''}</span>`).join('');
-    return `<div class="spell-row">
-      <div class="spell-head"><b>${r.label}</b><span class="spell-n">${r.n} ครั้ง · ${pct}%</span></div>
-      <div class="spell-bar"><i style="width:${pct}%"></i></div>
-      ${r.hint ? `<p class="spell-hint">${r.hint}</p>` : ''}
-      <div class="spell-words">${words}</div>
-    </div>`;
-  }).join('');
-  const owed = st.dictOwed ? st.dictOwed.size : 0;
-  const card = modal(`
-    <h2>จุดที่สะกดพลาด</h2>
-    <div class="modal-sub">จาก ${total} ครั้งที่จัดหมวดได้ · ยังค้างอยู่ ${owed} คำ
-      (จะถูกยกมาทบทวนต้นรอบถัดไป)<br>
-      <small>หนึ่งคำอยู่ได้หลายหมวด — เลือกพยัญชนะผิดทำให้รูปวรรณยุกต์ผิดตามไปด้วย</small></div>
-    <div class="spell-rows">${body}</div>
-    <div class="play-actions"><button class="btn" id="m-close">ปิด</button></div>`);
-  card.querySelector('#m-close').onclick = closeModal;
 }
 
 // Every day the record moved, as a list you can actually read — the gold dots

@@ -91,15 +91,14 @@ and the loop is built out of exactly those:
    owed when the session ends carries to the next one through the run log, and
    opens it as a ทบทวนคำเก่า round.
 
-Every miss is also classified by `js/spell.js` into the ambiguity class it fell
-into — ใ/ไ, วรรณยุกต์, พยัญชนะเสียงซ้ำ, ตัวการันต์, รูปสระ, ตัวอักษรขาด–เกิน,
-ลำดับสลับ, or ฟังผิด (a non-homophonous consonant, i.e. a listening slip rather
-than a spelling one). สถิติ ranks them, because "you missed 300 words" is not
-actionable and "62% of your misses are ตัวการันต์" is. Classes are coupled, so
-one miss can land in two rows; the percentages are shares, not a partition.
-
 Accuracy is still scored on first guesses only, and drill repetitions are
-excluded from it — otherwise the number would reward giving up early.
+excluded from it — otherwise the number would reward giving up early. สถิติ
+shows how many words are still owed, which is the one number the carry-over
+mechanism needs to be legible.
+
+`js/spell.js` does one thing: align a wrong attempt against the answer by
+grapheme cluster, so a missing tone mark doesn't shift the rest of the word and
+paint the whole tail red.
 
 **เรื่องอ่าน (texts)** — drop any Thai `.txt` into `texts/` (first line = title)
 and type through it. This is the "stories" path: source stories anywhere, in plain

@@ -164,14 +164,10 @@ export function stats(runs) {
     ? recent.reduce((s, r) => s + r.cpm, 0) / recent.length : 0;
   const dictRuns = runs.filter((r) => r.game === 'dictation');
   const dictWords = dictRuns.reduce((s, r) => s + (r.words || 0), 0);
-  // Every word ฟัง–พิมพ์ has ever caught you on, with the guess you made and the
-  // ambiguity classes it fell into (spell.js tagged them at miss time). Kept raw
-  // here — the stats page tallies it — because the interesting question is not
-  // how many words you missed but which of Thai's sound→script choices keeps
-  // costing you. `mastered` is the other half: words later drilled back to a
-  // clean unaided recall, which is what takes a word off the carry-over list.
-  const dictMisses = dictRuns.flatMap((r) => r.misses || []);
-  const dictMastered = new Set(dictRuns.flatMap((r) => r.mastered || []));
+  // Words ฟัง–พิมพ์ still owes you: missed at some point and not yet drilled back
+  // to a clean unaided recall. Replaying each run's misses and masteries in
+  // order gives the current state — the same walk dictation.js does at session
+  // start to decide what opens the next round.
   const dictOwed = new Set();
   for (const r of dictRuns.slice().sort((a, b) => (a.t || '').localeCompare(b.t || ''))) {
     for (const m of r.misses || []) dictOwed.add(m.w);
@@ -201,5 +197,5 @@ export function stats(runs) {
   const ghostsBanished = ghostRuns.reduce((s, r) => s + (r.ghosts || 0), 0);
   const ghostNight = ghostRuns.reduce((m, r) => (r.cleared && r.night > m ? r.night : m), 0);
 
-  return { starsByLevel, maxDone, pb, pbAt, accPb, baseline, streak, totalChars, totalSecs, avg30, dictWords, dictMisses, dictMastered, dictOwed, textsRead, textPb, newsRead, newsPb, newsChars, newsBySource, newsTitles, ghostsBanished, ghostNight };
+  return { starsByLevel, maxDone, pb, pbAt, accPb, baseline, streak, totalChars, totalSecs, avg30, dictWords, dictOwed, textsRead, textPb, newsRead, newsPb, newsChars, newsBySource, newsTitles, ghostsBanished, ghostNight };
 }

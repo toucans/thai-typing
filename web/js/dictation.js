@@ -22,13 +22,10 @@
 //  3. come back to it. A recalled word is rescheduled at expanding gaps, and
 //     anything still unmastered when the session ends carries to the next one
 //     through the run log.
-//
-// Every miss is also classified (spell.js) so สถิติ can show which of Thai's
-// ambiguity classes is actually costing you, instead of a list of words.
 import { sound } from './audio.js';
 import { saveRun, loadRuns } from './records.js';
 import { $, show, modal, closeModal, segmentThai } from './ui.js';
-import { classify, diffHTML } from './spell.js';
+import { diffHTML } from './spell.js';
 
 let D = null; // current session
 let readMode = localStorage.getItem('tt.dictMode') === 'read';
@@ -316,7 +313,7 @@ function submitGuess(typed) {
       D.wordsTotal++;
       D.wordsWrong++;
       D.tokens[D.wordIdx].firstTryWrong = true;
-      recordMiss(guess, target);
+      recordMiss(target);
     }
   }
   sound.error();
@@ -324,14 +321,11 @@ function submitGuess(typed) {
   enterStudy(guess, target);
 }
 
-function recordMiss(guess, target) {
+function recordMiss(target) {
+  // The run log is what carries an unmastered word into the next session, so a
+  // miss records only what that needs: the word, and the cue to replay it from.
   if (D.misses.length < MISS_LOG_MAX) {
-    D.misses.push({
-      w: target,
-      g: guess,
-      tags: classify(guess, target).categories,
-      cue: currentCueIndex(),
-    });
+    D.misses.push({ w: target, cue: currentCueIndex() });
   }
   // schedule it: first return after the shortest gap
   if (!D.drill.some((d) => d.w === target)) {
