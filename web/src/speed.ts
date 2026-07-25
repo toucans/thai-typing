@@ -9,6 +9,7 @@ import { music } from './music.ts';
 import { loadRuns, saveRun, stats, starsFor } from './records.ts';
 import { $, show, modal, closeModal, confetti, inserted, on, setRegion, REGION_SIZE, TOTAL_LEVELS } from './ui.ts';
 import { levelWords } from './levels.ts';
+import { hasThai } from './segment.ts';
 import { BY_LEVEL, thaiNum } from './data/mongkhon.ts';
 import type { NewRun } from './types.ts';
 
@@ -20,6 +21,7 @@ export interface Session {
   title: string;
   words: string[];
   breaks?: boolean[];
+  skip: boolean[];   // tokens with no Thai: read, not typed (see hasThai)
   spans: HTMLElement[];
   idx: number;
   keys: number;
@@ -66,10 +68,22 @@ export function startText(name: string, title: string, words: string[], breaks: 
   begin({ mode: 'text', name, words, breaks, title, backView: opts.backView || 'texts', extra: opts.run });
 }
 
-type SessionConfig = Omit<Session, 'spans' | 'idx' | 'keys' | 'wrong' | 'correctChars' | 't0' | 'done'>;
+type SessionConfig = Omit<Session, 'skip' | 'spans' | 'idx' | 'keys' | 'wrong' | 'correctChars' | 't0' | 'done'>;
 
 function begin(cfg: SessionConfig): void {
-  S = { ...cfg, spans: [], idx: 0, keys: 0, wrong: 0, correctChars: 0, t0: null, done: false };
+  // A dropped .txt or a news lead can carry anything: quotes, a year, a percent
+  // sign, an English name. You type the Thai and read the rest, exactly as the
+  // ข่าว reader does — otherwise a stray em dash is an unpassable wall, and
+  // every keystroke spent trying to get past it counts against your accuracy.
+  const skip = cfg.words.map((w) => !hasThai(w));
+  if (skip.every(Boolean)) { // nothing to type: never open a session that can't end
+    const card = modal(`<h2>${cfg.title}</h2>
+      <div class="modal-sub">ไม่มีคำภาษาไทยให้พิมพ์ในเรื่องนี้</div>
+      <div class="play-actions"><button class="btn" id="m-close">กลับ</button></div>`);
+    on(card, '#m-close', () => { closeModal(); show(cfg.backView); });
+    return;
+  }
+  S = { ...cfg, skip, spans: [], idx: 0, keys: 0, wrong: 0, correctChars: 0, t0: null, done: false };
   $('#play-title').textContent = S.title;
   $('#play-progress').style.width = '0';
   const stream = $('#wordstream');
@@ -84,10 +98,14 @@ function begin(cfg: SessionConfig): void {
     sp.textContent = w;
     // where words butt together, a 'brk' span keeps the space the source had
     if (breaks && breaks[i]) sp.classList.add('brk');
+    // dimmed from the start, not once the cursor reaches it: you should be able
+    // to see it was never your turn, rather than find out by typing it
+    if (skip[i]) sp.classList.add('skip');
     stream.appendChild(sp);
     return sp;
   });
-  S.spans[0]?.classList.add('cur');
+  passSkips(S);
+  S.spans[S.idx]?.classList.add('cur');
   show('play');
   // reset AFTER show(): the stream lives in the play view, which is hidden until
   // now when a เรื่องอ่าน story is launched from its list. Setting scrollTop while
@@ -110,6 +128,12 @@ function begin(cfg: SessionConfig): void {
   box.focus();
 }
 
+// Step over the tokens you don't type: marked passed, never scored — they add
+// nothing to correctChars, so cpm stays a measure of what you actually typed.
+function passSkips(S: Session): void {
+  while (S.idx < S.words.length && S.skip[S.idx]) S.idx++;
+}
+
 function scrollCurrentIntoView(S: Session): void {
   // span.offsetTop is already relative to the stream (its position:relative
   // offsetParent). Anchor on the first span so line one sits at scrollTop 0
@@ -129,6 +153,7 @@ function commitWord(S: Session, typed: string): void {
   sp.classList.add(ok ? 'ok' : 'err');
   if (ok && target) { S.correctChars += target.length; sound.word(); } else { sound.error(); }
   S.idx++;
+  passSkips(S);
   $('#play-progress').style.width = `${(S.idx / S.words.length) * 100}%`;
   if (S.idx >= S.words.length) { void finishSession(S); return; }
   S.spans[S.idx]?.classList.add('cur');
@@ -204,7 +229,7 @@ export async function finishSession(S: Session): Promise<void> {
     closeModal();
     if (S.restart) return S.restart();
     if (level) startLevel(level);
-    else begin({ ...S });
+    else begin({ ...S }); // begin() recomputes skip/spans from words
   });
   if (nextLevel && nextLevel <= TOTAL_LEVELS) {
     on(card, '#m-next', () => { closeModal(); startLevel(nextLevel); });

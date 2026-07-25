@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Run the ฟัง–พิมพ์ dictation simulations.
+# The whole safety net: a boot/typing smoke test against the built bundle, then
+# the ฟัง–พิมพ์ dictation simulations. There is no chromium on this box (it
+# SIGTRAPs), so this plus `deno task check` is all there is.
 #
 # These drive the *real* dictation module's state machine against a stub DOM —
 # there is no chromium on this box (it SIGTRAPs), so a headless browser is not an
@@ -30,6 +32,14 @@ cp stubs/*.ts "$TMP/"
 cp sim-*.js "$TMP/"
 
 fail=0
+
+# smoke.js loads web/app.js the way index.html does, so it needs a current
+# bundle; build one rather than testing a stale artifact.
+echo "=== smoke.js (built bundle) ==="
+(cd .. && deno task -q build)
+if deno run --allow-read smoke.js; then :; else fail=1; fi
+echo
+
 for sim in sim-*.js; do
   echo "=== $sim ==="
   if deno run --allow-read "$TMP/$sim"; then :; else fail=1; fi

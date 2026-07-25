@@ -2,7 +2,7 @@
 // Stub for src/ui.ts: the sims run against a fake DOM, so anything that would
 // need a real element, canvas or gsap is replaced here. Not type-checked (the
 // sims are drivers, run with `deno run`), hence the loose signatures.
-export { segmentThai } from './segment.ts';
+export { hasThai, segmentThai } from './segment.ts';
 export const $ = (sel: string): any => (globalThis as any).__dom(sel);
 export function show(): void {}
 export function modal(html: string): any {

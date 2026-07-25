@@ -71,7 +71,7 @@ export function show(view: string): void {
 // ---- Thai word segmentation -------------------------------------------------
 // Lives in segment.ts (dependency-free so the standalone Pages build can bundle
 // it too); re-exported here for the modes that already import from ui.
-export { segmentThai, segmentThaiBreaks } from './segment.ts';
+export { hasThai, segmentThai, segmentThaiBreaks } from './segment.ts';
 
 // ---- modal -------------------------------------------------------------------
 export function modal(html: string): HTMLElement {

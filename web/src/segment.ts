@@ -15,6 +15,15 @@ export interface Segmented {
   breaks: boolean[];
 }
 
+// You type the Thai. A token with none of it — punctuation, a number, a date, an
+// English name, a percent sign — is *context*: shown so the line still reads,
+// stepped over automatically, and never scored. Every typing mode asks this one
+// question, so it is answered once, here (and this module is the one the
+// standalone Pages build shares).
+export function hasThai(s: string): boolean {
+  return /[฀-๿]/.test(s);
+}
+
 // Segment one whitespace-free chunk into words.
 function segmentChunk(text: string): string[] {
   if (text.includes('|')) return text.split('|').map((s) => s.trim()).filter(Boolean);

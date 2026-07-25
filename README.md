@@ -160,10 +160,22 @@ like dictation and the journey).
 
 No preprocessing pipeline: browsers ship ICU dictionary-based Thai segmentation
 via `Intl.Segmenter` (`web/src/segment.ts`, dependency-free so the standalone
-Pages build can copy it in — see *Public standalone* below). Where the
+Pages build can bundle it in — see *Public standalone* below). Where the
 dictionary cuts wrong, put `|` between words in that subtitle cue (or text) —
 explicit markers always win. The dictation setup screen has a per-file
 "ดูตัวอย่างการตัดคำ" preview to vet cuts before playing.
+
+**You type the Thai, and read the rest.** Real text — a dropped `.txt`, a news
+lead, a subtitle cue — carries things that are not Thai words: quotes, parens, a
+year, `65%`, an English acronym, an em dash. None of them teaches Thai, and
+demanding them turns a stray em dash into an unpassable wall that also drains
+your accuracy while you try to get past it. So a token with **no Thai character
+in it is context**: shown dimmed so the line still reads, stepped over
+automatically, and never scored — in the wordstream, the ข่าว reader and
+ฟัง–พิมพ์ alike. One predicate, `hasThai` in `web/src/segment.ts`, answers it for
+all three. In ฟัง–พิมพ์ that also keeps `2568` and `MOU` out of the drill queue
+and the carry-over list, where they would otherwise be scheduled as spellings to
+learn.
 
 ## Speed metric
 
@@ -313,9 +325,10 @@ now just sits as an archive.
 `install.sh` is idempotent — re-run it after any change. For a frontend-only
 edit the short loop is `cd web && deno task check && deno task build`; the Go
 server serves `web/` straight from the checkout, so no restart is needed.
-`./web/tests/run.sh` drives the real ฟัง–พิมพ์ state machine against a stub DOM
-(39 checks) — there is no chromium on this box, so that plus `deno task check`
-is the whole safety net.
+`./web/tests/run.sh` is the whole safety net (56 checks) — there is no chromium
+on this box, so it stands in for a browser: `smoke.js` builds the bundle, boots
+it against a stub DOM and types a story through เรื่องอ่าน end to end, then the
+`sim-*.js` simulations drive the real ฟัง–พิมพ์ state machine.
 
 Registered in the dashboard's `~/dashboard/projects.json` (its nginx proxies
 `/thai-typing/` → `127.0.0.1:8768`, prefix stripped — hence relative URLs only in

@@ -29,7 +29,7 @@
 //     to nothing, so neither recalling nor copying one buys anything back.
 import { sound } from './audio.ts';
 import { saveRun, loadRuns } from './records.ts';
-import { $, show, modal, closeModal, inserted, on, segmentThai } from './ui.ts';
+import { $, show, modal, closeModal, hasThai, inserted, on, segmentThai } from './ui.ts';
 import { diffHTML } from './spell.ts';
 import type { DictationMiss, DictationRun, MediaPair, NewRun } from './types.ts';
 
@@ -127,10 +127,16 @@ export function parseSRT(text: string): Cue[] {
 
 // A cue's typing targets: segmented words with surrounding punctuation stripped
 // (you type the words, not the commas). Tokens that end up empty are display-only.
+//
+// Punctuation strips itself away to nothing, but a number, a year or a Latin
+// acronym survives the strip — and spelling "2568" or "MOU" from the ear is not
+// the exercise: it teaches no Thai, and left as a target it would also be
+// scheduled into the drill queue and carried over to the next session. So
+// anything with no Thai in it is context too, stepped over exactly like a comma.
 function cueTokens(text: string): Token[] {
   return segmentThai(text).map((w) => {
     const core = w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}ั-ฺ็-๎ๆ]+$/gu, '');
-    return { display: w, target: core.normalize('NFC') };
+    return { display: w, target: hasThai(core) ? core.normalize('NFC') : '' };
   });
 }
 

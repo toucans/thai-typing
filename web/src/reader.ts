@@ -12,7 +12,7 @@
 import { sound } from './audio.ts';
 import { music } from './music.ts';
 import { $, inserted, show } from './ui.ts';
-import { segmentThaiBreaks } from './segment.ts';
+import { hasThai, segmentThaiBreaks } from './segment.ts';
 import { finishSession } from './speed.ts';
 import type { Session } from './speed.ts';
 import type { Article, NewsItem } from './types.ts';
@@ -61,14 +61,13 @@ export function startArticle(art: Article, item: NewsItem): void {
       const sp = document.createElement('span');
       sp.textContent = w;
       if (breaks[i]) sp.classList.add('brk');
+      if (!hasThai(w)) sp.classList.add('skip'); // dimmed up front: not your turn
       p.appendChild(sp);
       S.words.push(w);
       S.breaks.push(breaks[i] ?? false);
       S.paraEnd.push(i === words.length - 1);
       S.spans.push(sp);
-      // you type the Thai; tokens with none of it — English names, numbers,
-      // percentages, dashes — are read, not typed: passed over automatically
-      S.skip.push(!/[฀-๿]/.test(w));
+      S.skip.push(!hasThai(w)); // context, not something to type — see hasThai
     });
     body.appendChild(p);
   }
@@ -112,10 +111,7 @@ function scrollCurrent(R: ReaderSession): void {
 // Step over skip words (no Thai to type): marked passed, never scored — they
 // don't add to correctChars, so cpm stays a measure of what you actually typed.
 function passSkips(R: ReaderSession): void {
-  while (R.idx < R.words.length && R.skip[R.idx]) {
-    R.spans[R.idx]?.classList.add('skip');
-    R.idx++;
-  }
+  while (R.idx < R.words.length && R.skip[R.idx]) R.idx++;
 }
 
 function commitWord(R: ReaderSession, typed: string): void {

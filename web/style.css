@@ -341,6 +341,10 @@ h2.blessing-name { margin: .2rem 0 .4rem; }
 .wordstream .cur.bad { background: var(--red-soft); color: var(--red); }
 .wordstream .ok { color: var(--green-500); }
 .wordstream .err { color: var(--red); text-decoration: underline wavy; text-decoration-thickness: 1px; }
+/* context, not something you type: punctuation, a year, an English name. Dimmed
+   like the reader's (.reader-body .skip) so it reads as part of the line but
+   plainly isn't your turn. */
+.wordstream .skip { color: var(--ink-soft); }
 
 #typebox, #dict-typebox {
   width: 100%; font: inherit; font-size: 1.6rem; text-align: center;
