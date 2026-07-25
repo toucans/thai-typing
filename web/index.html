@@ -98,7 +98,12 @@
         </span>
       </div>
       <div class="dict-words card" id="dict-words"></div>
+      <!-- miss feedback, in two stages and deliberately not inside the typing
+           bar: the aligned diff (what you typed over what it should be), then
+           the answer alone — which is hidden again before you retype it -->
+      <div id="dict-diff" class="dict-diff" hidden></div>
       <div id="dict-ghost" class="dict-ghost"></div>
+      <div id="dict-phase" class="dict-phase"></div>
       <input id="dict-typebox" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ฟังแล้วพิมพ์…">
       <div class="play-actions">
         <button class="btn" id="dict-replay">▶ ฟังซ้ำ</button>

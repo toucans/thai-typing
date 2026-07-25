@@ -377,8 +377,25 @@ h2.blessing-name { margin: .2rem 0 .4rem; }
    like the wordstream's, upcoming words dimmed so the eye stays on it */
 .dict-words .now { background: var(--gold-soft); }
 .dict-words .next { opacity: .55; }
-.dict-ghost { min-height: 1.6rem; text-align: center; font-size: 1.2rem; color: var(--gold);
+.dict-ghost { min-height: 1.6rem; text-align: center; font-size: 1.6rem; color: var(--gold);
   letter-spacing: .04em; margin-bottom: .3rem; }
+/* The aligned miss diff: your attempt over the answer, one grapheme cluster per
+   column (a gap on either side is held open by a ·), so the eye lands on the one
+   cluster that went wrong instead of on "that word is red". Monospaced columns
+   would break Thai's stacked marks, so alignment comes from equal-width cells. */
+.dict-diff { margin: 0 auto .45rem; width: fit-content; max-width: 100%; overflow-x: auto; }
+.diff-row { display: flex; align-items: baseline; gap: .1em; font-size: 1.45rem; line-height: 1.7; }
+.diff-row span { min-width: 1.1em; text-align: center; }
+.diff-tag { font-size: .72rem; color: var(--ink-soft); min-width: 3.2em !important;
+  text-align: end !important; padding-inline-end: .5em; letter-spacing: .02em; }
+.diff-mine .ok { color: var(--ink-soft); }
+.diff-mine .bad { color: var(--red); background: var(--red-soft); border-radius: 6px; }
+.diff-theirs .ok { color: var(--ink-soft); }
+.diff-theirs .bad { color: var(--gold); background: var(--gold-soft); border-radius: 6px;
+  font-weight: 600; }
+.dict-phase { min-height: 1.2rem; text-align: center; font-size: .88rem;
+  color: var(--ink-soft); margin-bottom: .35rem; }
+#dict-typebox[readonly] { border-color: var(--ink-soft); opacity: .55; }
 
 .cardlist { display: grid; gap: .7rem; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
 .mediacard {
@@ -472,6 +489,28 @@ h2.blessing-name { margin: .2rem 0 .4rem; }
 }
 .stat-num { font-family: var(--display); font-size: 1.9rem; line-height: 1.3; color: var(--green-900); font-weight: 700; }
 .stat-label { color: var(--ink-soft); font-size: .85rem; margin-top: .15rem; }
+.stat-tap { cursor: pointer; transition: border-color .15s, transform .15s; }
+.stat-tap:hover { border-color: var(--gold); transform: translateY(-2px); }
+.stat-share { font-family: var(--body); font-size: .95rem; color: var(--ink-soft); font-weight: 400; }
+#spell-card .stat-num { font-size: 1.25rem; }
+
+/* the spelling breakdown (opened from the สถิติ card): which of Thai's
+   sound→script ambiguities actually costs you, ranked, with the words */
+.spell-rows { max-height: 58vh; overflow-y: auto; text-align: start; margin-top: .8rem;
+  padding-right: .4rem; }
+.spell-row { padding: .55rem 0; border-bottom: 1px solid color-mix(in srgb, var(--gold) 18%, transparent); }
+.spell-row:last-child { border-bottom: none; }
+.spell-head { display: flex; justify-content: space-between; align-items: baseline; gap: .8rem; }
+.spell-head b { color: var(--green-900); }
+.spell-n { color: var(--ink-soft); font-size: .82rem; white-space: nowrap; }
+.spell-bar { height: 5px; border-radius: 3px; background: var(--green-100); margin: .3rem 0; overflow: hidden; }
+.spell-bar i { display: block; height: 100%; background: var(--gold); }
+.spell-hint { margin: .25rem 0 .35rem; font-size: .82rem; color: var(--ink-soft); line-height: 1.6; }
+.spell-words { display: flex; flex-wrap: wrap; gap: .3rem; }
+.spell-word { font-size: 1.05rem; padding: .05em .45em; border-radius: 8px;
+  background: var(--gold-soft); color: var(--green-900); }
+.spell-word sub { font-size: .6em; color: var(--ink-soft); margin-inline-start: .15em; }
+
 .chart-card { padding: 1rem 1.2rem; }
 .chart-card h2 { margin: 0 0 .6rem; font-size: 1.2rem; color: var(--green-900); }
 .chart-head { display: flex; justify-content: space-between; align-items: baseline;

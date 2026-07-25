@@ -58,12 +58,48 @@ The gamification is deliberately self-referential — you compete with yourself 
   the map
 
 **ฟัง–พิมพ์ (dictation)** — drop a video/audio file plus a same-named `.srt` into
-`media/` (gitignored). The app plays one subtitle cue and you type it; each word
-is judged the instant it is complete — green or red, wrong words are retyped, and
-missed cues come back for a review round. Two modes, picked on the setup screen:
-**ฟังแล้วพิมพ์** hides the text (type from hearing; the correct spelling appears
-after two misses) and **ดูแล้วพิมพ์** shows the whole cue to copy-type, like
-เส้นทาง/เรื่องอ่าน with the audio alongside. Progress per file is resumable.
+`media/` (gitignored). The app plays one subtitle cue and you type it word by
+word. Two modes, picked on the setup screen: **ดูแล้วพิมพ์** shows the whole cue
+to copy-type, like เส้นทาง/เรื่องอ่าน with the audio alongside — that trains the
+keyboard. **ฟังแล้วพิมพ์** hides the text and is the *spelling* trainer, built
+around the asymmetry described below. Progress per file is resumable.
+
+### Why ฟังแล้วพิมพ์ works the way it does
+
+Thai is asymmetric. Script→sound is nearly deterministic once you know consonant
+classes and syllable structure; sound→script is many-to-one and irreducibly so
+(/s/ is ซ ศ ษ ส, final /t/ has a dozen spellings, and the consonant you pick
+changes which tone mark you need). So reading a great deal buys *recognition*-
+quality word forms — precise enough to tell a word from its neighbours on the
+page, too vague to write it down — and no amount of further reading closes that
+gap on its own. Closing it needs sound→script practice with three properties,
+and the loop is built out of exactly those:
+
+1. **Always guess first.** `Esc` used to hand over the answer. It now commits
+   whatever is in the box and scores it — an attempt you got wrong is worth more
+   than an answer you never tried for. An empty box gets one nudge first.
+   `Enter` commits a guess shorter than the answer (the auto-submit only fires
+   when you reach the answer's length, which is no help when you don't know it).
+2. **Never copy the answer.** The old flow revealed the spelling and let you
+   transcribe it — a visual-motor task that barely touches memory, given to
+   precisely the words that needed the most. Now a miss goes **study → cover →
+   recall**: an aligned per-cluster diff of your attempt against the answer, the
+   answer alone, then both disappear and you retype it from memory. The answer
+   is deliberately shown *above* the typing bar and never inside it.
+3. **Come back to it.** A missed word is rescheduled at expanding gaps (5, 15,
+   40 words) and needs three clean unaided recalls to retire. Anything still
+   owed when the session ends carries to the next one through the run log, and
+   opens it as a ทบทวนคำเก่า round.
+
+Every miss is also classified by `js/spell.js` into the ambiguity class it fell
+into — ใ/ไ, วรรณยุกต์, พยัญชนะเสียงซ้ำ, ตัวการันต์, รูปสระ, ตัวอักษรขาด–เกิน,
+ลำดับสลับ, or ฟังผิด (a non-homophonous consonant, i.e. a listening slip rather
+than a spelling one). สถิติ ranks them, because "you missed 300 words" is not
+actionable and "62% of your misses are ตัวการันต์" is. Classes are coupled, so
+one miss can land in two rows; the percentages are shares, not a partition.
+
+Accuracy is still scored on first guesses only, and drill repetitions are
+excluded from it — otherwise the number would reward giving up early.
 
 **เรื่องอ่าน (texts)** — drop any Thai `.txt` into `texts/` (first line = title)
 and type through it. This is the "stories" path: source stories anywhere, in plain

@@ -1,22 +1,45 @@
-// The dictation game: play one subtitle cue, type it, get green/red feedback
-// the moment each word is complete — then the next cue plays. Two modes,
-// chosen on the setup screen (persisted as tt.dictMode):
-//  - ฟังแล้วพิมพ์ (listen): the cue text is hidden — retrieval from the ear
+// The dictation game: play one subtitle cue, type it word by word from the ear.
+// Two modes, chosen on the setup screen (persisted as tt.dictMode):
+//  - ฟังแล้วพิมพ์ (listen): the cue text is hidden — this is the spelling trainer
 //  - ดูแล้วพิมพ์ (read): the cue text is shown and you copy-type it, like
 //    เส้นทาง/เรื่องอ่าน, with the audio as accompaniment
 //
-// Learning principles applied (listen mode):
-//  - retrieval first: the target text is never shown while you type
-//  - feedback exactly at word boundary (Intl.Segmenter knows where words end)
-//  - errorful learning: a wrong word must be retyped; after two misses the
-//    correct spelling is shown as a ghost to copy (immediate corrective feedback)
-//  - spaced retrieval: cues you missed come back for a review round at the end
+// Why listen mode works the way it does
+// -------------------------------------
+// Thai is asymmetric: script→sound is nearly deterministic, sound→script is
+// many-to-one. Reading a lot therefore buys recognition-quality word forms —
+// precise enough to tell a word from its neighbours on the page, too vague to
+// write it down. Closing that gap needs sound→script practice with three
+// properties, and the loop below is built out of exactly those:
+//
+//  1. always guess first. Revealing a word you never attempted teaches much less
+//     than attempting it, failing, and *then* seeing the answer, so Esc no longer
+//     skips to the answer — it commits whatever you have and scores it.
+//  2. never copy the answer. Transcribing a visible model is a visual-motor
+//     task that barely touches memory; the old flow gave that treatment to
+//     precisely the words that needed the most. The answer is now shown
+//     (study), then hidden (cover), and you retype it from memory (recall).
+//  3. come back to it. A recalled word is rescheduled at expanding gaps, and
+//     anything still unmastered when the session ends carries to the next one
+//     through the run log.
+//
+// Every miss is also classified (spell.js) so สถิติ can show which of Thai's
+// ambiguity classes is actually costing you, instead of a list of words.
 import { sound } from './audio.js';
-import { saveRun } from './records.js';
+import { saveRun, loadRuns } from './records.js';
 import { $, show, modal, closeModal, segmentThai } from './ui.js';
+import { classify, diffHTML } from './spell.js';
 
 let D = null; // current session
 let readMode = localStorage.getItem('tt.dictMode') === 'read';
+
+// Gaps (in words typed) before a missed word comes back, and how many clean
+// recalls retire it. Expanding rather than fixed: each success should be a
+// little harder to produce than the last.
+const DRILL_GAPS = [5, 15, 40];
+const DRILL_GIVEUP = 4;   // failures before it stops interrupting this session
+const DUE_CARRIED_MAX = 12; // old words folded into one session's opening round
+const MISS_LOG_MAX = 200;   // cap on what one run appends to the jsonl
 
 // ---- srt parsing --------------------------------------------------------------
 function parseTime(h, m, s, ms) {
@@ -90,6 +113,27 @@ async function previewSegmentation(pair) {
   card.querySelector('#m-close').onclick = closeModal;
 }
 
+// ---- carried-over words ------------------------------------------------------------
+// The run log is the only store: each dictation run records the words it missed
+// and the words it drilled to mastery. Replaying those events in order gives each
+// word a current state, and anything whose latest event is a miss is still owed.
+async function carriedDue(mediaName) {
+  let runs = [];
+  try { runs = await loadRuns(); } catch { return []; }
+  const state = new Map(); // word -> {due:boolean, cue:number}
+  const mine = runs
+    .filter((r) => r.game === 'dictation' && r.name === mediaName)
+    .sort((a, b) => (a.t || '').localeCompare(b.t || ''));
+  for (const r of mine) {
+    for (const m of r.misses || []) state.set(m.w, { due: true, cue: m.cue ?? 0 });
+    for (const w of r.mastered || []) if (state.has(w)) state.get(w).due = false;
+  }
+  return [...state.entries()]
+    .filter(([, v]) => v.due)
+    .slice(0, DUE_CARRIED_MAX)
+    .map(([w, v]) => ({ w, cue: v.cue, due: 0, reps: 0, fails: 0, carried: true }));
+}
+
 // ---- session ---------------------------------------------------------------------
 async function start(pair, resumeCue) {
   const cues = parseSRT(await (await fetch(pair.subs)).text());
@@ -100,38 +144,104 @@ async function start(pair, resumeCue) {
   D = {
     pair, cues, media, read: readMode,
     queue: cues.map((_, i) => i).slice(Math.min(resumeCue, cues.length - 1)),
-    review: [], inReview: false,
-    qpos: 0, tokens: [], wordIdx: 0, attempts: 0, cuesDone: 0,
-    wordsTotal: 0, wordsWrong: 0, cueWrong: false, t0: performance.now(),
+    qpos: 0, tokens: [], wordIdx: 0,
+    phase: 'guess', attempts: 0, nudged: false,
+    drill: [], drillNow: null, wordsSeen: 0,
+    misses: [], mastered: [], flushRounds: 0,
+    cuesDone: 0, wordsTotal: 0, wordsWrong: 0, tokensTyped: 0,
+    t0: performance.now(),
   };
+  // words still owed from earlier sessions on this media open the round
+  if (!readMode) {
+    const due = await carriedDue(pair.name).catch(() => []);
+    // only keep the ones whose cue still holds the word (the .srt may have changed)
+    D.drill = due.filter((d) => cues[d.cue] && cues[d.cue].text.includes(d.w));
+  }
   $('#dict-setup').hidden = true;
   $('#dict-session').hidden = false;
-  // shown until the first keystroke
   $('#dict-typebox').placeholder = readMode ? 'พิมพ์ตามคำที่เห็น…' : 'ฟังแล้วพิมพ์…';
   $('#dict-keys').innerHTML = `<span class="kbd">Tab</span> ฟังซ้ำ · <span class="kbd">Shift+Tab</span> ช้าลง`
-    + (readMode ? '' : ' · <span class="kbd">Esc</span> เฉลยคำ'); // nothing to reveal in read mode
+    + (readMode ? '' : ' · <span class="kbd">Enter</span> ส่งคำตอบ · <span class="kbd">Esc</span> ยอมแพ้คำนี้');
   show('dictation');
+  if (D.drill.length) {
+    modalNote('🍂 ทบทวนคำเก่า', `มี ${D.drill.length} คำจากรอบก่อนที่ยังสะกดไม่ได้ — เก็บให้จบก่อน`);
+  }
+  loadNext();
+}
+
+function currentCueIndex() {
+  return D.drillNow ? D.drillNow.cue : D.queue[D.qpos];
+}
+
+// The one place that decides what comes next: a due drill outranks a fresh cue,
+// and when the cues run out anything still unmastered gets one last pass.
+function loadNext() {
+  const due = D.drill.find((d) => D.wordsSeen >= d.due);
+  if (due) return startDrill(due);
+  if (D.qpos >= D.queue.length) {
+    // The cues are done but words are still owed. Re-arm everything left, once
+    // per remaining repetition — going round again (rather than repeating one
+    // word back to back) keeps some space between a word's repetitions, which
+    // is the whole point of the schedule.
+    if (D.drill.length && D.flushRounds < DRILL_GAPS.length) {
+      if (!D.flushRounds) modalNote('🍂 รอบเก็บตก', `เหลืออีก ${D.drill.length} คำที่ยังไม่แน่น`);
+      D.flushRounds++;
+      for (const d of D.drill) d.due = 0;
+      return loadNext();
+    }
+    return finishSession();
+  }
   loadCue();
 }
 
-function currentCueIndex() { return D.queue[D.qpos]; }
+function resetWordState() {
+  D.phase = 'guess';
+  D.attempts = 0;
+  D.nudged = false;
+  const box = $('#dict-typebox');
+  box.value = '';
+  box.readOnly = false;
+  box.focus();
+  $('#dict-diff').hidden = true;
+  $('#dict-diff').innerHTML = '';
+  $('#dict-ghost').textContent = '';
+  $('#dict-phase').textContent = '';
+}
 
 function loadCue() {
+  D.drillNow = null;
   const ci = currentCueIndex();
   D.tokens = cueTokens(D.cues[ci].text);
   D.wordIdx = 0;
-  D.attempts = 0;
-  D.cueWrong = false;
   skipEmptyTargets();
-  $('#dict-cue-no').textContent =
-    `${D.inReview ? 'รอบทบทวน · ' : ''}ท่อนที่ ${ci + 1} / ${D.cues.length}`;
-  $('#dict-ghost').textContent = '';
+  $('#dict-cue-no').textContent = `ท่อนที่ ${ci + 1} / ${D.cues.length}`;
+  resetWordState();
   renderWords();
-  const box = $('#dict-typebox');
-  box.value = '';
-  box.focus();
-  if (!D.inReview) localStorage.setItem(`tt.dict.${D.pair.name}`, String(ci));
+  if (!D.flushRounds) localStorage.setItem(`tt.dict.${D.pair.name}`, String(ci));
   playCue(1);
+}
+
+// A drill replays the cue the word came from — the word alone, out of context,
+// would be a different (and easier) task than the one being trained.
+function startDrill(item) {
+  D.drillNow = item;
+  const ci = item.cue;
+  D.tokens = cueTokens(D.cues[ci].text);
+  D.wordIdx = D.tokens.findIndex((t) => t.target === item.w);
+  if (D.wordIdx === -1) { // cue no longer holds it — drop it rather than stall
+    dropDrill(item);
+    D.drillNow = null;
+    return loadNext();
+  }
+  $('#dict-cue-no').textContent = `ทบทวน${item.carried ? 'คำเก่า' : ''} · ${item.reps + 1}/${DRILL_GAPS.length}`;
+  resetWordState();
+  renderWords();
+  playCue(1);
+}
+
+function dropDrill(item) {
+  const i = D.drill.indexOf(item);
+  if (i >= 0) D.drill.splice(i, 1);
 }
 
 function playCue(rate) {
@@ -152,7 +262,11 @@ function renderWords() {
   div.innerHTML = '';
   D.tokens.forEach((tok, i) => {
     const sp = document.createElement('span');
-    if (i < D.wordIdx) {
+    if (D.drillNow) {
+      // the drill blanks its one word and shows the rest as context
+      sp.textContent = i === D.wordIdx ? '▁▁' : tok.display;
+      sp.className = i === D.wordIdx ? 'slot' : 'next';
+    } else if (i < D.wordIdx) {
       sp.textContent = tok.display;
       sp.className = tok.firstTryWrong ? 'err' : 'ok';
     } else if (i === D.wordIdx) {
@@ -172,36 +286,152 @@ function skipEmptyTargets() {
   while (D.wordIdx < D.tokens.length && !D.tokens[D.wordIdx].target) D.wordIdx++;
 }
 
+function currentTarget() {
+  const tok = D.tokens[D.wordIdx];
+  return tok ? tok.target : '';
+}
+
+// ---- the loop: guess → study → recall ------------------------------------------------
+// Scoring happens once, on the first guess. Everything after that is practice,
+// not measurement — otherwise the accuracy number would reward giving up early.
+function submitGuess(typed) {
+  const target = currentTarget();
+  if (!target) return;
+  const guess = typed.normalize('NFC');
+  D.attempts++;
+  const first = D.attempts === 1;
+
+  if (guess === target) {
+    if (first && !D.drillNow) D.wordsTotal++;
+    D.tokensTyped += target.length;
+    sound.word();
+    return passWord(first);
+  }
+
+  if (first) {
+    if (D.drillNow) {
+      D.drillNow.fails++;
+      D.drillNow.reps = 0; // a miss resets the schedule
+    } else {
+      D.wordsTotal++;
+      D.wordsWrong++;
+      D.tokens[D.wordIdx].firstTryWrong = true;
+      recordMiss(guess, target);
+    }
+  }
+  sound.error();
+  flashBox();
+  enterStudy(guess, target);
+}
+
+function recordMiss(guess, target) {
+  if (D.misses.length < MISS_LOG_MAX) {
+    D.misses.push({
+      w: target,
+      g: guess,
+      tags: classify(guess, target).categories,
+      cue: currentCueIndex(),
+    });
+  }
+  // schedule it: first return after the shortest gap
+  if (!D.drill.some((d) => d.w === target)) {
+    D.drill.push({ w: target, cue: currentCueIndex(), due: D.wordsSeen + DRILL_GAPS[0], reps: 0, fails: 0 });
+  }
+}
+
+// Study: the answer is on screen and the box is inert. It sits above the typing
+// bar, deliberately not in it — an answer in the same line you type into makes
+// the whole thing a transcription exercise.
+function enterStudy(guess, target) {
+  D.phase = 'study';
+  const box = $('#dict-typebox');
+  box.readOnly = true;
+  box.value = '';
+  if (guess) {
+    $('#dict-diff').innerHTML = diffHTML(guess, target);
+    $('#dict-diff').hidden = false;
+  }
+  $('#dict-ghost').textContent = target;
+  $('#dict-phase').textContent = 'จำรูปคำไว้ — กด Enter แล้วพิมพ์จากความจำ';
+  box.focus();
+}
+
+// Recall: the cover step. The answer disappears and has to come back out of
+// memory — this is the part that actually moves spelling.
+function enterRecall() {
+  D.phase = 'recall';
+  const box = $('#dict-typebox');
+  box.readOnly = false;
+  box.value = '';
+  $('#dict-diff').hidden = true;
+  $('#dict-ghost').textContent = '';
+  $('#dict-phase').textContent = 'พิมพ์จากความจำ (Esc = ดูอีกครั้ง)';
+  box.focus();
+}
+
+function checkRecall(typed) {
+  const target = currentTarget();
+  if (typed.normalize('NFC') !== target) {
+    sound.error();
+    flashBox();
+    enterStudy('', target); // no diff on a recall slip: just look again
+    return;
+  }
+  D.tokensTyped += target.length;
+  sound.word();
+  passWord(false);
+}
+
+// A word is done for now. `clean` means it was right on the first guess, which
+// is what advances a drill item toward being retired.
+function passWord(clean) {
+  D.wordsSeen++;
+  const item = D.drillNow;
+  if (item) {
+    if (clean) {
+      item.reps++;
+      if (item.reps >= DRILL_GAPS.length) {
+        D.mastered.push(item.w);
+        dropDrill(item);
+      } else {
+        item.due = D.wordsSeen + DRILL_GAPS[item.reps];
+      }
+    } else if (item.fails >= DRILL_GIVEUP) {
+      dropDrill(item); // stop interrupting; it stays owed for next session
+    } else {
+      item.due = D.wordsSeen + DRILL_GAPS[0];
+    }
+    D.drillNow = null;
+    setTimeout(() => { if (D) loadNext(); }, 450);
+    return;
+  }
+  advanceWord();
+}
+
 function advanceWord() {
   D.wordIdx++;
-  D.attempts = 0;
-  $('#dict-ghost').textContent = '';
   skipEmptyTargets();
+  resetWordState();
   renderWords();
   if (D.wordIdx >= D.tokens.length) cueDone();
 }
 
 function cueDone() {
-  const ci = currentCueIndex();
   D.cuesDone++;
-  if (D.cueWrong && !D.inReview) D.review.push(ci);
   sound.word();
   setTimeout(() => {
-    D.qpos++;
-    if (D.qpos >= D.queue.length) {
-      if (!D.inReview && D.review.length) {
-        D.inReview = true;
-        D.queue = D.review;
-        D.qpos = 0;
-        modalNote('🍂 รอบทบทวน', `มี ${D.review.length} ท่อนที่พลาด มาเก็บให้ครบ`);
-        loadCue();
-      } else {
-        finishSession();
-      }
-      return;
-    }
-    loadCue();
-  }, 800);
+    if (!D) return;
+    if (!D.drillNow) D.qpos++;
+    loadNext();
+  }, 700);
+}
+
+function flashBox() {
+  const box = $('#dict-typebox');
+  box.value = '';
+  box.classList.remove('flash-red');
+  void box.offsetWidth; // restart the animation
+  box.classList.add('flash-red');
 }
 
 function modalNote(title, text) {
@@ -213,19 +443,23 @@ function modalNote(title, text) {
 async function finishSession() {
   const acc = D.wordsTotal ? 1 - D.wordsWrong / D.wordsTotal : 1;
   const secs = (performance.now() - D.t0) / 1000;
+  const mastered = [...new Set(D.mastered)];
   await saveRun({
     game: 'dictation', name: D.pair.name, cues: D.cuesDone,
     words: D.wordsTotal, acc: Math.round(acc * 1000) / 1000,
     secs: Math.round(secs),
     chars: D.tokensTyped || 0,
-    ...(D.read ? { read: true } : {}), // ดูแล้วพิมพ์ runs are marked in the log
+    ...(D.read ? { read: true } : { misses: D.misses, mastered }),
   });
   sound.level();
   localStorage.removeItem(`tt.dict.${D.pair.name}`);
+  const drilled = mastered.length
+    ? `<div class="modal-sub">ทบทวนจนสะกดได้เอง ${mastered.length} คำ</div>` : '';
   const card = modal(`
     <h2>จบรอบ · ${D.pair.name}</h2>
     <div class="modal-cpm">${Math.round(acc * 100)}%</div>
     <div class="modal-sub">สะกดถูกตั้งแต่ครั้งแรก ${D.wordsTotal - D.wordsWrong} จาก ${D.wordsTotal} คำ</div>
+    ${drilled}
     <div class="play-actions"><button class="btn" id="m-close">กลับ</button></div>`);
   card.querySelector('#m-close').onclick = () => { closeModal(); exitSession(); };
 }
@@ -240,36 +474,31 @@ function exitSession() {
   initDictation();
 }
 
-// ---- typing ------------------------------------------------------------------------
-function checkWord() {
-  const box = $('#dict-typebox');
-  const typed = box.value.normalize('NFC');
-  const tok = D.tokens[D.wordIdx];
-  if (!tok || typed.length < tok.target.length) return;
-  const attempt = typed.slice(0, tok.target.length);
+// ---- read mode ------------------------------------------------------------------------
+// ดูแล้วพิมพ์ is the copy-typing mode on purpose (it trains the keyboard, not
+// spelling), so it keeps the old plain behaviour: wrong word, flash, retype.
+function readModeInput(typed) {
+  const target = currentTarget();
+  if (!target || typed.length < target.length) return;
+  const attempt = typed.slice(0, target.length).normalize('NFC');
   D.attempts++;
-  if (attempt === tok.target) {
-    if (D.attempts === 1) D.wordsTotal++; // each word is judged once, on the first try
-    D.tokensTyped = (D.tokensTyped || 0) + tok.target.length;
+  if (attempt === target) {
+    if (D.attempts === 1) D.wordsTotal++;
+    D.tokensTyped += target.length;
     sound.word();
-    box.value = '';
     advanceWord();
-  } else {
-    if (D.attempts === 1) {
-      D.wordsTotal++;
-      D.wordsWrong++;
-      D.cueWrong = true;
-      tok.firstTryWrong = true;
-    }
-    sound.error();
-    box.value = '';
-    box.classList.remove('flash-red');
-    void box.offsetWidth; // restart the animation
-    box.classList.add('flash-red');
-    if (D.attempts >= 2 && !D.read) $('#dict-ghost').textContent = tok.target; // corrective ghost
+    return;
   }
+  if (D.attempts === 1) {
+    D.wordsTotal++;
+    D.wordsWrong++;
+    D.tokens[D.wordIdx].firstTryWrong = true;
+  }
+  sound.error();
+  flashBox();
 }
 
+// ---- input --------------------------------------------------------------------------
 export function initDictationInput() {
   // mode chips on the setup screen; the choice applies to the next session
   const modes = $('#dict-modes');
@@ -292,23 +521,51 @@ export function initDictationInput() {
     if (!D) return;
     box.placeholder = ''; // stop it reappearing between words
     if (e.data) sound.click();
-    checkWord();
+    if (D.read) return readModeInput(box.value);
+    // Reaching the answer's length auto-submits, which keeps the rhythm of the
+    // old game; Enter exists for guesses you can't fill out that far.
+    const target = currentTarget();
+    if (!target || box.value.length < target.length) return;
+    if (D.phase === 'guess') submitGuess(box.value.slice(0, target.length));
+    else if (D.phase === 'recall') checkRecall(box.value.slice(0, target.length));
   });
+
   box.addEventListener('keydown', (e) => {
     if (!D) return;
     if (e.key === 'Tab') {
       e.preventDefault();
       playCue(e.shiftKey ? 0.7 : 1);
-    } else if (e.key === 'Escape' && !D.read) { // read mode: nothing hidden to reveal
+      return;
+    }
+    if (D.read) return;
+
+    if (e.key === 'Enter') {
       e.preventDefault();
-      const tok = D.tokens[D.wordIdx];
-      if (tok) {
-        if (!tok.firstTryWrong) { D.wordsTotal++; D.wordsWrong++; D.cueWrong = true; tok.firstTryWrong = true; }
-        D.attempts = Math.max(D.attempts, 2);
-        $('#dict-ghost').textContent = tok.target;
+      if (D.phase === 'study') enterRecall();
+      else if (D.phase === 'recall') checkRecall(box.value);
+      else if (box.value) submitGuess(box.value);
+      return;
+    }
+
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      if (D.phase === 'study') return;          // the answer is already up
+      if (D.phase === 'recall') {               // forgot it again — look once more
+        enterStudy('', currentTarget());
+        return;
       }
+      // Esc used to hand over the answer for free. Now it commits what you have:
+      // an attempt you got wrong is worth more than an answer you never tried
+      // for. An empty box gets one nudge before it counts as a blank.
+      if (!box.value && !D.nudged) {
+        D.nudged = true;
+        $('#dict-phase').textContent = 'เดาก่อน — พิมพ์เท่าที่คิดว่าใช่ แล้วกด Esc อีกครั้ง';
+        return;
+      }
+      submitGuess(box.value);
     }
   });
+
   $('#dict-replay').addEventListener('click', () => { if (D) { playCue(1); box.focus(); } });
   $('#dict-finish').addEventListener('click', () => {
     if (!D) return;

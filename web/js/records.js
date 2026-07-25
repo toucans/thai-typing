@@ -162,8 +162,21 @@ export function stats(runs) {
   const recent = speed.filter((r) => Date.now() - new Date(r.t) < 30 * 864e5);
   const avg30 = recent.length
     ? recent.reduce((s, r) => s + r.cpm, 0) / recent.length : 0;
-  const dictWords = runs.filter((r) => r.game === 'dictation')
-    .reduce((s, r) => s + (r.words || 0), 0);
+  const dictRuns = runs.filter((r) => r.game === 'dictation');
+  const dictWords = dictRuns.reduce((s, r) => s + (r.words || 0), 0);
+  // Every word ฟัง–พิมพ์ has ever caught you on, with the guess you made and the
+  // ambiguity classes it fell into (spell.js tagged them at miss time). Kept raw
+  // here — the stats page tallies it — because the interesting question is not
+  // how many words you missed but which of Thai's sound→script choices keeps
+  // costing you. `mastered` is the other half: words later drilled back to a
+  // clean unaided recall, which is what takes a word off the carry-over list.
+  const dictMisses = dictRuns.flatMap((r) => r.misses || []);
+  const dictMastered = new Set(dictRuns.flatMap((r) => r.mastered || []));
+  const dictOwed = new Set();
+  for (const r of dictRuns.slice().sort((a, b) => (a.t || '').localeCompare(b.t || ''))) {
+    for (const m of r.misses || []) dictOwed.add(m.w);
+    for (const w of r.mastered || []) dictOwed.delete(w);
+  }
   // เรื่องอ่าน and ข่าว share the text engine (game === 'text'), but they are
   // counted apart: news runs carry a 'ข่าว: ' name prefix and a `src` (สำนักข่าว).
   // Reading runs never touch the speed PB or graph, so surface their own effort
@@ -188,5 +201,5 @@ export function stats(runs) {
   const ghostsBanished = ghostRuns.reduce((s, r) => s + (r.ghosts || 0), 0);
   const ghostNight = ghostRuns.reduce((m, r) => (r.cleared && r.night > m ? r.night : m), 0);
 
-  return { starsByLevel, maxDone, pb, pbAt, accPb, baseline, streak, totalChars, totalSecs, avg30, dictWords, textsRead, textPb, newsRead, newsPb, newsChars, newsBySource, newsTitles, ghostsBanished, ghostNight };
+  return { starsByLevel, maxDone, pb, pbAt, accPb, baseline, streak, totalChars, totalSecs, avg30, dictWords, dictMisses, dictMastered, dictOwed, textsRead, textPb, newsRead, newsPb, newsChars, newsBySource, newsTitles, ghostsBanished, ghostNight };
 }
