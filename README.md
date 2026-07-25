@@ -60,7 +60,15 @@ The gamification is deliberately self-referential — you compete with yourself 
 word. Two modes, picked on the setup screen: **ดูแล้วพิมพ์** shows the whole cue
 to copy-type, like เส้นทาง/เรื่องอ่าน with the audio alongside — that trains the
 keyboard. **ฟังแล้วพิมพ์** hides the text and is the *spelling* trainer, built
-around the asymmetry described below. Progress per file is resumable.
+around the asymmetry described below.
+
+**A file is resumable, because an episode is longer than a sitting.** Typing a
+24-minute episode takes several evenings, so where you stopped is kept in two
+places and the furthest one wins: `localStorage` is written on every cue (closing
+the tab mid-cue is safe, but it is per-device) and `lastCue` in the run log
+carries it across devices and outlives a cleared browser. จบรอบนี้ saves the run
+*and* the place, and says which cue you'll come back to; only reaching the end of
+the cues clears the mark, so a finished file starts fresh.
 
 ### Why ฟังแล้วพิมพ์ works the way it does
 
@@ -313,7 +321,8 @@ The whole backend recipe, transferable to any small project:
    unlocks, PBs, streaks are computed from the log on read. There is no second
    copy of state to drift out of sync.
 4. **The server is the only source of truth.** Clients keep no persistent save
-   data (localStorage holds just the username + device prefs like theme) and
+   data (localStorage holds the username, device prefs like theme, and a
+   convenience copy of the ฟัง–พิมพ์ resume point that the run log also carries) and
    re-fetch on focus — that's the entire multi-device sync story: no cache
    invalidation, no conflict resolution, because nothing conflicts.
 

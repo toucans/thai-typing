@@ -77,6 +77,7 @@ interface Session {
   read: boolean;
   queue: number[];
   qpos: number;
+  cueAt: number;   // the last real cue loaded — what a resume comes back to
   tokens: Token[];
   wordIdx: number;
   phase: 'guess' | 'study' | 'recall';
@@ -148,18 +149,39 @@ function cueTokens(text: string): Token[] {
   });
 }
 
+// Where each media was left off. Two stores on purpose, and the furthest point
+// wins: localStorage is written on every cue, so closing the tab mid-episode is
+// safe, but it is per-device and per-browser; the run log carries the mark
+// across devices and outlives a cleared browser, which for a 24-minute episode
+// typed over several evenings is the case that matters.
+async function resumeMarks(): Promise<Map<string, number>> {
+  const marks = new Map<string, number>();
+  try {
+    for (const r of await loadRuns()) {
+      // runs are chronological, so the newest one for a media wins; a run that
+      // finished the media carries no lastCue, which resets the mark to 0
+      if (r.game === 'dictation') marks.set(r.name, r.lastCue ?? 0);
+    }
+  } catch { /* offline: localStorage alone still knows this device's place */ }
+  return marks;
+}
+
 // ---- setup screen ---------------------------------------------------------------
 export async function initDictation(): Promise<void> {
   const list = $('#media-list');
   let pairs: MediaPair[] = [];
   try { pairs = (await (await fetch('api/media')).json()).pairs; } catch { /* offline */ }
+  const marks = await resumeMarks();
   if (!pairs.length) {
     list.innerHTML = '<p class="hint">ยังไม่มีไฟล์ใน <code>media/</code></p>';
     return;
   }
   list.innerHTML = '';
   for (const pair of pairs) {
-    const resume = +(localStorage.getItem(`tt.dict.${pair.name}`) || 0);
+    const resume = Math.max(
+      +(localStorage.getItem(`tt.dict.${pair.name}`) || 0),
+      marks.get(pair.name) ?? 0,
+    );
     const card = document.createElement('button');
     card.className = 'mediacard';
     card.innerHTML = `<b>${pair.name}</b>
@@ -227,7 +249,7 @@ async function start(pair: MediaPair, resumeCue: number): Promise<void> {
   const session: Session = {
     pair, cues, media, read: readMode,
     queue: cues.map((_, i) => i).slice(Math.min(resumeCue, cues.length - 1)),
-    qpos: 0, tokens: [], wordIdx: 0,
+    qpos: 0, cueAt: resumeCue, tokens: [], wordIdx: 0,
     phase: 'guess', attempts: 0, nudged: false,
     drill: [], drillNow: null, wordsSeen: 0,
     misses: [], mastered: [], ignored: [], ignoreSet: new Set(), flushRounds: 0,
@@ -277,7 +299,7 @@ function loadNext(D: Session): void {
       for (const d of D.drill) d.due = 0;
       return loadNext(D);
     }
-    void finishSession(D);
+    void finishSession(D, true); // the cues ran out: the media is done
     return;
   }
   loadCue(D);
@@ -310,7 +332,10 @@ function loadCue(D: Session): void {
   skipNonTargets(D);
   $('#dict-cue-no').textContent = `ท่อนที่ ${ci + 1} / ${D.cues.length}`;
   beginWord(D);
-  if (!D.flushRounds) localStorage.setItem(`tt.dict.${D.pair.name}`, String(ci));
+  if (!D.flushRounds) {
+    D.cueAt = ci;
+    localStorage.setItem(`tt.dict.${D.pair.name}`, String(ci));
+  }
   playCue(D, 1);
   // a cue of nothing but names and punctuation has nothing to type: play it,
   // show it, move on (cueDone defers, so this can't recurse into the next cue)
@@ -616,7 +641,12 @@ function modalNote(title: string, text: string): void {
   on(card, '#m-go', () => { closeModal(); $('#dict-typebox').focus(); });
 }
 
-async function finishSession(D: Session): Promise<void> {
+// `complete` separates the two ways a round ends: the cues ran out (start the
+// media fresh next time) or you stopped for the night (come back to this cue).
+// They used to be the same call, so จบรอบนี้ — the only control offered for
+// stopping mid-episode, and one that promises to save what you have typed —
+// threw away your place.
+async function finishSession(D: Session, complete: boolean): Promise<void> {
   const acc = D.wordsTotal ? 1 - D.wordsWrong / D.wordsTotal : 1;
   const secs = (performance.now() - D.t0) / 1000;
   const mastered = [...new Set(D.mastered)];
@@ -626,17 +656,22 @@ async function finishSession(D: Session): Promise<void> {
     secs: Math.round(secs),
     chars: D.tokensTyped || 0,
     ...(D.read ? { read: true } : { misses: D.misses, mastered, ignored: [...new Set(D.ignored)] }),
+    ...(complete ? {} : { lastCue: D.cueAt }),
   };
   await saveRun(run);
   sound.level();
-  localStorage.removeItem(`tt.dict.${D.pair.name}`);
+  if (complete) localStorage.removeItem(`tt.dict.${D.pair.name}`);
   const drilled = mastered.length
     ? `<div class="modal-sub">ทบทวนจนสะกดได้เอง ${mastered.length} คำ</div>` : '';
+  // say where you will pick up, so stopping mid-episode is plainly safe
+  const place = complete ? ''
+    : `<div class="modal-sub">ครั้งหน้าเล่นต่อจากท่อนที่ ${D.cueAt + 1} / ${D.cues.length}</div>`;
   const card = modal(`
     <h2>จบรอบ · ${D.pair.name}</h2>
     <div class="modal-cpm">${Math.round(acc * 100)}%</div>
     <div class="modal-sub">สะกดถูกตั้งแต่ครั้งแรก ${D.wordsTotal - D.wordsWrong} จาก ${D.wordsTotal} คำ</div>
     ${drilled}
+    ${place}
     <div class="play-actions"><button class="btn" id="m-close">กลับ</button></div>`);
   on(card, '#m-close', () => { closeModal(); exitSession(); });
 }
@@ -768,12 +803,13 @@ export function initDictationInput(): void {
     // easy to fat-finger next to the replay button — ask first
     const card = modal(`
       <h2>จบรอบนี้เลยไหม?</h2>
-      <div class="modal-sub">จะบันทึกผลเท่าที่พิมพ์ไปแล้ว</div>
+      <div class="modal-sub">จะบันทึกผลเท่าที่พิมพ์ไปแล้ว
+        และจำไว้ว่าค้างอยู่ที่ท่อนที่ ${session.cueAt + 1}</div>
       <div class="play-actions">
         <button class="btn ghost" id="m-cancel">พิมพ์ต่อ</button>
         <button class="btn" id="m-yes">จบรอบ</button>
       </div>`);
     on(card, '#m-cancel', () => { closeModal(); $('#dict-typebox').focus(); });
-    on(card, '#m-yes', () => { closeModal(); void finishSession(session); });
+    on(card, '#m-yes', () => { closeModal(); void finishSession(session, false); });
   });
 }
