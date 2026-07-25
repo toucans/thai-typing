@@ -34,10 +34,15 @@
 //     study screen) says it was the fingers: the word scores as spelled right,
 //     leaves the schedule, and — unlike ไม่ต้องจำ — is asked again as normal,
 //     because you do want to keep meeting it.
+//  6. and the same goes for the marks landing out of order. ต + า + ่ and
+//     ต + ่ + ่ + า both render as ต่าง and neither is a spelling mistake, so
+//     answers are compared through canonThai (see spell.ts) rather than code
+//     point by code point. Without it the word is rejected with nothing visible
+//     to explain it, and retyping — carefully, the same way — cannot get past.
 import { sound } from './audio.ts';
 import { currentUser, saveRun, loadRuns } from './records.ts';
 import { $, show, modal, closeModal, hasThai, inserted, on, segmentThai } from './ui.ts';
-import { diffHTML } from './spell.ts';
+import { canonThai, diffHTML } from './spell.ts';
 import type { DictationMiss, DictationRun, MediaPair, NewRun } from './types.ts';
 
 // One cue of the subtitle file. `stop` is when playback actually stops, which is
@@ -194,7 +199,7 @@ function playWindows(cues: Cue[]): Cue[] {
 function cueTokens(text: string): Token[] {
   return segmentThai(text).map((w) => {
     const core = w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}ั-ฺ็-๎ๆ]+$/gu, '');
-    return { display: w, target: hasThai(core) ? core.normalize('NFC') : '' };
+    return { display: w, target: hasThai(core) ? canonThai(core) : '' };
   });
 }
 
@@ -528,7 +533,7 @@ function currentTarget(D: Session): string {
 function submitGuess(D: Session, typed: string): void {
   const target = currentTarget(D);
   if (!target) return;
-  const guess = typed.normalize('NFC');
+  const guess = canonThai(typed);
   D.attempts++;
   const first = D.attempts === 1;
 
@@ -536,7 +541,9 @@ function submitGuess(D: Session, typed: string): void {
     if (first && !D.drillNow) D.wordsTotal++;
     D.tokensTyped += target.length;
     sound.word();
-    return passWord(D, first);
+    passWord(D, first);
+    noteKeyOrder(typed, target);
+    return;
   }
 
   if (first) {
@@ -671,15 +678,29 @@ function enterRecall(D: Session): void {
 
 function checkRecall(D: Session, typed: string): void {
   const target = currentTarget(D);
-  if (typed.normalize('NFC') !== target) {
+  if (canonThai(typed) !== target) {
     sound.error();
     flashBox();
-    enterStudy(D, '', target); // no diff on a recall slip: just look again
+    // The diff belongs here as much as on a first guess. It used to be withheld
+    // ("just look again"), which is fine while the two differ visibly — and
+    // useless the moment they don't, as a recall that keeps being rejected while
+    // looking identical to the answer on screen leaves nothing to go on.
+    enterStudy(D, typed, target);
     return;
   }
   D.tokensTyped += target.length;
   sound.word();
   passWord(D, false);
+  noteKeyOrder(typed, target);
+}
+
+// The word was right; the keystrokes that produced it were not in the standard
+// order (or a key repeated). canonThai has already let it through — say what the
+// standard order is, so the habit has something to correct itself against. The
+// line is written after the word passes, because advancing clears the phase text.
+function noteKeyOrder(typed: string, target: string): void {
+  if (typed.normalize('NFC') === target) return;
+  $('#dict-phase').textContent = `ถูกแล้ว · ลำดับปุ่มมาตรฐาน: ${[...target].join(' ')}`;
 }
 
 // A word is done for now. `clean` means it was right on the first guess, which
@@ -813,8 +834,9 @@ function exitSession(): void {
 // spelling), so it keeps the old plain behaviour: wrong word, flash, retype.
 function readModeInput(D: Session, typed: string): void {
   const target = currentTarget(D);
-  if (!target || typed.length < target.length) return;
-  const attempt = typed.slice(0, target.length).normalize('NFC');
+  const canon = canonThai(typed);
+  if (!target || canon.length < target.length) return;
+  const attempt = canon.slice(0, target.length);
   D.attempts++;
   if (attempt === target) {
     if (D.attempts === 1) D.wordsTotal++;
@@ -862,10 +884,15 @@ export function initDictationInput(): void {
     if (D.read) return readModeInput(D, box.value);
     // Reaching the answer's length auto-submits, which keeps the rhythm of the
     // old game; Enter exists for guesses you can't fill out that far.
+    //
+    // The length that counts is the canonical one. A repeated tone mark makes
+    // the box a character longer than the word it spells, and measuring the raw
+    // value would fire this a keystroke early — submitting a truncated word,
+    // scoring it wrong, and leaving the last letter to fall into the next word.
     const target = currentTarget(D);
-    if (!target || box.value.length < target.length) return;
-    if (D.phase === 'guess') submitGuess(D, box.value.slice(0, target.length));
-    else if (D.phase === 'recall') checkRecall(D, box.value.slice(0, target.length));
+    if (!target || canonThai(box.value).length < target.length) return;
+    if (D.phase === 'guess') submitGuess(D, box.value);
+    else if (D.phase === 'recall') checkRecall(D, box.value);
   });
 
   box.addEventListener('keydown', (e) => {

@@ -152,15 +152,31 @@ and the loop is built out of exactly those:
    banned — you do want to keep meeting a word you know, so the next cue holding
    it asks for it as normal. A slip *inside* a drill advances that word's
    schedule rather than resetting it.
+6. **Nor for marks landing out of order.** Nothing on a Linux Thai keyboard
+   enforces the order a syllable's characters are *stored* in, and ่ and า are
+   adjacent keys (j and k), so `ต + า + ่` comes out of the fingers about as
+   readily as `ต + ่ + า` — as does `ต + ่ + ่ + า` from a key that repeats.
+   All three render as **ต่าง**, and compared code point by code point the last
+   two are simply wrong: the word is rejected with *nothing on screen to show
+   why*, and retyping it — carefully, the same way — cannot get past. So answers
+   go through `canonThai` first, which sorts each syllable's marks back into
+   standard order and drops a mark repeated on the same base. The word counts as
+   spelled right, with a line naming the standard key order so the habit has
+   something to correct itself against. A wrong tone mark is of course still a
+   wrong tone mark.
 
 Accuracy is still scored on first guesses only, and drill repetitions are
 excluded from it — otherwise the number would reward giving up early. สถิติ
 shows how many words are still owed, which is the one number the carry-over
 mechanism needs to be legible.
 
-`src/spell.ts` does one thing: align a wrong attempt against the answer by
-grapheme cluster, so a missing tone mark doesn't shift the rest of the word and
-paint the whole tail red.
+`src/spell.ts` holds the two pieces of Thai text handling the game leans on:
+`canonThai` (above — canonical mark order, so what looks the same compares the
+same), and an alignment of a wrong attempt against the answer by grapheme
+cluster, so a missing tone mark doesn't shift the rest of the word and paint the
+whole tail red. That diff is now shown on a **failed recall** too, not just on a
+first guess — withholding it is fine while the two differ visibly, and useless
+the moment they don't.
 
 **เรื่องอ่าน (texts)** — drop any Thai `.txt` into `texts/` (first line = title)
 and type through it. This is the "stories" path: source stories anywhere, in plain
@@ -383,7 +399,7 @@ now just sits as an archive.
 `install.sh` is idempotent — re-run it after any change. For a frontend-only
 edit the short loop is `cd web && deno task check && deno task build`; the Go
 server serves `web/` straight from the checkout, so no restart is needed.
-`./web/tests/run.sh` is the whole safety net (98 checks) — there is no chromium
+`./web/tests/run.sh` is the whole safety net (116 checks) — there is no chromium
 on this box, so it stands in for a browser: `smoke.js` builds the bundle, boots
 it against a stub DOM and types a story through เรื่องอ่าน end to end, then the
 `sim-*.js` simulations drive the real ฟัง–พิมพ์ state machine.

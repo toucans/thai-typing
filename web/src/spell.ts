@@ -5,7 +5,55 @@
 // grapheme cluster (a base consonant plus the vowels and tone marks stacked on
 // it), not by code point — otherwise a single missing tone mark shifts
 // everything after it and the whole tail of the word reads as wrong.
+const NSP = /[ัิ-ฺ]/;    // vowels written above/below the consonant (U+0E31, U+0E34–U+0E3A)
+const TONE = /[็-๎]/;    // mai taikhu, the four tone marks, thanthakhat (U+0E47–U+0E4E)
+const TRAIL = /[ะาำๅ]/;  // spacing vowels written to the consonant's right
 const MARK = /[ัิ-ฺ็-๎]/; // nonspacing marks that sit on the preceding consonant
+
+// ---- canonical order ----------------------------------------------------------
+// The characters of one Thai syllable are typed in a fixed order — consonant,
+// then the vowel above or below it, then the tone mark, then the vowel to its
+// right — but nothing on a Linux Thai keyboard enforces that order. ่ and า are
+// adjacent keys (j and k), so ต + า + ่ comes out of the fingers about as easily
+// as ต + ่ + า, and a key that repeats gives you two tone marks. Both render
+// indistinguishably from the real thing and neither is a spelling mistake: the
+// letters are right, the keystrokes landed in the wrong order.
+//
+// Compared code point by code point they are simply *wrong*, with nothing on
+// screen to show why — which is worth avoiding for the same reason พิมพ์ผิด
+// exists (see dictation.ts): a slipped finger must not cost a study screen,
+// three drills and an accuracy point. So every answer is put through this first,
+// which sorts each syllable's marks back into standard order and drops a mark
+// repeated on the same base (no Thai syllable carries the same mark twice).
+// Text already in standard order comes back byte for byte unchanged.
+// The stacked marks are a *set* — one vowel above, one tone — so a repeat is a
+// repeated keystroke and drops out. The vowels to the right are a *sequence*
+// (เพราะ ends า then ะ), so they keep the order they were typed in.
+const uniq = (a: string[]): string => [...new Set(a)].sort().join('');
+
+export function canonThai(s: string): string {
+  let out = '';
+  let base = '';
+  let above: string[] = [];
+  let tones: string[] = [];
+  let trail: string[] = [];
+  const flush = (): void => {
+    if (!base) return;
+    out += base + uniq(above) + uniq(tones) + trail.join('');
+    base = '';
+    above = [];
+    tones = [];
+    trail = [];
+  };
+  for (const ch of s.normalize('NFC')) {
+    if (base && NSP.test(ch)) above.push(ch);
+    else if (base && TONE.test(ch)) tones.push(ch);
+    else if (base && TRAIL.test(ch)) trail.push(ch);
+    else { flush(); base = ch; }
+  }
+  flush();
+  return out;
+}
 
 // One aligned column: what was typed (a) over what it should be (b); the side
 // with nothing is the empty string.
