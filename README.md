@@ -62,6 +62,25 @@ to copy-type, like เส้นทาง/เรื่องอ่าน with the
 keyboard. **ฟังแล้วพิมพ์** hides the text and is the *spelling* trainer, built
 around the asymmetry described below.
 
+**A cue is played past its timestamp, because subtitle timings are display
+windows, not speech boundaries.** A cue goes up a little before the line is
+spoken and comes down when the reader has had time enough, and a sentence split
+over two cues is cut where it reads best, not on the pause between the words — so
+the last word is often still in the air when `end` arrives. Playing exactly
+`[start, end]` therefore cut words off the very thing you are asked to type: 43%
+of the cues in the episode in `media/` carry more text than their window has room
+for at the file's own speaking rate, by a median of 0.85s. No `.srt` matches the
+speech perfectly and none ever will, so the player stops being literal about
+`end` (`playWindows` in `dictation.ts`): every cue gets 0.6s of grace, a cue whose
+text needs longer than its window gives — measured against the median speaking
+rate of *that file*, so a slow documentary and a fast dub each calibrate
+themselves — gets that shortfall instead, up to 1.6s. The tail is allowed to run
+into the *next* cue only when that cue butts onto this one (a third of them do):
+those two are one sentence split for display, so the spilled words are this cue's
+own. Where there's a real gap the speech ended inside it, and the tail stops 0.2s
+in — a trailing syllable, not the next line's answer. Playback also opens 0.15s
+early so the first syllable keeps its onset.
+
 **A file is resumable, because an episode is longer than a sitting.** Typing a
 24-minute episode takes several evenings, and a tab dies without warning, so the
 cue you're on is **posted to the server on a timer while you type** (every ~20s
@@ -364,7 +383,7 @@ now just sits as an archive.
 `install.sh` is idempotent — re-run it after any change. For a frontend-only
 edit the short loop is `cd web && deno task check && deno task build`; the Go
 server serves `web/` straight from the checkout, so no restart is needed.
-`./web/tests/run.sh` is the whole safety net (69 checks) — there is no chromium
+`./web/tests/run.sh` is the whole safety net (98 checks) — there is no chromium
 on this box, so it stands in for a browser: `smoke.js` builds the bundle, boots
 it against a stub DOM and types a story through เรื่องอ่าน end to end, then the
 `sim-*.js` simulations drive the real ฟัง–พิมพ์ state machine.

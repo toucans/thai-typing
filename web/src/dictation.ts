@@ -40,10 +40,12 @@ import { $, show, modal, closeModal, hasThai, inserted, on, segmentThai } from '
 import { diffHTML } from './spell.ts';
 import type { DictationMiss, DictationRun, MediaPair, NewRun } from './types.ts';
 
-// One cue of the subtitle file.
+// One cue of the subtitle file. `stop` is when playback actually stops, which is
+// past `end` — see playWindows() for why the timestamp is not the boundary.
 interface Cue {
   start: number;
   end: number;
+  stop: number;
   text: string;
 }
 
@@ -125,13 +127,60 @@ export function parseSRT(text: string): Cue[] {
     if (!m || !m[1] || !m[2] || !m[3] || !m[4] || !m[5] || !m[6] || !m[7] || !m[8]) continue;
     const raw = lines.slice(ti + 1).join(' ').replace(/<[^>]+>/g, '').trim();
     if (!raw) continue;
-    cues.push({
-      start: parseTime(m[1], m[2], m[3], m[4]),
-      end: parseTime(m[5], m[6], m[7], m[8]),
-      text: raw,
-    });
+    const start = parseTime(m[1], m[2], m[3], m[4]);
+    const end = parseTime(m[5], m[6], m[7], m[8]);
+    cues.push({ start, end, stop: end, text: raw });
   }
-  return cues;
+  return playWindows(cues);
+}
+
+// ---- how long a cue is played -------------------------------------------------
+// Subtitle timestamps are *display* windows, not speech boundaries. A cue is put
+// up a little before the line is spoken and taken down when the reader has had
+// time enough, and where one sentence is split over two cues the cut is placed
+// for readability — not on the pause between the words. So the last word of a
+// cue is often still in the air when its timestamp runs out, and playing exactly
+// [start, end] cuts words off the very thing you are asked to type. Measured on
+// the episode in media/: 43% of its 387 cues carry more text than their window
+// has room for at the file's own speaking rate, by a median of 0.85s.
+//
+// Nothing here tries to fix the .srt — a file that matches the speech perfectly
+// does not exist. The player simply stops being literal about `end`:
+//
+//   - every cue gets a floor of grace (CUE_TAIL) past its timestamp
+//   - a cue whose text needs more time than its window gives — its characters
+//     against the median rate of this very file, so a slow documentary and a
+//     fast dub each calibrate themselves — gets that shortfall instead, capped
+//   - the tail may run into the next cue only when that cue butts onto this one
+//     (a third of them do here). Those are one sentence split for display, so
+//     the words that spill over are this cue's own. Where there is a real gap
+//     the speech ended inside it, and the tail stops a hair in — enough for a
+//     trailing syllable, not enough to give away the next line's answer.
+const CUE_LEAD = 0.15;    // run-up, so the first syllable keeps its onset
+const CUE_TAIL = 0.6;     // grace every cue gets past its timestamp
+const CUE_TAIL_MAX = 1.6; // ceiling on a short window's extra time
+const CUE_JOIN = 0.15;    // gap under which the next cue is a continuation, not a new line
+const CUE_PEEK = 0.2;     // how far a tail may cross into a cue that does *not* continue this one
+
+// Characters that take time to say: letters and digits. Spaces, punctuation and
+// the '|' word markers are silent, and Thai's vowel signs and tone marks are
+// combining characters that stack onto the letter before them rather than adding
+// a sound of their own — all of which the one non-letter test covers.
+function spokenLength(text: string): number {
+  return text.replace(/[^\p{L}\p{N}]/gu, '').length;
+}
+
+function playWindows(cues: Cue[]): Cue[] {
+  const rates = cues.filter((c) => c.end > c.start)
+    .map((c) => spokenLength(c.text) / (c.end - c.start)).sort((a, b) => a - b);
+  const median = rates.length ? rates[rates.length >> 1] ?? 0 : 0;
+  return cues.map((cue, i) => {
+    const short = median > 0 ? spokenLength(cue.text) / median - (cue.end - cue.start) : 0;
+    const tail = Math.min(Math.max(CUE_TAIL, short), CUE_TAIL_MAX);
+    const next = cues[i + 1];
+    const limit = next && next.start - cue.end > CUE_JOIN ? next.start + CUE_PEEK : Infinity;
+    return { ...cue, stop: Math.min(cue.end + tail, limit) };
+  });
 }
 
 // A cue's typing targets: segmented words with surrounding punctuation stripped
@@ -420,10 +469,11 @@ function playCue(D: Session, rate: number): void {
     m.addEventListener('loadedmetadata', () => { if (D) playCue(D, rate); }, { once: true });
     return;
   }
+  const stop = Number.isFinite(m.duration) ? Math.min(cue.stop, m.duration) : cue.stop;
   m.playbackRate = rate;
-  m.currentTime = cue.start;
+  m.currentTime = Math.max(0, cue.start - CUE_LEAD);
   m.play();
-  m.ontimeupdate = () => { if (m.currentTime >= cue.end) { m.pause(); m.ontimeupdate = null; } };
+  m.ontimeupdate = () => { if (m.currentTime >= stop) { m.pause(); m.ontimeupdate = null; } };
 }
 
 function renderWords(D: Session): void {

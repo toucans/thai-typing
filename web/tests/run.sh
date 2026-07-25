@@ -8,7 +8,8 @@
 # option and this is how the game's logic gets verified. They cover the parts
 # that are pure logic and easy to break silently: the guess → study → cover →
 # recall loop, the expanding-interval drill schedule, cross-session carry-over,
-# and ไม่ต้องจำ words being stepped over rather than typed.
+# ไม่ต้องจำ words being stepped over rather than typed, and the window of audio a
+# cue is played over (which runs past the subtitle's own timestamp).
 #
 # The sims must exercise the module that actually ships, so this script assembles
 # a scratch directory from the real sources plus stubs for the leaves that need a
