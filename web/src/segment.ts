@@ -1,5 +1,5 @@
 // Thai word segmentation — dependency-free on purpose: besides the web app
-// (via ui.js), tools/build-pages.sh copies this module into the standalone
+// (via ui.ts), tools/build-pages.sh bundles this module into the standalone
 // Pages build (docs/lib/), so the two frontends segment identically.
 //
 // Browsers and Deno ship ICU dictionary-based Thai segmentation via
@@ -9,18 +9,28 @@
 const segmenter = typeof Intl !== 'undefined' && Intl.Segmenter
   ? new Intl.Segmenter('th', { granularity: 'word' }) : null;
 
+// Parallel arrays: words[i], and breaks[i] true if a space followed that word.
+export interface Segmented {
+  words: string[];
+  breaks: boolean[];
+}
+
 // Segment one whitespace-free chunk into words.
-function segmentChunk(text) {
+function segmentChunk(text: string): string[] {
   if (text.includes('|')) return text.split('|').map((s) => s.trim()).filter(Boolean);
   if (text.includes('\u200b')) return text.split('\u200b').map((s) => s.trim()).filter(Boolean);
   if (!segmenter) return [text];
-  const out = [];
+  const out: string[] = [];
   for (const s of segmenter.segment(text)) {
     const t = s.segment;
     // Thai repeat/abbreviation marks (ๆ ฯ …) ride with the word they follow;
     // other punctuation stays its own token so a closing " or ) is passed
     // over by skip-aware modes exactly like an opening one
-    if (!s.isWordLike && out.length && /[฀-๿]/.test(t)) { out[out.length - 1] += t; continue; }
+    const prev = out[out.length - 1];
+    if (!s.isWordLike && prev !== undefined && /[฀-๿]/.test(t)) {
+      out[out.length - 1] = prev + t;
+      continue;
+    }
     out.push(t);
   }
   return out;
@@ -28,12 +38,11 @@ function segmentChunk(text) {
 
 // Segment Thai text, keeping track of where the source had real spaces. Thai
 // puts no space between words but does use spaces to break phrases/sentences, so
-// each space (or newline) becomes a `break` after the preceding word. Returns
-// parallel arrays: words[i] and breaks[i] (true if a space followed that word).
-export function segmentThaiBreaks(text) {
+// each space (or newline) becomes a `break` after the preceding word.
+export function segmentThaiBreaks(text: string): Segmented {
   const chunks = text.normalize('NFC').split(/\s+/).filter(Boolean);
-  const words = [];
-  const breaks = [];
+  const words: string[] = [];
+  const breaks: boolean[] = [];
   chunks.forEach((chunk, ci) => {
     const parts = segmentChunk(chunk);
     parts.forEach((w, wi) => {
@@ -45,6 +54,6 @@ export function segmentThaiBreaks(text) {
   return { words, breaks };
 }
 
-export function segmentThai(text) {
+export function segmentThai(text: string): string[] {
   return segmentThaiBreaks(text).words;
 }

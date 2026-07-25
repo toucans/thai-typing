@@ -1,14 +1,16 @@
+/// <reference path="./vendor.d.ts" />
 // Motion choreography (GSAP, vendored in vendor/) and the ambient hero
 // particles — petals drifting by day, fireflies by night. All of it is
 // decoration: with no gsap global or prefers-reduced-motion, every call
-// degrades to a static page that works identically.
+// degrades to a static page that works identically. gsap arrives as a plain
+// <script> global, not a module; see src/vendor.d.ts for its typing.
 
 const g = window.gsap;
 const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export const fx = {
   // staggered entrance for a view's direct children
-  viewIn(section) {
+  viewIn(section: HTMLElement | null) {
     if (!g || still || !section) return;
     g.from(section.children, {
       opacity: 0, y: 14, duration: 0.4, stagger: 0.06,
@@ -17,7 +19,7 @@ export const fx = {
   },
 
   // the pixel map rises into view when the region changes
-  mapIn(wrap) {
+  mapIn(wrap: HTMLElement | null) {
     if (!g || still || !wrap) return;
     g.from(wrap, {
       opacity: 0, y: 10, scale: 0.98, duration: 0.35,
@@ -25,7 +27,7 @@ export const fx = {
     });
   },
 
-  modalIn(card) {
+  modalIn(card: HTMLElement | null) {
     if (!g || still || !card) return;
     g.from(card, { scale: 0.85, opacity: 0, duration: 0.35, ease: 'back.out(1.6)', clearProps: 'all' });
   },
@@ -47,23 +49,36 @@ export const fx = {
 // ---- ambient particles ---------------------------------------------------------
 const PETALS = ['#d4a72c', '#e9d8a6', '#95d5b2', '#f3e2b8'];
 
-function initParticles() {
-  const canvas = document.getElementById('hero-fx');
+interface Particle {
+  x: number;
+  y: number;
+  vy: number;
+  sway: number;
+  phase: number;
+  rot: number;
+  vr: number;
+  c: string;
+  tw: number; // firefly pulse rate
+}
+
+function initParticles(): void {
+  const canvas = document.getElementById('hero-fx') as HTMLCanvasElement | null;
   const hero = document.getElementById('hero');
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas?.getContext('2d');
+  if (!canvas || !hero || !ctx) return;
   let W = 0, H = 0, dpr = 1;
 
-  function resize() {
+  const resize = () => {
     dpr = Math.min(devicePixelRatio || 1, 2);
     W = hero.clientWidth; H = hero.clientHeight;
     canvas.width = W * dpr; canvas.height = H * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  }
+  };
   resize();
   addEventListener('resize', resize);
 
-  const parts = Array.from({ length: 14 }, () => spawn(true));
-  function spawn(anywhere) {
+  const petal = () => PETALS[Math.floor(Math.random() * PETALS.length)] ?? '#e9d8a6';
+  function spawn(anywhere: boolean): Particle {
     return {
       x: Math.random() * 1200,             // in 0..1200 design units, scaled at draw
       y: anywhere ? Math.random() * 240 : -12,
@@ -72,22 +87,24 @@ function initParticles() {
       phase: Math.random() * Math.PI * 2,
       rot: Math.random() * Math.PI,
       vr: (Math.random() - 0.5) * 0.01,
-      c: PETALS[Math.floor(Math.random() * PETALS.length)],
+      c: petal(),
       tw: 1.5 + Math.random() * 2.5,       // firefly pulse rate
     };
   }
+  const parts = Array.from({ length: 14 }, () => spawn(true));
 
   // everything is drawn as fat pixels snapped to a grid, like the landscape
   const CELL = 3;
-  const snap = (v) => Math.round(v / CELL) * CELL;
+  const snap = (v: number) => Math.round(v / CELL) * CELL;
 
-  (function frame(t) {
+  (function frame(t: number) {
     requestAnimationFrame(frame);
     ctx.clearRect(0, 0, W, H);
     const dark = document.documentElement.dataset.theme === 'dark';
     const sx = W / 1200, sy = H / 240;
     for (let i = 0; i < parts.length; i++) {
       const p = parts[i];
+      if (!p) continue;
       if (dark) {
         // fireflies wander instead of falling, pulsing in steps
         p.x += Math.sin(t / 900 + p.phase) * 0.35;

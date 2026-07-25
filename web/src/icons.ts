@@ -1,7 +1,7 @@
 // Pixel icons for the header toggles, painted with the shared kit on a finer
 // 12x12 grid than the landscapes (shown at 24px, so 2px pixels). Drawn in the
 // button's own ink color, so they follow the theme; repaint after toggling it.
-import { makePainter } from './pixel.js';
+import { makePainter } from './pixel.ts';
 
 const MUSIC = [ // a beamed pair of quavers
   '...#######..',
@@ -57,15 +57,16 @@ const SUN = [ // shown in the dark theme: switch to day
   '.....#......',
 ];
 
-function paint(id, art) {
+function paint(id: string, art: readonly string[]): void {
   const btn = document.getElementById(id);
-  const canvas = btn.querySelector('canvas');
+  const canvas = btn?.querySelector('canvas');
+  if (!btn || !canvas) return;
   const { cx, spr } = makePainter(canvas);
   cx.clearRect(0, 0, canvas.width, canvas.height);
   spr(0, 1, art, { '#': getComputedStyle(btn).color });
 }
 
-export function paintIcons() {
+export function paintIcons(): void {
   paint('music-toggle', MUSIC);
   paint('sound-toggle', SOUND);
   paint('theme-toggle', document.documentElement.dataset.theme === 'dark' ? SUN : MOON);

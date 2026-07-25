@@ -4,19 +4,26 @@
 // silhouette per region (karsts, mangroves, terraces, the twin chedis…).
 // Day and night palettes follow the theme. Logical height is fixed; width
 // follows the viewport, so nothing is stretched — every pixel stays square.
-import { makePainter, mulberry32 } from './pixel.js';
+import { makePainter, mulberry32 } from './pixel.ts';
+import type { Painter } from './pixel.ts';
 
 const H = 78;          // logical rows
 const WATER = 62;      // the waterline row
-let cv, P, W = 0, scale = 3;
+// Bound by init(), which every entry point (setHeroRegion, redrawHero via
+// `inited`, the ticker) runs through first — nothing here draws before it.
+let cv!: HTMLCanvasElement;
+let P!: Painter;
+let W = 0, scale = 3;
 let region = 0, hue = 172;
 let frame = 0, inited = false;
 const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-function init() {
+function init(): void {
   if (inited) return;
+  const canvas = document.getElementById('hero-art');
+  if (!(canvas instanceof HTMLCanvasElement)) return;
   inited = true;
-  cv = document.getElementById('hero-art');
+  cv = canvas;
   P = makePainter(cv);
   resize();
   addEventListener('resize', () => { if (resize()) draw(); });
@@ -32,8 +39,8 @@ function init() {
   }
 }
 
-function resize() {
-  const cw = cv.parentElement.clientWidth || innerWidth;
+function resize(): boolean {
+  const cw = cv.parentElement?.clientWidth || innerWidth;
   const s = cw > 700 ? 3 : 2;
   const w = Math.ceil(cw / s);
   if (w === W && s === scale) return false;
@@ -43,16 +50,33 @@ function resize() {
   return true;
 }
 
-export function setHeroRegion(idx, h) {
+export function setHeroRegion(idx: number, h: number): void {
   init();
   region = idx; hue = h;
   draw();
 }
 
-export function redrawHero() { if (inited) draw(); }
+export function redrawHero(): void { if (inited) draw(); }
 
 // ---- palettes -------------------------------------------------------------------
-function pal() {
+interface Pal {
+  dark: boolean;
+  sky: [string, string, string, string];
+  orb: string;
+  glow: string;
+  cloud: string;
+  m1: string;
+  m2: string;
+  waterHi: string;
+  waterLo: string;
+  wave: string;
+  fg: string;
+  fgSoft: string;
+  accent: string;
+  gold: string;
+}
+
+function pal(): Pal {
   const dark = document.documentElement.dataset.theme === 'dark';
   const h = hue;
   return dark ? {
@@ -75,13 +99,13 @@ function pal() {
 }
 
 // ---- shared silhouette pieces ---------------------------------------------------
-function cloud(x, y, c) {
+function cloud(x: number, y: number, c: string) {
   const { rect, disc } = P;
   rect(x - 8, y, 17, 3, c);
   disc(x - 4, y - 1, 3, c); disc(x + 2, y - 2, 4, c); disc(x + 7, y, 2, c);
 }
 
-function karst(x, top, c) {
+function karst(x: number, top: number, c: string) {
   const { rect } = P;
   for (let j = top; j < WATER + 4; j++) {
     const w = 8 + Math.round(3 * Math.sin(j * 0.9 + x));
@@ -89,7 +113,7 @@ function karst(x, top, c) {
   }
 }
 
-function canopyTree(x, base, s, c) {
+function canopyTree(x: number, base: number, s: number, c: string) {
   const { rect, disc } = P;
   disc(x, base - s * 3, s * 2, c);
   disc(x - s * 2, base - s * 2.4, s * 1.4, c);
@@ -97,13 +121,13 @@ function canopyTree(x, base, s, c) {
   rect(x - 1, base - s * 2, 3, s * 2, c);
 }
 
-function pine(x, base, h, c) {
+function pine(x: number, base: number, h: number, c: string) {
   const { rect } = P;
   for (let j = 0; j < h; j++) rect(x - Math.round((j / h) * (h / 2.6)), base - h + j, 1 + 2 * Math.round((j / h) * (h / 2.6)), 1, c);
   rect(x, base, 1, 2, c);
 }
 
-function chedi(x, base, h, c) {
+function chedi(x: number, base: number, h: number, c: string) {
   const { rect } = P;
   for (let j = 0; j < h; j++) {
     const t = j / h;
@@ -120,8 +144,10 @@ function chedi(x, base, h, c) {
 // ---- the ten foregrounds ----------------------------------------------------------
 // Each gets the palette, a seeded rng and the frame; silhouettes stand on the
 // waterline. The hero-title sits bottom-left, so the left side stays low.
-const SCENES = [
-  (p, rng, f) => { // 0 เกาะทะเลใต้ — karsts out of the sea, a long-tail boat
+type Scene = (p: Pal, rng: () => number, f: number) => void;
+
+const SCENES: Scene[] = [
+  (p, _rng, f) => { // 0 เกาะทะเลใต้ — karsts out of the sea, a long-tail boat
     const { px, rect } = P;
     karst(W - 22, 18, p.fg); karst(W - 40, 30, p.fg); karst(W - 62, 40, p.fgSoft);
     const bx = Math.round(W * 0.42);
@@ -129,7 +155,7 @@ const SCENES = [
     rect(bx - 3, WATER + 1, 7, 1, p.fg); px(bx + 8, WATER + 1, p.fg); px(bx + 9, WATER, p.fg);
     for (let x = 0; x < W; x += 7) if ((x + f) % 14 < 7) px(x + (x % 5), WATER + 8 + (x % 4), p.accent);
   },
-  (p, rng, f) => { // 1 ป่าชายเลน — mangroves wading on stilt roots
+  (p, _rng, f) => { // 1 ป่าชายเลน — mangroves wading on stilt roots
     const { px, rect, disc } = P;
     for (const mx of [Math.round(W * 0.14), Math.round(W * 0.82), Math.round(W * 0.93)]) {
       disc(mx, 40, 9, p.fg); disc(mx - 8, 44, 6, p.fg); disc(mx + 8, 44, 6, p.fg);
@@ -141,7 +167,7 @@ const SCENES = [
     }
     for (let x = 3; x < W; x += 11) if ((x + f * 2) % 22 < 11) px(x, WATER + 6 + (x % 5), p.accent);
   },
-  (p, rng) => { // 2 ทุ่งนาเขียว — stepped terraces and a sala
+  (p) => { // 2 ทุ่งนาเขียว — stepped terraces and a sala
     const { px, rect } = P;
     for (let b = 0; b < 3; b++) {
       const y0 = 46 + b * 6;
@@ -158,7 +184,7 @@ const SCENES = [
     rect(sx - 6, 40, 13, 2, p.fg); rect(sx - 4, 38, 9, 2, p.fg); px(sx, 36, p.fg);
     rect(sx - 4, 42, 2, 6, p.fg); rect(sx + 3, 42, 2, 6, p.fg);
   },
-  (p, rng) => { // 3 ริมแม่น้ำ — a stilt house over the water, reeds
+  (p) => { // 3 ริมแม่น้ำ — a stilt house over the water, reeds
     const { px, rect } = P;
     const hx = Math.round(W * 0.82);
     rect(hx - 10, 38, 21, 2, p.fg); rect(hx - 8, 35, 17, 3, p.fg); rect(hx - 5, 33, 11, 2, p.fg);
@@ -171,7 +197,7 @@ const SCENES = [
       px(rx, 42 + (rx % 4), p.fgSoft);
     }
   },
-  (p, rng) => { // 4 สวนผลไม้ — an orchard heavy with fruit
+  (p) => { // 4 สวนผลไม้ — an orchard heavy with fruit
     const { px, rect } = P;
     for (let x = 0; x < W; x++) rect(x, 54 + Math.round(2 * Math.sin(x / 30)), 1, 10, p.fgSoft);
     [0.55, 0.68, 0.8, 0.92].forEach((t, i) => {
@@ -181,7 +207,7 @@ const SCENES = [
     });
     canopyTree(Math.round(W * 0.08), 58, 2, p.fg);
   },
-  (p, rng) => { // 5 ป่าฝน — canopy pressing in from above, vines
+  (p) => { // 5 ป่าฝน — canopy pressing in from above, vines
     const { px, rect, disc } = P;
     for (let x = 0; x < W; x += 6) disc(x, 2 + (x * 7) % 5, 5, p.fg);
     for (const vx of [Math.round(W * 0.2), Math.round(W * 0.45), Math.round(W * 0.72), Math.round(W * 0.9)]) {
@@ -190,7 +216,7 @@ const SCENES = [
     canopyTree(Math.round(W * 0.06), WATER + 2, 4, p.fg);
     canopyTree(Math.round(W * 0.95), WATER + 2, 5, p.fg);
   },
-  (p, rng, f) => { // 6 น้ำตกในหุบเขา — the falls pour off a cliff
+  (p, _rng, f) => { // 6 น้ำตกในหุบเขา — the falls pour off a cliff
     const { px, rect, disc } = P;
     const cx0 = Math.round(W * 0.7);
     for (let x = cx0; x < W; x++) {
@@ -204,7 +230,7 @@ const SCENES = [
     }
     for (let x = 4; x < cx0; x += 9) if ((x + f * 2) % 18 < 9) px(x, WATER + 5 + (x % 6), p.accent);
   },
-  (p, rng) => { // 7 ถ้ำหินปูน — looking out from inside the cave
+  (p) => { // 7 ถ้ำหินปูน — looking out from inside the cave
     const { px, rect } = P;
     for (let x = 0; x < W; x += 7) {
       const len = 6 + ((x * 13) % 13);
@@ -217,7 +243,7 @@ const SCENES = [
     }
     px(Math.round(W * 0.3), 26, p.accent); px(Math.round(W * 0.62), 20, p.accent);
   },
-  (p, rng, f) => { // 8 ดอยหมอก — ridge upon ridge in the mist
+  (p, _rng, f) => { // 8 ดอยหมอก — ridge upon ridge in the mist
     const { rect } = P;
     const { cx } = P;
     for (let x = 0; x < W; x++) {
@@ -231,7 +257,7 @@ const SCENES = [
     rect(((f * 2) % 60) - 60, 52, W + 60, 2, p.accent);
     cx.globalAlpha = 1;
   },
-  (p, rng, f) => { // 9 ยอดดอยอินทนนท์ — the twin chedis above the clouds
+  (p, _rng, f) => { // 9 ยอดดอยอินทนนท์ — the twin chedis above the clouds
     const { rect, disc } = P;
     const { cx } = P;
     for (let x = 0; x < W; x++) {
@@ -262,8 +288,8 @@ function draw() {
 
   // sky, four bands with dithered seams
   const bh = Math.ceil(WATER / 4);
-  for (let b = 0; b < 4; b++) rect(0, b * bh, W, bh, p.sky[b]);
-  for (let b = 1; b < 4; b++) for (let x = 0; x < W; x += 2) px(x + (b % 2), b * bh, p.sky[b - 1]);
+  for (let b = 0; b < 4; b++) rect(0, b * bh, W, bh, p.sky[b] ?? p.sky[3]);
+  for (let b = 1; b < 4; b++) for (let x = 0; x < W; x += 2) px(x + (b % 2), b * bh, p.sky[b - 1] ?? p.sky[0]);
 
   if (p.dark) {
     for (let i = 0; i < 30; i++) {
@@ -283,7 +309,8 @@ function draw() {
 
   if (!p.dark) { // a pair of birds
     const bx = Math.round(W * 0.32), by = 14 + (frame % 4 < 2 ? 0 : 1);
-    for (const [dx, b2] of [[0, 0], [9, -3]]) {
+    const birds: [number, number][] = [[0, 0], [9, -3]];
+    for (const [dx, b2] of birds) {
       px(bx + dx - 2, by + b2, p.fgSoft); px(bx + dx - 1, by + b2 - 1, p.fgSoft);
       px(bx + dx, by + b2, p.fgSoft);
       px(bx + dx + 1, by + b2 - 1, p.fgSoft); px(bx + dx + 2, by + b2, p.fgSoft);
@@ -301,7 +328,8 @@ function draw() {
   // water
   rect(0, WATER, W, H - WATER, p.waterLo);
   rect(0, WATER, W, 3, p.waterHi);
-  for (const [row, sp] of [[2, 1], [6, 2], [11, 3]]) {
+  const swell: [number, number][] = [[2, 1], [6, 2], [11, 3]];
+  for (const [row, sp] of swell) {
     for (let x = 0; x < W; x++) {
       if ((x + frame * sp + row * 5) % 11 < 3) px(x, WATER + row, p.wave);
     }
@@ -310,5 +338,5 @@ function draw() {
     if ((y + frame) % 4 < 2) px(ox + ((y * 7) % 3) - 1, y, p.dark ? 'rgba(233,226,198,.4)' : 'rgba(242,205,94,.5)');
   }
 
-  SCENES[region](p, rng, frame);
+  SCENES[region]?.(p, rng, frame);
 }

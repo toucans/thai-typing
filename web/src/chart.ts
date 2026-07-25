@@ -1,23 +1,27 @@
 // The progress graph: every speed run as a dot, the running personal best as a
 // step line. Hand-rolled SVG — a chart library would be the only dependency in
 // the whole app, for one line and some dots.
-import { pbHistory } from './records.js';
+import { pbHistory } from './records.ts';
+import type { Run, TypingRun } from './types.ts';
 
 const W = 820, H = 300, PAD = { l: 46, r: 14, t: 14, b: 30 };
 
-export function renderChart(el, runs) {
-  const speed = runs.filter((r) => r.game === 'speed' && r.cpm > 0)
+export function renderChart(el: HTMLElement, runs: Run[]): void {
+  const speed = runs
+    .filter((r): r is TypingRun => r.game === 'speed' && r.cpm > 0)
     .sort((a, b) => a.t.localeCompare(b.t));
-  if (speed.length < 2) {
+  const first = speed[0];
+  const last = speed[speed.length - 1];
+  if (!first || !last || speed.length < 2) {
     el.innerHTML = '<div class="chart-empty">พิมพ์สักสองสามด่านก่อน แล้วกราฟจะโผล่มาที่นี่ 🌱</div>';
     return;
   }
-  const t0 = new Date(speed[0].t).getTime();
-  const t1 = new Date(speed[speed.length - 1].t).getTime();
+  const t0 = new Date(first.t).getTime();
+  const t1 = new Date(last.t).getTime();
   const span = Math.max(t1 - t0, 864e5); // at least a day wide
   const maxC = Math.max(...speed.map((r) => r.cpm)) * 1.15;
-  const x = (t) => PAD.l + ((new Date(t).getTime() - t0) / span) * (W - PAD.l - PAD.r);
-  const y = (c) => H - PAD.b - (c / maxC) * (H - PAD.t - PAD.b);
+  const x = (t: string | number) => PAD.l + ((new Date(t).getTime() - t0) / span) * (W - PAD.l - PAD.r);
+  const y = (c: number) => H - PAD.b - (c / maxC) * (H - PAD.t - PAD.b);
 
   let grid = '';
   for (let i = 1; i <= 4; i++) {
@@ -33,10 +37,12 @@ export function renderChart(el, runs) {
   // running PB (records.pbHistory: >=90% accuracy, same rule as everywhere else)
   const pts = pbHistory(runs);
   let line = '';
-  if (pts.length) {
-    let d = `M ${x(pts[0].t)} ${y(pts[0].cpm)}`;
+  const p0 = pts[0];
+  if (p0) {
+    let d = `M ${x(p0.t)} ${y(p0.cpm)}`;
     for (let i = 1; i < pts.length; i++) {
-      d += ` H ${x(pts[i].t)} V ${y(pts[i].cpm)}`;
+      const p = pts[i];
+      if (p) d += ` H ${x(p.t)} V ${y(p.cpm)}`;
     }
     d += ` H ${W - PAD.r}`;
     line = `<path class="c-pb" d="${d}" fill="none" stroke-width="2.5"

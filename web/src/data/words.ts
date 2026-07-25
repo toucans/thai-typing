@@ -1,8 +1,6 @@
-// GENERATED COPY -- do not edit. Source of truth: web/js/data/words.js
-// Regenerate with tools/build-pages.sh.
 // Thai word pool, roughly frequency-ordered in bands. Exact ranks don't matter:
 // level generation samples with a bias toward the front of the array, and the
-// sampling window widens as levels rise (see speed.js). One plain-text list =
+// sampling window widens as levels rise (see levels.ts). One plain-text list =
 // a thousand deterministic levels; no external corpus dependency.
 export const WORDS = [
   // -- band 1: core function words, pronouns, everyday verbs -----------------

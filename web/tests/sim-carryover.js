@@ -55,7 +55,7 @@ globalThis.document = {
 };
 globalThis.CustomEvent = class {};
 
-const records = await import('./records.js');
+const records = await import('./records.ts');
 // a previous run that missed two words and mastered neither
 records.setHistory([{
   game: 'dictation', name: 'ep01', t: '2026-07-24T10:00:00Z', words: 9, acc: 0.78,
@@ -64,7 +64,7 @@ records.setHistory([{
   mastered: [],
 }]);
 
-const { initDictation, initDictationInput } = await import('./dictation.js');
+const { initDictation, initDictationInput } = await import('./dictation.ts');
 const box = el('dict-typebox');
 const fire = (t, ev) => (box.listeners[t] || []).forEach((f) => f(ev));
 const type = (s) => { box.value = s; fire('input', { data: s.slice(-1) }); flush(); };

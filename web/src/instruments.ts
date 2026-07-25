@@ -5,13 +5,41 @@
 // single-layer with a shaped envelope. Pitches between sampled notes come
 // from playbackRate.
 
-let loaded = null; // promise, resolved once
+// One line of a manifest: a wav plus how it is addressed. A pitched note has a
+// freq and a velocity layer; a drum has a stroke name (var); ching and gong
+// have neither and are one-shots.
+export type Layer = 'pp' | 'ff' | 'solo';
 
-export function loadInstruments(ctx) {
+interface ManifestNote {
+  set: string;
+  file: string;
+  freq?: number;
+  layer?: Layer;
+  var?: string;
+}
+
+type LayerSet = { [L in Layer]?: AudioBuffer };
+type ByFreq = Record<string, LayerSet | undefined>;
+
+export interface Instruments {
+  xylo: Sampler;
+  bala: Sampler;
+  zith: Sampler;
+  khong: Sampler;
+  thon: Record<string, AudioBuffer[] | undefined>;
+  ram: Record<string, AudioBuffer[] | undefined>;
+  ching: AudioBuffer | undefined;
+  gong: AudioBuffer | undefined;
+  nat: Record<string, AudioBuffer | undefined>; // the nature collection, by set
+}
+
+let loaded: Promise<Instruments> | null = null; // promise, resolved once
+
+export function loadInstruments(ctx: AudioContext): Promise<Instruments> {
   if (loaded) return loaded;
   loaded = (async () => {
     const man = await (await fetch('assets/ranat/manifest.json')).json();
-    let notes = man.notes.map((n) => ({ ...n, dir: 'assets/ranat' }));
+    let notes: (ManifestNote & { dir: string })[] = man.notes.map((n: ManifestNote) => ({ ...n, dir: 'assets/ranat' }));
     // optional local overlay (assets/lexar/, gitignored): higher-quality voices
     // built from the Lexar drive by tools/build-lexar.py. A set present there
     // replaces the committed set of the same name; a fresh clone skips this.
@@ -19,9 +47,9 @@ export function loadInstruments(ctx) {
       const r = await fetch('assets/lexar/manifest.json');
       if (r.ok) {
         const lex = await r.json();
-        const replaced = new Set(lex.notes.map((n) => n.set));
+        const replaced = new Set<string>(lex.notes.map((n: ManifestNote) => n.set));
         notes = notes.filter((n) => !replaced.has(n.set))
-          .concat(lex.notes.map((n) => ({ ...n, dir: 'assets/lexar' })));
+          .concat(lex.notes.map((n: ManifestNote) => ({ ...n, dir: 'assets/lexar' })));
       }
     } catch { /* offline or absent: the committed set carries everything */ }
     // sets the engine actually plays; retired voices in the manifests are
@@ -34,28 +62,28 @@ export function loadInstruments(ctx) {
       ...n,
       buffer: await ctx.decodeAudioData(await (await fetch(`${n.dir}/${n.file}`)).arrayBuffer()),
     })));
-    const byFreq = {};   // pitched sets: freq -> layer -> buffer
-    const byVar = {};    // unpitched variant sets (drums): var -> [buffers]
-    const single = {};   // one-shot sets (ching, gong)
+    const byFreq: Record<string, ByFreq | undefined> = {}; // pitched sets: freq -> layer -> buffer
+    const byVar: Record<string, Record<string, AudioBuffer[] | undefined> | undefined> = {}; // drums: var -> [buffers]
+    const single: Record<string, AudioBuffer | undefined> = {}; // one-shot sets (ching, gong)
     for (const n of buffers) {
       if (n.freq) {
-        byFreq[n.set] = byFreq[n.set] || {};
-        byFreq[n.set][n.freq] = byFreq[n.set][n.freq] || {};
-        byFreq[n.set][n.freq][n.layer] = n.buffer;
+        const set = byFreq[n.set] ??= {};
+        const layers = set[n.freq] ??= {};
+        if (n.layer) layers[n.layer] = n.buffer;
       } else if (n.var) {
-        byVar[n.set] = byVar[n.set] || {};
-        (byVar[n.set][n.var] = byVar[n.set][n.var] || []).push(n.buffer);
+        const set = byVar[n.set] ??= {};
+        (set[n.var] ??= []).push(n.buffer);
       } else {
         single[n.set] = n.buffer;
       }
     }
     return {
-      xylo: new Sampler(byFreq.xylo),
-      bala: new Sampler(byFreq.bala),
-      zith: new Sampler(byFreq.zith),
-      khong: new Sampler(byFreq.khong),
-      thon: byVar.thon,
-      ram: byVar.ram,
+      xylo: new Sampler(byFreq.xylo ?? {}),
+      bala: new Sampler(byFreq.bala ?? {}),
+      zith: new Sampler(byFreq.zith ?? {}),
+      khong: new Sampler(byFreq.khong ?? {}),
+      thon: byVar.thon ?? {},
+      ram: byVar.ram ?? {},
       ching: single.ching,
       gong: single.gong,
       nat: single, // the nature collection: waves, stream, falls, birds… by set
@@ -64,35 +92,50 @@ export function loadInstruments(ctx) {
   return loaded;
 }
 
+// Shape a sustained note: dur cuts it with a release tail, attack fades it in,
+// slideFrom starts off-pitch and glides home (the khlui's slide).
+export interface PlayOpts {
+  dur?: number;
+  attack?: number;
+  release?: number;
+  slideFrom?: number;
+  slideTime?: number;
+}
+
+type SampledNote = LayerSet & { freq: number };
+
 export class Sampler {
-  constructor(byFreq) {
+  notes: SampledNote[];
+  maxFreq: number;
+
+  constructor(byFreq: ByFreq) {
     this.notes = Object.entries(byFreq)
       .map(([f, layers]) => ({ freq: +f, ...layers }))
       .sort((a, b) => a.freq - b.freq);
-    this.maxFreq = this.notes[this.notes.length - 1].freq;
+    // Infinity, not 0, when a set is missing: callers halve a note until it
+    // fits under maxFreq, and a 0 ceiling would never be reached.
+    this.maxFreq = this.notes[this.notes.length - 1]?.freq ?? Infinity;
   }
 
-  nearest(freq) {
+  nearest(freq: number): SampledNote | undefined {
     let best = this.notes[0];
     for (const n of this.notes) {
-      if (Math.abs(Math.log(n.freq / freq)) < Math.abs(Math.log(best.freq / freq))) best = n;
+      if (!best || Math.abs(Math.log(n.freq / freq)) < Math.abs(Math.log(best.freq / freq))) best = n;
     }
     return best;
   }
 
   // vel 0..1 → equal-power blend of the soft and loud takes (or the single
-  // 'solo' layer for sustained voices). opts shape sustained notes:
-  //   dur      cut the note to this length with a release tail
-  //   attack   fade-in seconds (breath, bow)
-  //   release  fade-out seconds when dur is set
-  //   slideFrom  start at this pitch ratio and glide to 1 (the khlui's slide)
-  play(ctx, t, freq, vel, pan, dests, opts = {}) {
+  // 'solo' layer for sustained voices).
+  play(ctx: AudioContext, t: number, freq: number, vel: number, pan: number,
+    dests: AudioNode[], opts: PlayOpts = {}): void {
     const note = this.nearest(freq);
+    if (!note) return;
     const rate = freq / note.freq;
     const p = ctx.createStereoPanner();
     p.pan.value = pan;
     for (const d of dests) p.connect(d);
-    const layers = note.solo
+    const layers: [AudioBuffer | undefined, number][] = note.solo
       ? [[note.solo, 1]]
       : [[note.pp, Math.cos(vel * Math.PI / 2)], [note.ff, Math.sin(vel * Math.PI / 2)]];
     for (const [buffer, g] of layers) {
@@ -126,8 +169,12 @@ export class Sampler {
 }
 
 // One-shot for the unpitched buffers (ching, gong, drum strokes). cut > 0
-// chokes the ring (the damped "chap"); rate varies the pitch slightly.
-export function strike(ctx, buffer, t, gain, dests, { rate = 1, cut = 0, pan = 0 } = {}) {
+// chokes the ring (the damped "chap"); rate varies the pitch slightly. A
+// missing buffer (a set absent from the manifest) simply plays nothing.
+export function strike(ctx: AudioContext, buffer: AudioBuffer | undefined, t: number,
+  gain: number, dests: AudioNode[],
+  { rate = 1, cut = 0, pan = 0 }: { rate?: number; cut?: number; pan?: number } = {}): void {
+  if (!buffer) return;
   const src = ctx.createBufferSource();
   src.buffer = buffer;
   src.playbackRate.value = rate;
@@ -146,7 +193,7 @@ export function strike(ctx, buffer, t, gain, dests, { rate = 1, cut = 0, pan = 0
 }
 
 // Reverb from a generated stereo decaying-noise impulse response.
-export function makeReverb(ctx, secs = 2.8) {
+export function makeReverb(ctx: AudioContext, secs = 2.8): ConvolverNode {
   const len = Math.floor(ctx.sampleRate * secs);
   const ir = ctx.createBuffer(2, len, ctx.sampleRate);
   for (let ch = 0; ch < 2; ch++) {
@@ -159,7 +206,7 @@ export function makeReverb(ctx, secs = 2.8) {
 }
 
 // Classic ping-pong: two cross-fed delays panned hard left/right.
-export function makePingPong(ctx, time, feedback = 0.35) {
+export function makePingPong(ctx: AudioContext, time: number, feedback = 0.35): { input: GainNode; out: GainNode } {
   const input = ctx.createGain();
   const hp = ctx.createBiquadFilter();
   hp.type = 'highpass';

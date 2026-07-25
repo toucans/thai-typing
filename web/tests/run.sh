@@ -11,18 +11,22 @@
 # The sims must exercise the module that actually ships, so this script assembles
 # a scratch directory from the real sources plus stubs for the leaves that need a
 # browser (audio, and the ui helpers that pull in canvas/gsap). Copying is what
-# lets a relative `import './audio.js'` inside the real module resolve to a stub —
+# lets a relative `import './audio.ts'` inside the real module resolve to a stub —
 # an import map cannot remap a relative specifier.
+#
+# The sims themselves stay .js: they are drivers built out of deliberately
+# partial stubs, not app code, and `deno run` does not type-check them. The
+# modules under test are the .ts files `deno task check` covers.
 set -euo pipefail
 cd "$(dirname "$0")"
 
-SRC=../js            # source of truth for the modules under test
-REAL=(dictation.js spell.js segment.js)
+SRC=../src           # source of truth for the modules under test
+REAL=(dictation.ts spell.ts segment.ts types.ts)
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
 for f in "${REAL[@]}"; do cp "$SRC/$f" "$TMP/"; done
-cp stubs/*.js "$TMP/"
+cp stubs/*.ts "$TMP/"
 cp sim-*.js "$TMP/"
 
 fail=0

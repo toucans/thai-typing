@@ -1,39 +1,60 @@
 // The journey map: one pixel-art overworld per region, drawn entirely in code
 // (string-art sprites + seeded scatter — no image assets). A serpentine stone
 // path carries the region's 100 levels; the traveler stands on the next level;
-// shrines along the way hold the region's มงคลชีวิต stanza (data/mongkhon.js),
+// shrines along the way hold the region's มงคลชีวิต stanza (data/mongkhon.ts),
 // lit gold once their level is passed. Click a stone to play, a shrine to read.
 //
 // The canvas is a fixed 320x180 logical grid upscaled by CSS with
 // image-rendering: pixelated; a slow ticker (~4 fps) animates water, flames
 // and the traveler's bob, and is skipped entirely under prefers-reduced-motion.
-import { REGION_SIZE, modal, closeModal } from './ui.js';
-import { STANZAS, BY_LEVEL, thaiNum, unlockedCount } from './data/mongkhon.js';
-import { makePainter, mulberry32 } from './pixel.js';
+import { REGION_SIZE, closeModal, modal, on } from './ui.ts';
+import { STANZAS, BY_LEVEL, thaiNum, unlockedCount } from './data/mongkhon.ts';
+import type { Blessing } from './data/mongkhon.ts';
+import { makePainter, mulberry32 } from './pixel.ts';
+import type { Painter } from './pixel.ts';
 
 const W = 320, H = 180, COLS = 20, ROWS = 5;
 
-let cv, cx, px, rect, disc, spr; // painter, bound in initMap
-let tip, onPlay;
-let st = null;        // { region, next, starsByLevel, maxDone }
+// What the map is drawing: which region, and the progress that colors it.
+export interface MapState {
+  region: number;
+  next: number;
+  maxDone: number;
+  starsByLevel: Map<number, number>;
+}
+
+interface Node { x: number; y: number; }
+interface Shrine extends Node { b: Blessing; open: boolean; }
+
+// painter + page furniture, bound in initMap; nothing draws before it runs
+let cv!: HTMLCanvasElement;
+let cx!: Painter['cx'];
+let px!: Painter['px'];
+let rect!: Painter['rect'];
+let disc!: Painter['disc'];
+let spr!: Painter['spr'];
+let tip!: HTMLElement;
+let onPlay!: (level: number) => void;
+let st: MapState | null = null;
 let frame = 0;
-let nodesPts = [];    // node positions for the drawn region
-let shrinePts = [];   // { x, y, b, open } for the drawn region
+let nodesPts: Node[] = [];      // node positions for the drawn region
+let shrinePts: Shrine[] = [];   // shrines for the drawn region
 const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 let rng = mulberry32(1);
-function speckle(x, y, w, h, c, n) {
+function speckle(x: number, y: number, w: number, h: number, c: string, n: number) {
   for (let i = 0; i < n; i++) px(x + rng() * w, y + rng() * h, c);
 }
 // 3x5 digit font for the level numbers in the margins
-const DIG = {
+const DIG: Record<string, string | undefined> = {
   0: '111101101101111', 1: '010110010010111', 2: '111001111100111', 3: '111001111001111',
   4: '101101111001001', 5: '111100111001111', 6: '111100111101111', 7: '111001001010010',
   8: '111101111101111', 9: '111101111001111',
 };
-function num(x, y, n, c) {
+function num(x: number, y: number, n: number, c: string) {
   for (const d of String(n)) {
     const bits = DIG[d];
+    if (!bits) continue;
     for (let j = 0; j < 5; j++) for (let i = 0; i < 3; i++)
       if (bits[j * 3 + i] === '1') px(x + i, y + j, c);
     x += 4;
@@ -73,7 +94,7 @@ const CHEDI_SMALL = ['...g...', '...y...', '..yyy..', '..yyy..', '.yyyyy.', '.yy
 const TREE = ['..elLle..', '.eLllLLe.', 'eLlllLlLe', 'eLLlllLle', '.eLlLLle.',
   '..elLle..', '....t....', '....t....', '....t....'];
 const TREE_PAL = { l: C.leaf2, L: C.leaf1, e: C.leaf1, t: C.trunk };
-const FRUIT_PAL = (fruit) => ({ l: C.leaf2, L: C.leaf1, e: C.leaf1, t: C.trunk, o: fruit });
+const FRUIT_PAL = (fruit: string) => ({ l: C.leaf2, L: C.leaf1, e: C.leaf1, t: C.trunk, o: fruit });
 
 const PINE = ['...p...', '..ppp..', '..ppp..', '.ppppp.', '.ppppp.', 'ppppppp', '...t...', '...t...'];
 const PINE_PAL = { p: C.leaf1, t: C.trunk };
@@ -104,9 +125,9 @@ const MUSHROOM_PAL = { r: C.roofL, c: C.cream };
 // Each scene owns the top band (y 2..28), the bottom strip (y 152..178) and the
 // side margins; the path rows and shrine zones stay clear. `f` is the frame
 // counter for the little animations.
-function sparkle(x, y, f) { if ((f + x) % 4 < 2) px(x, y, C.foam); }
+function sparkle(x: number, y: number, f: number) { if ((f + x) % 4 < 2) px(x, y, C.foam); }
 
-function karst(x, y, h) {
+function karst(x: number, y: number, h: number) {
   for (let j = 0; j < h; j++) {
     const w = 6 + Math.round(2 * Math.sin(j * 1.3 + x));
     rect(x - (w >> 1), y + j, w, 1, j < 2 ? C.leaf2 : C.stone);
@@ -116,7 +137,15 @@ function karst(x, y, h) {
   rect(x - 3, y + h - 1, 7, 1, C.stoneD);
 }
 
-const SCENES = [
+// A region's ground colors, its path colors, and the furniture it paints into
+// the bands the levels leave clear.
+interface SceneConf {
+  g: [string, string, string];
+  path: [string, string];
+  scene: (f: number) => void;
+}
+
+const SCENES: SceneConf[] = [
   { // 0 เกาะทะเลใต้ — sand, sea band, karsts, a long-tail boat, palms
     g: ['#ecdfae', '#e2d193', '#f4ecc4'],
     path: ['#d3c395', '#a8956a'],
@@ -186,9 +215,9 @@ const SCENES = [
     scene() {
       const fruits = ['#e88f2a', '#e8c62a', '#d8542e', '#e88f2a'];
       [30, 105, 180, 255].forEach((x, i) => {
-        const pal = FRUIT_PAL(fruits[i]);
-        spr(x, 6, TREE, pal);
-        px(x + 2, 8, fruits[i]); px(x + 6, 9, fruits[i]); px(x + 4, 11, fruits[i]); px(x + 7, 7, fruits[i]);
+        const fruit = fruits[i] ?? fruits[0]!;
+        spr(x, 6, TREE, FRUIT_PAL(fruit));
+        px(x + 2, 8, fruit); px(x + 6, 9, fruit); px(x + 4, 11, fruit); px(x + 7, 7, fruit);
       });
       spr(60, 156, PALM, PALM_PAL); spr(220, 158, PALM, PALM_PAL);
       speckle(20, 166, 280, 8, '#e88f2a', 6); // windfall fruit
@@ -239,7 +268,8 @@ const SCENES = [
         const len = 4 + ((x * 7) % 9);
         for (let j = 0; j < len; j++) rect(x - ((len - j) >> 2), 5 + j, 1 + ((len - j) >> 1), 1, '#5d5546');
       }
-      for (const [cx2, cy] of [[50, 165], [180, 170], [265, 163]]) {
+      const crystals: [number, number][] = [[50, 165], [180, 170], [265, 163]];
+      for (const [cx2, cy] of crystals) {
         px(cx2, cy, '#8fd8d2'); px(cx2 + 1, cy - 1, '#bdeee9'); px(cx2 - 1, cy - 1, '#8fd8d2'); px(cx2, cy - 2, '#bdeee9');
       }
       if (f % 4 < 2) { px(120, 168, '#c9e88a'); px(230, 172, '#c9e88a'); } // glow-worms
@@ -270,7 +300,8 @@ const SCENES = [
       rect(0, 0, W, 26, '#cfdce4');
       disc(36, 8, 5, C.goldHi);
       cx.globalAlpha = 0.75;
-      for (const [mx, my, mr] of [[90, 22, 6], [130, 24, 8], [210, 21, 7], [270, 24, 6], [170, 25, 5]]) {
+      const clouds: [number, number, number][] = [[90, 22, 6], [130, 24, 8], [210, 21, 7], [270, 24, 6], [170, 25, 5]];
+      for (const [mx, my, mr] of clouds) {
         disc(mx, my, mr, '#f2f0e6'); disc(mx + mr, my + 1, mr - 2, '#f2f0e6');
       }
       cx.globalAlpha = 1;
@@ -284,8 +315,8 @@ const SCENES = [
 ];
 
 // ---- layout ---------------------------------------------------------------------
-function layoutNodes(region) {
-  const pts = [];
+function layoutNodes(region: number): Node[] {
+  const pts: Node[] = [];
   for (let i = 0; i < REGION_SIZE; i++) {
     const row = Math.floor(i / COLS);
     let col = i % COLS;
@@ -298,18 +329,19 @@ function layoutNodes(region) {
   return pts;
 }
 
-function layoutShrines(region, maxDone) {
-  const out = [];
+function layoutShrines(region: number, maxDone: number): Shrine[] {
+  const out: Shrine[] = [];
   for (const [level, b] of BY_LEVEL) {
     if (b.region !== region) continue;
     const p = nodesPts[level - region * REGION_SIZE - 1];
+    if (!p) continue;
     out.push({ x: p.x, y: p.y, b, open: level <= maxDone });
   }
   return out;
 }
 
 // ---- drawing ---------------------------------------------------------------------
-function brushLine(x1, y1, x2, y2, r, c) {
+function brushLine(x1: number, y1: number, x2: number, y2: number, r: number, c: string) {
   const steps = Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1));
   for (let s = 0; s <= steps; s++) {
     disc(Math.round(x1 + ((x2 - x1) * s) / steps), Math.round(y1 + ((y2 - y1) * s) / steps), r, c);
@@ -320,6 +352,7 @@ function draw() {
   if (!st) return;
   const region = st.region;
   const conf = SCENES[region];
+  if (!conf) return;
   rng = mulberry32(region * 991 + 7);
 
   rect(0, 0, W, H, conf.g[0]);
@@ -337,18 +370,17 @@ function draw() {
   }
 
   // the path, then its stepping stones
-  for (let i = 0; i < nodesPts.length - 1; i++) {
-    const a = nodesPts[i], b = nodesPts[i + 1];
-    brushLine(a.x, a.y, b.x, b.y, 2, conf.path[1]);
-  }
-  for (let i = 0; i < nodesPts.length - 1; i++) {
-    const a = nodesPts[i], b = nodesPts[i + 1];
-    brushLine(a.x, a.y, b.x, b.y, 1, conf.path[0]);
+  for (const r of [2, 1]) { // the path, dark then light: a brushed two-tone stroke
+    for (let i = 0; i < nodesPts.length - 1; i++) {
+      const a = nodesPts[i], b = nodesPts[i + 1];
+      if (a && b) brushLine(a.x, a.y, b.x, b.y, r, r === 2 ? conf.path[1] : conf.path[0]);
+    }
   }
 
   for (let i = 0; i < nodesPts.length; i++) {
     const level = region * REGION_SIZE + i + 1;
     const p = nodesPts[i];
+    if (!p) continue;
     const stars = st.starsByLevel.get(level) || 0;
     const bonus = level % 10 === 0;
     if (level === st.next) {
@@ -391,7 +423,7 @@ function draw() {
 
   // the traveler stands on the next level (nudged aside if a shrine shares it)
   if (st.next >= 1 && Math.floor((st.next - 1) / REGION_SIZE) === region) {
-    const p = nodesPts[(st.next - 1) % REGION_SIZE];
+    const p = nodesPts[(st.next - 1) % REGION_SIZE] ?? { x: 0, y: 0 };
     const dx = shrinePts.some((s) => s.x === p.x && s.y === p.y) ? 7 : 0;
     const bob = still ? 0 : frame % 2;
     cx.globalAlpha = 0.3;
@@ -414,15 +446,16 @@ function draw() {
     }
     for (let i = 0; i < nodesPts.length; i++) {
       const level = region * REGION_SIZE + i + 1;
-      if ((st.starsByLevel.get(level) || 0) === 3 && level !== st.next) {
-        starSpark(nodesPts[i].x, nodesPts[i].y);
+      const p = nodesPts[i];
+      if (p && (st.starsByLevel.get(level) || 0) === 3 && level !== st.next) {
+        starSpark(p.x, p.y);
       }
     }
   }
 }
 
 // a four-point gold star, twinkling with the map's slow ticker
-function starSpark(x, y) {
+function starSpark(x: number, y: number) {
   px(x, y, C.goldHi);
   px(x - 1, y, C.gold); px(x + 1, y, C.gold);
   px(x, y - 1, C.gold); px(x, y + 1, C.gold);
@@ -431,22 +464,23 @@ function starSpark(x, y) {
 }
 
 // ---- interaction -----------------------------------------------------------------
-function logicalXY(e) {
+function logicalXY(e: MouseEvent): Node {
   const r = cv.getBoundingClientRect();
   return { x: ((e.clientX - r.left) * W) / r.width, y: ((e.clientY - r.top) * H) / r.height };
 }
-function hitShrine(m) {
+function hitShrine(m: Node): Shrine | undefined {
   return shrinePts.find((s) => Math.abs(m.x - s.x) < 6 && m.y > s.y - 22 && m.y < s.y - 4);
 }
-function hitNode(m) {
+function hitNode(m: Node): number | null {
+  if (!st) return null;
   for (let i = 0; i < nodesPts.length; i++) {
     const p = nodesPts[i];
-    if ((m.x - p.x) ** 2 + (m.y - p.y) ** 2 < 36) return st.region * REGION_SIZE + i + 1;
+    if (p && (m.x - p.x) ** 2 + (m.y - p.y) ** 2 < 36) return st.region * REGION_SIZE + i + 1;
   }
   return null;
 }
 
-function showTip(html, x, y) {
+function showTip(html: string, x: number, y: number) {
   tip.innerHTML = html;
   tip.hidden = false;
   const r = cv.getBoundingClientRect();
@@ -455,7 +489,8 @@ function showTip(html, x, y) {
   tip.style.top = `${y * sy - 34}px`;
 }
 
-function hover(e) {
+function hover(e: MouseEvent) {
+  if (!st) return;
   const m = logicalXY(e);
   const s = hitShrine(m);
   if (s) {
@@ -466,7 +501,7 @@ function hover(e) {
   const level = hitNode(m);
   if (level) {
     const stars = st.starsByLevel.get(level) || 0;
-    const p = nodesPts[(level - 1) % REGION_SIZE];
+    const p = nodesPts[(level - 1) % REGION_SIZE] ?? { x: 0, y: 0 };
     cv.style.cursor = level <= st.next ? 'pointer' : 'default';
     // finishing alone passes a level (stars are quality medals on top), so a
     // 0-star level below `next` still reads ผ่านแล้ว
@@ -480,7 +515,8 @@ function hover(e) {
   tip.hidden = true;
 }
 
-function click(e) {
+function click(e: MouseEvent) {
+  if (!st) return;
   const m = logicalXY(e);
   const s = hitShrine(m);
   if (s) return showBlessing(s.b, s.open);
@@ -489,7 +525,7 @@ function click(e) {
 }
 
 // ---- the blessing card and the collection --------------------------------------
-export function showBlessing(b, open) {
+export function showBlessing(b: Blessing, open: boolean): void {
   const card = modal(open ? `
     <div class="blessing-head">☸ มงคลชีวิตข้อที่ ${thaiNum(b.n)}</div>
     <h2 class="blessing-name">${b.th}</h2>
@@ -501,10 +537,10 @@ export function showBlessing(b, open) {
     <h2 class="blessing-name">???</h2>
     <p class="blessing-mean">เดินทางถึงด่าน ${b.level} แล้วมงคลข้อนี้จะเปิดออก</p>
     <div class="play-actions"><button class="btn ghost" data-close>กลับ</button></div>`);
-  card.querySelector('[data-close]').onclick = closeModal;
+  on(card, '[data-close]', closeModal);
 }
 
-export function showMongkhon(maxDone) {
+export function showMongkhon(maxDone: number): void {
   const u = unlockedCount(maxDone);
   const body = STANZAS.map((sz) => `
     <div class="mk-stanza">
@@ -518,30 +554,33 @@ export function showMongkhon(maxDone) {
     <div class="modal-sub">เปิดแล้ว ${thaiNum(u)} จาก ๓๘ · มงคลสูตร</div>
     <div class="mk-list">${body}</div>
     <div class="play-actions"><button class="btn" data-close>กลับ</button></div>`);
-  card.querySelector('[data-close]').onclick = closeModal;
+  on(card, '[data-close]', closeModal);
 }
 
 // ---- public API ------------------------------------------------------------------
-export function drawMap(state) {
+export function drawMap(state: MapState): void {
   st = state;
   nodesPts = layoutNodes(st.region);
   shrinePts = layoutShrines(st.region, st.maxDone);
   draw();
 }
 
-export function redrawMap() { if (st) draw(); }
+export function redrawMap(): void { if (st) draw(); }
 
-export function initMap(opts) {
+export function initMap(opts: { onPlay: (level: number) => void }): void {
   onPlay = opts.onPlay;
-  cv = document.getElementById('pixelmap');
+  const canvas = document.getElementById('pixelmap');
+  const mapTip = document.getElementById('map-tip');
+  if (!(canvas instanceof HTMLCanvasElement) || !mapTip) return;
+  cv = canvas;
   ({ cx, px, rect, disc, spr } = makePainter(cv));
-  tip = document.getElementById('map-tip');
+  tip = mapTip;
   cv.addEventListener('pointermove', hover);
   cv.addEventListener('pointerleave', () => { tip.hidden = true; });
   cv.addEventListener('click', click);
   if (!still) {
     let last = 0;
-    (function loop(t) {
+    (function loop(t: number) {
       requestAnimationFrame(loop);
       if (document.hidden || !cv.offsetParent || !st || t - last < 260) return;
       last = t;

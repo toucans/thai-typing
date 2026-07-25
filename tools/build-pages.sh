@@ -3,23 +3,27 @@
 # sources. docs/ is the Pages site root (Settings -> Pages -> Deploy from a
 # branch -> main / docs); it needs to be self-contained because Pages serves only
 # that folder. The authored standalone code (index.html, app.css, game.js,
-# kedmanee.js) lives in docs/ directly; this script copies the shared word pools
-# and fonts in so the single source of truth stays under web/ -- rerun it
-# whenever the word/sentence lists or fonts change, then commit docs/.
+# kedmanee.js) lives in docs/ directly and stays plain JS; this script brings in
+# the shared level generator and the fonts so the single source of truth stays
+# under web/ -- rerun it whenever the word/sentence lists or fonts change, then
+# commit docs/.
+#
+# The app's frontend is TypeScript (web/src), so the shared module can no longer
+# just be copied: deno bundles web/src/levels.ts -- pulling in segment.ts and the
+# word/sentence pools it imports -- into one plain-JS ES module. That is why
+# docs/lib now holds a single file where it used to hold four.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-hdr='// GENERATED COPY -- do not edit. Source of truth: %s\n// Regenerate with tools/build-pages.sh.\n'
+command -v deno >/dev/null || { echo "deno is required (in /usr/local/bin on the box)"; exit 1; }
 
-copy_mod() { # src -> dest, prepend a "generated" banner
-  mkdir -p "$(dirname "$2")"
-  { printf "$hdr" "$1"; cat "$1"; } > "$2"
-}
+mkdir -p docs/lib
+rm -rf docs/lib/data docs/lib/segment.js   # pre-bundle layout; nothing imports these now
 
-copy_mod web/js/levels.js        docs/lib/levels.js
-copy_mod web/js/segment.js       docs/lib/segment.js
-copy_mod web/js/data/words.js    docs/lib/data/words.js
-copy_mod web/js/data/sentences.js docs/lib/data/sentences.js
+deno bundle -q --platform browser -o docs/lib/levels.js web/src/levels.ts
+{ printf '// GENERATED COPY -- do not edit. Source of truth: web/src/levels.ts (+ its imports).\n// Regenerate with tools/build-pages.sh.\n'
+  cat docs/lib/levels.js; } > docs/lib/levels.js.tmp
+mv docs/lib/levels.js.tmp docs/lib/levels.js
 
 mkdir -p docs/fonts
 cp web/assets/fonts/sarabun-400-thai.woff2  docs/fonts/

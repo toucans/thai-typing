@@ -1,7 +1,8 @@
 <!doctype html>
 <!-- Dev harness: renders just the pixel map, full width, for tuning the region
      scenes. ?r=<region 0-9>&done=<max passed level> fakes the progress, e.g.
-     maptest.html?r=6&done=655 — not linked from the app. -->
+     maptest.html?r=6&done=655 — not linked from the app. The harness code is
+     src/maptest.ts, bundled to maptest.js by `deno task build`. -->
 <html lang="th">
 <head>
 <meta charset="utf-8">
@@ -16,19 +17,6 @@
   </div>
 </main>
 <div id="modal" class="modal" hidden><div class="modal-card" id="modal-card"></div></div>
-<script type="module">
-import { initMap, drawMap, showMongkhon, showBlessing } from './js/map.js';
-import { BY_LEVEL } from './js/data/mongkhon.js';
-const q = new URLSearchParams(location.search);
-if (q.has('dark')) document.documentElement.dataset.theme = 'dark';
-const region = +(q.get('r') || 0);
-const done = +(q.get('done') ?? region * 100 + 37);
-const starsByLevel = new Map();
-for (let l = 1; l <= done; l++) starsByLevel.set(l, 1 + (l % 3));
-initMap({ onPlay: () => {} });
-drawMap({ region, next: done + 1, maxDone: done, starsByLevel });
-if (q.get('modal') === 'mk') showMongkhon(done);
-if (q.get('modal') === 'blessing') showBlessing(BY_LEVEL.get(region * 100 + 33) || BY_LEVEL.get(region * 100 + 25), true);
-</script>
+<script type="module" src="maptest.js"></script>
 </body>
 </html>

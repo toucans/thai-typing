@@ -6,8 +6,26 @@
 // level 1000, at the summit. Unlocks are derived from progress (runs.jsonl);
 // nothing here is stored.
 
+// One of the 38 blessings, as placed on the journey.
+export interface Blessing {
+  n: number;      // canonical order, 1..38
+  th: string;
+  pali: string;
+  mean: string;
+  region: number; // 0..9 — the stanza's region
+  level: number;  // the shrine's level; passing it opens the blessing
+}
+
+export interface Stanza {
+  title: string;
+  region: number;
+  items: Blessing[];
+}
+
 // [stanza title, [name, pali, meaning] ...]
-const STANZA_DEFS = [
+type StanzaDef = [string, [string, string, string][]];
+
+const STANZA_DEFS: StanzaDef[] = [
   ['คบคนดี', [
     ['ไม่คบคนพาล', 'อเสวนา จ พาลานํ', 'เว้นห่างจากผู้ที่ชักพาไปทางเสื่อม'],
     ['คบบัณฑิต', 'ปณฺฑิตานญฺจ เสวนา', 'ใกล้ชิดผู้รู้ ผู้มีปัญญาและความดี'],
@@ -68,9 +86,9 @@ const STANZA_DEFS = [
   ]],
 ];
 
-export const STANZAS = [];   // [{title, region, items: [blessing]}]
-export const MONGKHON = [];  // flat, in canonical order 1..38
-export const BY_LEVEL = new Map();
+export const STANZAS: Stanza[] = [];
+export const MONGKHON: Blessing[] = []; // flat, in canonical order 1..38
+export const BY_LEVEL = new Map<number, Blessing>();
 
 let n = 0;
 STANZA_DEFS.forEach(([title, defs], region) => {
@@ -86,10 +104,10 @@ STANZA_DEFS.forEach(([title, defs], region) => {
   STANZAS.push({ title, region, items });
 });
 
-export const thaiNum = (x) =>
-  String(x).replace(/\d/g, (d) => '๐๑๒๓๔๕๖๗๘๙'[d]);
+export const thaiNum = (x: number | string): string =>
+  String(x).replace(/\d/g, (d) => '๐๑๒๓๔๕๖๗๘๙'[Number(d)] ?? d);
 
 // unlocked = the level's shrine has been passed (levels only open in order,
 // so maxDone covers everything before it)
-export const unlockedCount = (maxDone) =>
+export const unlockedCount = (maxDone: number): number =>
   MONGKHON.filter((b) => b.level <= maxDone).length;

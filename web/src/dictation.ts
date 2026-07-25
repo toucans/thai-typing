@@ -27,12 +27,69 @@
 //     over exactly like punctuation: shown as context, never typed.
 //     Transliterated names are why: their spelling is arbitrary and generalises
 //     to nothing, so neither recalling nor copying one buys anything back.
-import { sound } from './audio.js';
-import { saveRun, loadRuns } from './records.js';
-import { $, show, modal, closeModal, segmentThai } from './ui.js';
-import { diffHTML } from './spell.js';
+import { sound } from './audio.ts';
+import { saveRun, loadRuns } from './records.ts';
+import { $, show, modal, closeModal, inserted, on, segmentThai } from './ui.ts';
+import { diffHTML } from './spell.ts';
+import type { DictationMiss, DictationRun, MediaPair, NewRun } from './types.ts';
 
-let D = null; // current session
+// One cue of the subtitle file.
+interface Cue {
+  start: number;
+  end: number;
+  text: string;
+}
+
+// One token of a cue. `target` is what you type — empty for punctuation-only
+// tokens, which are shown as context and stepped over.
+interface Token {
+  display: string;
+  target: string;
+  firstTryWrong?: boolean;
+}
+
+// A word in the retrieval schedule: when it comes back (due, in words seen),
+// how many clean recalls it has strung together (reps), and how many times it
+// has been missed (fails). `carried` marks one owed by an earlier session.
+interface DrillItem {
+  w: string;
+  cue: number;
+  due: number;
+  reps: number;
+  fails: number;
+  carried?: boolean;
+}
+
+// The session. `phase` is the guess → study → recall state machine; `drillNow`
+// is the drill interrupting the cue queue, if any.
+interface Session {
+  pair: MediaPair;
+  cues: Cue[];
+  media: HTMLVideoElement;
+  read: boolean;
+  queue: number[];
+  qpos: number;
+  tokens: Token[];
+  wordIdx: number;
+  phase: 'guess' | 'study' | 'recall';
+  attempts: number;
+  nudged: boolean;
+  drill: DrillItem[];
+  drillNow: DrillItem | null;
+  wordsSeen: number;
+  misses: DictationMiss[];
+  mastered: string[];
+  ignored: string[];
+  ignoreSet: Set<string>;
+  flushRounds: number;
+  cuesDone: number;
+  wordsTotal: number;
+  wordsWrong: number;
+  tokensTyped: number;
+  t0: number;
+}
+
+let D: Session | null = null; // current session
 let readMode = localStorage.getItem('tt.dictMode') === 'read';
 
 // Gaps (in words typed) before a missed word comes back, and how many clean
@@ -44,18 +101,19 @@ const DUE_CARRIED_MAX = 12; // old words folded into one session's opening round
 const MISS_LOG_MAX = 200;   // cap on what one run appends to the jsonl
 
 // ---- srt parsing --------------------------------------------------------------
-function parseTime(h, m, s, ms) {
+function parseTime(h: string, m: string, s: string, ms: string) {
   return (+h) * 3600 + (+m) * 60 + (+s) + (+ms) / 1000;
 }
 
-export function parseSRT(text) {
-  const cues = [];
+export function parseSRT(text: string): Cue[] {
+  const cues: Cue[] = [];
   for (const block of text.replace(/\r/g, '').split(/\n\n+/)) {
     const lines = block.split('\n').filter(Boolean);
     const ti = lines.findIndex((l) => l.includes('-->'));
-    if (ti === -1) continue;
-    const m = lines[ti].match(/(\d+):(\d+):(\d+)[,.](\d+)\s*-->\s*(\d+):(\d+):(\d+)[,.](\d+)/);
-    if (!m) continue;
+    const stamp = ti === -1 ? null : lines[ti];
+    if (!stamp) continue;
+    const m = stamp.match(/(\d+):(\d+):(\d+)[,.](\d+)\s*-->\s*(\d+):(\d+):(\d+)[,.](\d+)/);
+    if (!m || !m[1] || !m[2] || !m[3] || !m[4] || !m[5] || !m[6] || !m[7] || !m[8]) continue;
     const raw = lines.slice(ti + 1).join(' ').replace(/<[^>]+>/g, '').trim();
     if (!raw) continue;
     cues.push({
@@ -69,7 +127,7 @@ export function parseSRT(text) {
 
 // A cue's typing targets: segmented words with surrounding punctuation stripped
 // (you type the words, not the commas). Tokens that end up empty are display-only.
-function cueTokens(text) {
+function cueTokens(text: string): Token[] {
   return segmentThai(text).map((w) => {
     const core = w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}ั-ฺ็-๎ๆ]+$/gu, '');
     return { display: w, target: core.normalize('NFC') };
@@ -77,9 +135,9 @@ function cueTokens(text) {
 }
 
 // ---- setup screen ---------------------------------------------------------------
-export async function initDictation() {
+export async function initDictation(): Promise<void> {
   const list = $('#media-list');
-  let pairs = [];
+  let pairs: MediaPair[] = [];
   try { pairs = (await (await fetch('api/media')).json()).pairs; } catch { /* offline */ }
   if (!pairs.length) {
     list.innerHTML = '<p class="hint">ยังไม่มีไฟล์ใน <code>media/</code></p>';
@@ -94,15 +152,16 @@ export async function initDictation() {
       <small>${resume ? `เล่นต่อจากท่อนที่ ${resume + 1}` : 'เริ่มใหม่'}</small><br>
       <span class="seg-preview">ดูตัวอย่างการตัดคำ</span>
       ${resume ? ' · <span class="seg-preview seg-restart">เริ่มใหม่ตั้งแต่ต้น</span>' : ''}`;
-    card.querySelector('.seg-preview').onclick = (e) => { e.stopPropagation(); previewSegmentation(pair); };
-    const restart = card.querySelector('.seg-restart');
-    if (restart) restart.onclick = (e) => { e.stopPropagation(); start(pair, 0); };
+    const preview = card.querySelector<HTMLElement>('.seg-preview');
+    if (preview) preview.onclick = (e) => { e.stopPropagation(); void previewSegmentation(pair); };
+    const restart = card.querySelector<HTMLElement>('.seg-restart');
+    if (restart) restart.onclick = (e) => { e.stopPropagation(); void start(pair, 0); };
     card.onclick = () => start(pair, resume);
     list.appendChild(card);
   }
 }
 
-async function previewSegmentation(pair) {
+async function previewSegmentation(pair: MediaPair): Promise<void> {
   const cues = parseSRT(await (await fetch(pair.subs)).text());
   const rows = cues.slice(0, 12).map((c) =>
     `<div style="text-align:start;margin:.3em 0">${cueTokens(c.text).map((t) => t.display).join(' · ')}</div>`).join('');
@@ -112,7 +171,7 @@ async function previewSegmentation(pair) {
       <code>|</code> ในท่อนนั้น (ท่อนที่มี | จะไม่ใช้ตัวตัดอัตโนมัติ)</p>
     ${rows}
     <div class="play-actions"><button class="btn" id="m-close">ปิด</button></div>`);
-  card.querySelector('#m-close').onclick = closeModal;
+  on(card, '#m-close', closeModal);
 }
 
 // ---- what earlier sessions left behind -----------------------------------------------
@@ -121,17 +180,20 @@ async function previewSegmentation(pair) {
 // those events in order gives each word a current state — anything whose latest
 // event is a miss is still owed, and anything ever ignored is out of scope for
 // good.
-async function mediaHistory(mediaName) {
-  let runs = [];
-  try { runs = await loadRuns(); } catch { return { due: [], ignored: new Set() }; }
-  const state = new Map(); // word -> {due:boolean, cue:number}
-  const ignored = new Set();
+async function mediaHistory(mediaName: string): Promise<{ due: DrillItem[]; ignored: Set<string> }> {
+  const ignored = new Set<string>();
+  let runs;
+  try { runs = await loadRuns(); } catch { return { due: [], ignored }; }
+  const state = new Map<string, { due: boolean; cue: number }>();
   const mine = runs
-    .filter((r) => r.game === 'dictation' && r.name === mediaName)
+    .filter((r): r is DictationRun => r.game === 'dictation' && r.name === mediaName)
     .sort((a, b) => (a.t || '').localeCompare(b.t || ''));
   for (const r of mine) {
     for (const m of r.misses || []) state.set(m.w, { due: true, cue: m.cue ?? 0 });
-    for (const w of r.mastered || []) if (state.has(w)) state.get(w).due = false;
+    for (const w of r.mastered || []) {
+      const st = state.get(w);
+      if (st) st.due = false;
+    }
     for (const w of r.ignored || []) ignored.add(w);
   }
   const due = [...state.entries()]
@@ -142,13 +204,13 @@ async function mediaHistory(mediaName) {
 }
 
 // ---- session ---------------------------------------------------------------------
-async function start(pair, resumeCue) {
+async function start(pair: MediaPair, resumeCue: number): Promise<void> {
   const cues = parseSRT(await (await fetch(pair.subs)).text());
   if (!cues.length) return;
-  const media = $('#dict-media');
+  const media = $<HTMLVideoElement>('#dict-media');
   media.src = pair.media;
   media.classList.toggle('audio-only', /\.(mp3|m4a|ogg|opus|wav)$/i.test(pair.media));
-  D = {
+  const session: Session = {
     pair, cues, media, read: readMode,
     queue: cues.map((_, i) => i).slice(Math.min(resumeCue, cues.length - 1)),
     qpos: 0, tokens: [], wordIdx: 0,
@@ -158,36 +220,37 @@ async function start(pair, resumeCue) {
     cuesDone: 0, wordsTotal: 0, wordsWrong: 0, tokensTyped: 0,
     t0: performance.now(),
   };
+  D = session;
   // words still owed from earlier sessions on this media open the round
   if (!readMode) {
     const { due, ignored } = await mediaHistory(pair.name)
-      .catch(() => ({ due: [], ignored: new Set() }));
+      .catch(() => ({ due: [] as DrillItem[], ignored: new Set<string>() }));
     // only keep the ones whose cue still holds the word (the .srt may have changed)
-    D.drill = due.filter((d) => cues[d.cue] && cues[d.cue].text.includes(d.w));
-    D.ignoreSet = ignored;
+    session.drill = due.filter((d) => cues[d.cue]?.text.includes(d.w));
+    session.ignoreSet = ignored;
   }
   $('#dict-setup').hidden = true;
   $('#dict-session').hidden = false;
-  $('#dict-typebox').placeholder = readMode ? 'พิมพ์ตามคำที่เห็น…' : 'ฟังแล้วพิมพ์…';
+  $<HTMLInputElement>('#dict-typebox').placeholder = readMode ? 'พิมพ์ตามคำที่เห็น…' : 'ฟังแล้วพิมพ์…';
   $('#dict-keys').innerHTML = `<span class="kbd">Tab</span> ฟังซ้ำ · <span class="kbd">Shift+Tab</span> ช้าลง`
     + (readMode ? '' : ' · <span class="kbd">Enter</span> ส่งคำตอบ · <span class="kbd">Esc</span> ยอมแพ้คำนี้'
       + ' · <span class="kbd">Ctrl+Enter</span> ไม่ต้องจำคำนี้');
   show('dictation');
-  if (D.drill.length) {
-    modalNote('🍂 ทบทวนคำเก่า', `มี ${D.drill.length} คำจากรอบก่อนที่ยังสะกดไม่ได้ — เก็บให้จบก่อน`);
+  if (session.drill.length) {
+    modalNote('🍂 ทบทวนคำเก่า', `มี ${session.drill.length} คำจากรอบก่อนที่ยังสะกดไม่ได้ — เก็บให้จบก่อน`);
   }
-  loadNext();
+  loadNext(session);
 }
 
-function currentCueIndex() {
-  return D.drillNow ? D.drillNow.cue : D.queue[D.qpos];
+function currentCueIndex(D: Session): number {
+  return D.drillNow ? D.drillNow.cue : D.queue[D.qpos] ?? 0;
 }
 
 // The one place that decides what comes next: a due drill outranks a fresh cue,
 // and when the cues run out anything still unmastered gets one last pass.
-function loadNext() {
+function loadNext(D: Session): void {
   const due = D.drill.find((d) => D.wordsSeen >= d.due);
-  if (due) return startDrill(due);
+  if (due) return startDrill(D, due);
   if (D.qpos >= D.queue.length) {
     // The cues are done but words are still owed. Re-arm everything left, once
     // per remaining repetition — going round again (rather than repeating one
@@ -197,18 +260,19 @@ function loadNext() {
       if (!D.flushRounds) modalNote('🍂 รอบเก็บตก', `เหลืออีก ${D.drill.length} คำที่ยังไม่แน่น`);
       D.flushRounds++;
       for (const d of D.drill) d.due = 0;
-      return loadNext();
+      return loadNext(D);
     }
-    return finishSession();
+    void finishSession(D);
+    return;
   }
-  loadCue();
+  loadCue(D);
 }
 
-function resetWordState() {
+function resetWordState(D: Session): void {
   D.phase = 'guess';
   D.attempts = 0;
   D.nudged = false;
-  const box = $('#dict-typebox');
+  const box = $<HTMLInputElement>('#dict-typebox');
   box.value = '';
   box.readOnly = false;
   box.focus();
@@ -218,53 +282,54 @@ function resetWordState() {
   $('#dict-phase').textContent = '';
 }
 
-function beginWord() {
-  resetWordState();
-  renderWords();
+function beginWord(D: Session): void {
+  resetWordState(D);
+  renderWords(D);
 }
 
-function loadCue() {
+function loadCue(D: Session): void {
   D.drillNow = null;
-  const ci = currentCueIndex();
-  D.tokens = cueTokens(D.cues[ci].text);
+  const ci = currentCueIndex(D);
+  D.tokens = cueTokens(D.cues[ci]?.text ?? '');
   D.wordIdx = 0;
-  skipNonTargets();
+  skipNonTargets(D);
   $('#dict-cue-no').textContent = `ท่อนที่ ${ci + 1} / ${D.cues.length}`;
-  beginWord();
+  beginWord(D);
   if (!D.flushRounds) localStorage.setItem(`tt.dict.${D.pair.name}`, String(ci));
-  playCue(1);
+  playCue(D, 1);
   // a cue of nothing but names and punctuation has nothing to type: play it,
   // show it, move on (cueDone defers, so this can't recurse into the next cue)
-  if (D.wordIdx >= D.tokens.length) cueDone();
+  if (D.wordIdx >= D.tokens.length) cueDone(D);
 }
 
 // A drill replays the cue the word came from — the word alone, out of context,
 // would be a different (and easier) task than the one being trained.
-function startDrill(item) {
+function startDrill(D: Session, item: DrillItem): void {
   D.drillNow = item;
   const ci = item.cue;
-  D.tokens = cueTokens(D.cues[ci].text);
+  D.tokens = cueTokens(D.cues[ci]?.text ?? '');
   D.wordIdx = D.tokens.findIndex((t) => t.target === item.w);
   if (D.wordIdx === -1) { // cue no longer holds it — drop it rather than stall
-    dropDrill(item);
+    dropDrill(D, item);
     D.drillNow = null;
-    return loadNext();
+    return loadNext(D);
   }
   $('#dict-cue-no').textContent = `ทบทวน${item.carried ? 'คำเก่า' : ''} · ${item.reps + 1}/${DRILL_GAPS.length}`;
-  beginWord();
-  playCue(1);
+  beginWord(D);
+  playCue(D, 1);
 }
 
-function dropDrill(item) {
+function dropDrill(D: Session, item: DrillItem): void {
   const i = D.drill.indexOf(item);
   if (i >= 0) D.drill.splice(i, 1);
 }
 
-function playCue(rate) {
-  const cue = D.cues[currentCueIndex()];
+function playCue(D: Session, rate: number): void {
+  const cue = D.cues[currentCueIndex(D)];
   const m = D.media;
+  if (!cue) return;
   if (m.readyState < 1) { // metadata not loaded yet: seeking would be ignored
-    m.addEventListener('loadedmetadata', () => { if (D) playCue(rate); }, { once: true });
+    m.addEventListener('loadedmetadata', () => { if (D) playCue(D, rate); }, { once: true });
     return;
   }
   m.playbackRate = rate;
@@ -273,7 +338,7 @@ function playCue(rate) {
   m.ontimeupdate = () => { if (m.currentTime >= cue.end) { m.pause(); m.ontimeupdate = null; } };
 }
 
-function renderWords() {
+function renderWords(D: Session): void {
   const div = $('#dict-words');
   div.innerHTML = '';
   D.tokens.forEach((tok, i) => {
@@ -306,24 +371,24 @@ function renderWords() {
 // Advance past everything that isn't something to type: punctuation-only tokens,
 // and words marked ไม่ต้องจำ. Those are shown as context and stepped over — the
 // whole point of marking one is not to spend keystrokes on it.
-function skipNonTargets() {
+function skipNonTargets(D: Session): void {
   while (D.wordIdx < D.tokens.length) {
     const tok = D.tokens[D.wordIdx];
+    if (!tok) break;
     if (!tok.target || (!D.read && D.ignoreSet.has(tok.target))) { D.wordIdx++; continue; }
     break;
   }
 }
 
-function currentTarget() {
-  const tok = D.tokens[D.wordIdx];
-  return tok ? tok.target : '';
+function currentTarget(D: Session): string {
+  return D.tokens[D.wordIdx]?.target ?? '';
 }
 
 // ---- the loop: guess → study → recall ------------------------------------------------
 // Scoring happens once, on the first guess. Everything after that is practice,
 // not measurement — otherwise the accuracy number would reward giving up early.
-function submitGuess(typed) {
-  const target = currentTarget();
+function submitGuess(D: Session, typed: string): void {
+  const target = currentTarget(D);
   if (!target) return;
   const guess = typed.normalize('NFC');
   D.attempts++;
@@ -333,7 +398,7 @@ function submitGuess(typed) {
     if (first && !D.drillNow) D.wordsTotal++;
     D.tokensTyped += target.length;
     sound.word();
-    return passWord(first);
+    return passWord(D, first);
   }
 
   if (first) {
@@ -343,24 +408,25 @@ function submitGuess(typed) {
     } else {
       D.wordsTotal++;
       D.wordsWrong++;
-      D.tokens[D.wordIdx].firstTryWrong = true;
-      recordMiss(target);
+      const tok = D.tokens[D.wordIdx];
+      if (tok) tok.firstTryWrong = true;
+      recordMiss(D, target);
     }
   }
   sound.error();
   flashBox();
-  enterStudy(guess, target);
+  enterStudy(D, guess, target);
 }
 
-function recordMiss(target) {
+function recordMiss(D: Session, target: string): void {
   // The run log is what carries an unmastered word into the next session, so a
   // miss records only what that needs: the word, and the cue to replay it from.
   if (D.misses.length < MISS_LOG_MAX) {
-    D.misses.push({ w: target, cue: currentCueIndex() });
+    D.misses.push({ w: target, cue: currentCueIndex(D) });
   }
   // schedule it: first return after the shortest gap
   if (!D.drill.some((d) => d.w === target)) {
-    D.drill.push({ w: target, cue: currentCueIndex(), due: D.wordsSeen + DRILL_GAPS[0], reps: 0, fails: 0 });
+    D.drill.push({ w: target, cue: currentCueIndex(D), due: D.wordsSeen + (DRILL_GAPS[0] ?? 5), reps: 0, fails: 0 });
   }
 }
 
@@ -370,8 +436,8 @@ function recordMiss(target) {
 // Marking one takes it out of the schedule, out of the carry-over list, and out
 // of the accuracy count (rolling back this word's score if it was already
 // counted), then shows it to be copied so the sentence still reads.
-function ignoreWord() {
-  const target = currentTarget();
+function ignoreWord(D: Session): void {
+  const target = currentTarget(D);
   if (!target || D.ignoreSet.has(target)) return;
   D.ignoreSet.add(target);
   D.ignored.push(target);
@@ -379,28 +445,28 @@ function ignoreWord() {
   const tok = D.tokens[D.wordIdx];
   if (!D.drillNow && D.attempts) { // un-score it: an ignored word never counts
     D.wordsTotal--;
-    if (tok.firstTryWrong) { D.wordsWrong--; tok.firstTryWrong = false; }
+    if (tok?.firstTryWrong) { D.wordsWrong--; tok.firstTryWrong = false; }
   }
   D.misses = D.misses.filter((m) => m.w !== target);
   D.mastered = D.mastered.filter((w) => w !== target);
-  for (const d of D.drill.filter((d) => d.w === target)) dropDrill(d);
+  for (const d of D.drill.filter((d) => d.w === target)) dropDrill(D, d);
 
   // If it was being drilled, the drill is over; otherwise stay on the word and
   // let it be copied through.
   if (D.drillNow) {
     D.drillNow = null;
     D.wordsSeen++;
-    return loadNext();
+    return loadNext(D);
   }
-  advanceWord(); // it is context from here on, not something to type
+  advanceWord(D); // it is context from here on, not something to type
 }
 
 // Study: the answer is on screen and the box is inert. It sits above the typing
 // bar, deliberately not in it — an answer in the same line you type into makes
 // the whole thing a transcription exercise.
-function enterStudy(guess, target) {
+function enterStudy(D: Session, guess: string, target: string): void {
   D.phase = 'study';
-  const box = $('#dict-typebox');
+  const box = $<HTMLInputElement>('#dict-typebox');
   box.readOnly = true;
   box.value = '';
   if (guess) {
@@ -412,15 +478,15 @@ function enterStudy(guess, target) {
   // whether it is worth learning — a transliterated name usually isn't
   $('#dict-phase').innerHTML =
     'จำรูปคำไว้ — กด Enter แล้วพิมพ์จากความจำ · <button class="linkbtn" id="dict-skip">ไม่ต้องจำคำนี้</button>';
-  $('#dict-skip').onclick = () => { if (D) ignoreWord(); };
+  $('#dict-skip').onclick = () => { if (D) ignoreWord(D); };
   box.focus();
 }
 
 // Recall: the cover step. The answer disappears and has to come back out of
 // memory — this is the part that actually moves spelling.
-function enterRecall() {
+function enterRecall(D: Session): void {
   D.phase = 'recall';
-  const box = $('#dict-typebox');
+  const box = $<HTMLInputElement>('#dict-typebox');
   box.readOnly = false;
   box.value = '';
   $('#dict-diff').hidden = true;
@@ -429,22 +495,22 @@ function enterRecall() {
   box.focus();
 }
 
-function checkRecall(typed) {
-  const target = currentTarget();
+function checkRecall(D: Session, typed: string): void {
+  const target = currentTarget(D);
   if (typed.normalize('NFC') !== target) {
     sound.error();
     flashBox();
-    enterStudy('', target); // no diff on a recall slip: just look again
+    enterStudy(D, '', target); // no diff on a recall slip: just look again
     return;
   }
   D.tokensTyped += target.length;
   sound.word();
-  passWord(false);
+  passWord(D, false);
 }
 
 // A word is done for now. `clean` means it was right on the first guess, which
 // is what advances a drill item toward being retired.
-function passWord(clean) {
+function passWord(D: Session, clean: boolean): void {
   D.wordsSeen++;
   const item = D.drillNow;
   if (item) {
@@ -452,64 +518,65 @@ function passWord(clean) {
       item.reps++;
       if (item.reps >= DRILL_GAPS.length) {
         D.mastered.push(item.w);
-        dropDrill(item);
+        dropDrill(D, item);
       } else {
-        item.due = D.wordsSeen + DRILL_GAPS[item.reps];
+        item.due = D.wordsSeen + (DRILL_GAPS[item.reps] ?? 5);
       }
     } else if (item.fails >= DRILL_GIVEUP) {
-      dropDrill(item); // stop interrupting; it stays owed for next session
+      dropDrill(D, item); // stop interrupting; it stays owed for next session
     } else {
-      item.due = D.wordsSeen + DRILL_GAPS[0];
+      item.due = D.wordsSeen + (DRILL_GAPS[0] ?? 5);
     }
     D.drillNow = null;
-    setTimeout(() => { if (D) loadNext(); }, 450);
+    setTimeout(() => { if (D) loadNext(D); }, 450);
     return;
   }
-  advanceWord();
+  advanceWord(D);
 }
 
-function advanceWord() {
+function advanceWord(D: Session): void {
   D.wordIdx++;
-  skipNonTargets();
-  beginWord();
-  if (D.wordIdx >= D.tokens.length) cueDone();
+  skipNonTargets(D);
+  beginWord(D);
+  if (D.wordIdx >= D.tokens.length) cueDone(D);
 }
 
-function cueDone() {
+function cueDone(D: Session): void {
   D.cuesDone++;
   sound.word();
   setTimeout(() => {
     if (!D) return;
     if (!D.drillNow) D.qpos++;
-    loadNext();
+    loadNext(D);
   }, 700);
 }
 
-function flashBox() {
-  const box = $('#dict-typebox');
+function flashBox(): void {
+  const box = $<HTMLInputElement>('#dict-typebox');
   box.value = '';
   box.classList.remove('flash-red');
   void box.offsetWidth; // restart the animation
   box.classList.add('flash-red');
 }
 
-function modalNote(title, text) {
+function modalNote(title: string, text: string): void {
   const card = modal(`<h2>${title}</h2><div class="modal-sub">${text}</div>
     <div class="play-actions"><button class="btn gold" id="m-go">ลุยต่อ</button></div>`);
-  card.querySelector('#m-go').onclick = () => { closeModal(); $('#dict-typebox').focus(); };
+  on(card, '#m-go', () => { closeModal(); $('#dict-typebox').focus(); });
 }
 
-async function finishSession() {
+async function finishSession(D: Session): Promise<void> {
   const acc = D.wordsTotal ? 1 - D.wordsWrong / D.wordsTotal : 1;
   const secs = (performance.now() - D.t0) / 1000;
   const mastered = [...new Set(D.mastered)];
-  await saveRun({
+  const run: NewRun = {
     game: 'dictation', name: D.pair.name, cues: D.cuesDone,
     words: D.wordsTotal, acc: Math.round(acc * 1000) / 1000,
     secs: Math.round(secs),
     chars: D.tokensTyped || 0,
     ...(D.read ? { read: true } : { misses: D.misses, mastered, ignored: [...new Set(D.ignored)] }),
-  });
+  };
+  await saveRun(run);
   sound.level();
   localStorage.removeItem(`tt.dict.${D.pair.name}`);
   const drilled = mastered.length
@@ -520,24 +587,24 @@ async function finishSession() {
     <div class="modal-sub">สะกดถูกตั้งแต่ครั้งแรก ${D.wordsTotal - D.wordsWrong} จาก ${D.wordsTotal} คำ</div>
     ${drilled}
     <div class="play-actions"><button class="btn" id="m-close">กลับ</button></div>`);
-  card.querySelector('#m-close').onclick = () => { closeModal(); exitSession(); };
+  on(card, '#m-close', () => { closeModal(); exitSession(); });
 }
 
-function exitSession() {
+function exitSession(): void {
   D = null;
-  const m = $('#dict-media');
+  const m = $<HTMLVideoElement>('#dict-media');
   m.pause();
   m.removeAttribute('src');
   $('#dict-session').hidden = true;
   $('#dict-setup').hidden = false;
-  initDictation();
+  void initDictation();
 }
 
 // ---- read mode ------------------------------------------------------------------------
 // ดูแล้วพิมพ์ is the copy-typing mode on purpose (it trains the keyboard, not
 // spelling), so it keeps the old plain behaviour: wrong word, flash, retype.
-function readModeInput(typed) {
-  const target = currentTarget();
+function readModeInput(D: Session, typed: string): void {
+  const target = currentTarget(D);
   if (!target || typed.length < target.length) return;
   const attempt = typed.slice(0, target.length).normalize('NFC');
   D.attempts++;
@@ -545,55 +612,56 @@ function readModeInput(typed) {
     if (D.attempts === 1) D.wordsTotal++;
     D.tokensTyped += target.length;
     sound.word();
-    advanceWord();
+    advanceWord(D);
     return;
   }
   if (D.attempts === 1) {
     D.wordsTotal++;
     D.wordsWrong++;
-    D.tokens[D.wordIdx].firstTryWrong = true;
+    const tok = D.tokens[D.wordIdx];
+    if (tok) tok.firstTryWrong = true;
   }
   sound.error();
   flashBox();
 }
 
 // ---- input --------------------------------------------------------------------------
-export function initDictationInput() {
+export function initDictationInput(): void {
   // mode chips on the setup screen; the choice applies to the next session
   const modes = $('#dict-modes');
   const paintModes = () => {
-    for (const b of modes.querySelectorAll('.chip')) {
+    for (const b of modes.querySelectorAll<HTMLElement>('.chip')) {
       b.classList.toggle('sel', (b.dataset.mode === 'read') === readMode);
     }
   };
   paintModes();
   modes.addEventListener('click', (e) => {
-    const b = e.target.closest('.chip');
+    const b = e.target instanceof Element ? e.target.closest<HTMLElement>('.chip') : null;
     if (!b) return;
     readMode = b.dataset.mode === 'read';
     localStorage.setItem('tt.dictMode', readMode ? 'read' : 'listen');
     paintModes();
   });
 
-  const box = $('#dict-typebox');
+  const box = $<HTMLInputElement>('#dict-typebox');
   box.addEventListener('input', (e) => {
     if (!D) return;
     box.placeholder = ''; // stop it reappearing between words
-    if (e.data) sound.click();
-    if (D.read) return readModeInput(box.value);
+    if (inserted(e)) sound.click();
+    if (D.read) return readModeInput(D, box.value);
     // Reaching the answer's length auto-submits, which keeps the rhythm of the
     // old game; Enter exists for guesses you can't fill out that far.
-    const target = currentTarget();
+    const target = currentTarget(D);
     if (!target || box.value.length < target.length) return;
-    if (D.phase === 'guess') submitGuess(box.value.slice(0, target.length));
-    else if (D.phase === 'recall') checkRecall(box.value.slice(0, target.length));
+    if (D.phase === 'guess') submitGuess(D, box.value.slice(0, target.length));
+    else if (D.phase === 'recall') checkRecall(D, box.value.slice(0, target.length));
   });
 
   box.addEventListener('keydown', (e) => {
     if (!D) return;
     if (e.key === 'Tab') {
       e.preventDefault();
-      playCue(e.shiftKey ? 0.7 : 1);
+      playCue(D, e.shiftKey ? 0.7 : 1);
       return;
     }
     if (D.read) return;
@@ -603,15 +671,15 @@ export function initDictationInput() {
     // physical key already produces a letter.
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
-      ignoreWord();
+      ignoreWord(D);
       return;
     }
 
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (D.phase === 'study') enterRecall();
-      else if (D.phase === 'recall') checkRecall(box.value);
-      else if (box.value) submitGuess(box.value);
+      if (D.phase === 'study') enterRecall(D);
+      else if (D.phase === 'recall') checkRecall(D, box.value);
+      else if (box.value) submitGuess(D, box.value);
       return;
     }
 
@@ -619,7 +687,7 @@ export function initDictationInput() {
       e.preventDefault();
       if (D.phase === 'study') return;          // the answer is already up
       if (D.phase === 'recall') {               // forgot it again — look once more
-        enterStudy('', currentTarget());
+        enterStudy(D, '', currentTarget(D));
         return;
       }
       // Esc used to hand over the answer for free. Now it commits what you have:
@@ -630,13 +698,14 @@ export function initDictationInput() {
         $('#dict-phase').textContent = 'เดาก่อน — พิมพ์เท่าที่คิดว่าใช่ แล้วกด Esc อีกครั้ง';
         return;
       }
-      submitGuess(box.value);
+      submitGuess(D, box.value);
     }
   });
 
-  $('#dict-replay').addEventListener('click', () => { if (D) { playCue(1); box.focus(); } });
+  $('#dict-replay').addEventListener('click', () => { if (D) { playCue(D, 1); box.focus(); } });
   $('#dict-finish').addEventListener('click', () => {
-    if (!D) return;
+    const session = D;
+    if (!session) return;
     // easy to fat-finger next to the replay button — ask first
     const card = modal(`
       <h2>จบรอบนี้เลยไหม?</h2>
@@ -645,7 +714,7 @@ export function initDictationInput() {
         <button class="btn ghost" id="m-cancel">พิมพ์ต่อ</button>
         <button class="btn" id="m-yes">จบรอบ</button>
       </div>`);
-    card.querySelector('#m-cancel').onclick = () => { closeModal(); $('#dict-typebox').focus(); };
-    card.querySelector('#m-yes').onclick = () => { closeModal(); finishSession(); };
+    on(card, '#m-cancel', () => { closeModal(); $('#dict-typebox').focus(); });
+    on(card, '#m-yes', () => { closeModal(); void finishSession(session); });
   });
 }

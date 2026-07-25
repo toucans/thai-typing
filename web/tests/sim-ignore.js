@@ -57,8 +57,8 @@ globalThis.document = {
 };
 globalThis.CustomEvent = class {};
 
-const records = await import('./records.js');
-const { initDictation, initDictationInput } = await import('./dictation.js');
+const records = await import('./records.ts');
+const { initDictation, initDictationInput } = await import('./dictation.ts');
 const box = el('dict-typebox');
 const fire = (t, ev) => (box.listeners[t] || []).forEach((f) => f(ev));
 const type = (s) => { box.value = s; fire('input', { data: s.slice(-1) }); flush(); };

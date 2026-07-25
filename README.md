@@ -10,17 +10,17 @@ front door at `http://10.7.0.1/thai-typing/`. Build conventions live in
 **เส้นทาง (the journey)** — 1000 levels of word bursts, walking Thailand south to
 north: ten regions of 100 levels, from the Southern Isles to the summit of Doi
 Inthanon. Levels are *generated, not stored*: a seeded PRNG samples a
-frequency-ordered pool of ~980 words (`web/js/data/words.js`), the window widening
+frequency-ordered pool of ~980 words (`web/src/data/words.ts`), the window widening
 as levels rise — so the data is one plain-text list, every level is deterministic
 and replayable, and nothing needs authoring. Every 10th level is a bonus round of
-proverbs (`sentences.js`).
+proverbs (`sentences.ts`).
 
-The journey is walked on a **pixel-art overworld map** (`web/js/map.js`): one
+The journey is walked on a **pixel-art overworld map** (`web/src/map.ts`): one
 320×180-pixel canvas scene per region, drawn entirely in code (string-art
 sprites + seeded scatter, upscaled crisp by CSS — no image assets), with the
 region's 100 levels as stepping stones on a winding path, a little traveler
 standing on the next level, and **shrines that unlock the มงคลชีวิต ๓๘
-ประการ** — the Mangala Sutta's 38 blessings (`web/js/data/mongkhon.js`). The
+ประการ** — the Mangala Sutta's 38 blessings (`web/src/data/mongkhon.ts`). The
 sutta's 10 stanzas map one-to-one onto the 10 regions; each shrine opens the
 first time its level is passed (derived from `runs.jsonl`, nothing stored),
 the results card presents the blessing, ☸ in the journey bar opens the
@@ -39,7 +39,7 @@ The gamification is deliberately self-referential — you compete with yourself 
 - **3 stars** = ≥93% accuracy, 5% above that median — always challenging,
   never impossible
 - stars are re-derived from each run's raw numbers on read (rules in
-  `records.js starsFor()`), so refining the rules regrades the whole journey
+  `records.ts starsFor()`), so refining the rules regrades the whole journey
 - **Speed PB** = fastest run at ≥90% accuracy, ever; celebrated with a chime and
   falling leaves, and recorded permanently for the graph
 - **Accuracy PB** = your cleanest run ever (≥85%) — the mirror reward, celebrated
@@ -106,7 +106,7 @@ excluded from it — otherwise the number would reward giving up early. สถ�
 shows how many words are still owed, which is the one number the carry-over
 mechanism needs to be legible.
 
-`js/spell.js` does one thing: align a wrong attempt against the answer by
+`src/spell.ts` does one thing: align a wrong attempt against the answer by
 grapheme cluster, so a missing tone mark doesn't shift the rest of the word and
 paint the whole tail red.
 
@@ -119,7 +119,7 @@ from outside. The Go server pulls four Thai news feeds as **RSS** (Thairath,
 Khaosod, Prachatai, Matichon — `newsFeeds` in `main.go`), the single outbound
 dependency; the list view shows each source's headlines + leads with a real
 **source · time** byline. This is a deliberate, contained dent in the app's
-self-containment: everything else — levels, ghosts, the map, the music — is
+self-containment: everything else — levels, the map, the music — is
 *generated from a seed*, which is exactly why it can read as synthetic; news is
 real, current, and un-generatable, and the realness comes precisely from
 reaching outside. The dent is kept small the monk-like way: the feed list is a
@@ -128,10 +128,10 @@ one-line edit, **four feeds** so one dying isn't fatal, and every fetch is
 still serves the last good pull, flagged `stale`.
 
 Opening a story reads the **whole real article** in a reader view
-(`web/js/reader.js`): source · date byline, the headline in Srisakdi under a
+(`web/src/reader.ts`): source · date byline, the headline in Srisakdi under a
 gold rule, the hero photo, the full body in Sarabun — and you type it through
 *in place*, word by word down the column, with the same scoring, results card
-and run record as every other text (`finishSession` in `speed.js`). You type
+and run record as every other text (`finishSession` in `speed.ts`). You type
 the Thai; tokens with none of it — English names, numbers, percentages — are
 shown dimmed and stepped over automatically, and never counted in the score. The server
 side (`article.go`, `GET /api/article`) fetches the article on first open and
@@ -158,31 +158,10 @@ SSRF hole into the LAN. Untrusted article text is placed with `textContent`,
 never `innerHTML`. Stays off the Pages standalone build (backend-dependent,
 like dictation and the journey).
 
-**พิมพ์ไล่ผี (the night hunt)** — Typing of the Dead, in Thai folklore terms
-(`web/js/ghosts.js`). Ghosts of the Thai pantheon — ผีอำ, ผีปอบ, กระสือ,
-นางตานี, กระหัง, drawn as string-art pixel sprites over a painted night
-scene — drift out of the dark toward a lit spirit house, each carrying one
-word from the same frequency-ordered pool; typing the word through is the
-chant that banishes it. The first keystroke locks the nearest matching ghost
-(spawns never share a first character), wrong keys are rejected and make the
-locked ghost lurch closer, a ghost that reaches the shrine puts out one of
-three candles, and after three waves a towering เปรต arrives carrying a whole
-proverb, banished a segment at a time. Word length picks the ghost: short
-words ride the small quick horrors, long words the big slow ones.
-
-Where the journey trains careful accuracy at your own pace (the clock only
-starts when you type), the night hunt trains the other half of fluency —
-recall under time pressure, where a typo costs ground instead of a
-percentage. Nights are generated like levels: seeded, deterministic,
-endless, the word pool widening and the drift quickening as they deepen.
-Thai script is unreadable at 320×180, so the words float above the canvas
-as real DOM text; the pixels stay pixels. `web/ghosttest.html` is the dev
-harness (`?n=5&bot=200&err=0.1` runs a night with a typing bot).
-
 ## Thai word segmentation
 
 No preprocessing pipeline: browsers ship ICU dictionary-based Thai segmentation
-via `Intl.Segmenter` (`web/js/segment.js`, dependency-free so the standalone
+via `Intl.Segmenter` (`web/src/segment.ts`, dependency-free so the standalone
 Pages build can copy it in — see *Public standalone* below). Where the
 dictionary cuts wrong, put `|` between words in that subtitle cue (or text) —
 explicit markers always win. The dictation setup screen has a per-file
@@ -201,14 +180,20 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
   images for the ข่าว reader (`/api/article`, `/api/news-image` — see the ข่าว
   section for the extraction cascade and SSRF allowlist), and appends finished
   runs to `<data-dir>/users/<name>.jsonl` (data dir set with `-data`; see below).
-- `web/` — vanilla HTML/CSS/JS ES modules. No framework, no build step, no npm.
+- `web/` — **strict TypeScript** ES modules in `web/src`, no framework and no
+  npm: deno is the whole toolchain (`web/deno.json` — same shape as `~/fa` and
+  `~/RAG`). `deno task check` type-checks with `strict` +
+  `noUncheckedIndexedAccess`; `deno task build` bundles `src/main.ts` into
+  `web/app.js`, which is what `index.html` loads. **There is a build step now:**
+  `app.js` is a gitignored artifact, so editing a `.ts` changes nothing in the
+  browser until `deno task build` runs (`./install.sh` runs both).
   Key clicks and chimes are synthesized with WebAudio — no sound assets.
 - **Design** — Thai and nature throughout, hand-made rather than themed:
   - Type is **Srisakdi** (traditional Thai manuscript style) for display and
     **Sarabun** for text — self-hosted woff2 in `web/assets/fonts/` (SIL OFL,
     from Google Fonts), so nothing is fetched from third parties at runtime.
-  - The hero is one pixel-art landscape painted in code (`web/js/hero.js`,
-    sharing the map's drawing kit `web/js/pixel.js`): dithered sky, sun or
+  - The hero is one pixel-art landscape painted in code (`web/src/hero.ts`,
+    sharing the map's drawing kit `web/src/pixel.ts`): dithered sky, sun or
     moon, drifting clouds, two mountain ridges and water, recolored per
     region, with a hand-placed foreground silhouette for each of the ten
     regions — karsts and a long-tail boat in the south, mangroves on stilt
@@ -225,13 +210,13 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
     (`web/vendor/gsap.min.js`, pinned 3.13.0, GreenSock standard license), no
     package manager. Without it, or under `prefers-reduced-motion`, the page
     is simply still; nothing breaks.
-- Background music (`music.js` + `instruments.js`): a sampled
+- Background music (`music.ts` + `instruments.ts`): a sampled
   **ensemble playing heterophonically** — the defining texture of Thai music,
   where every instrument performs the same melody at a different density at
   once. Every voice is a **short struck or plucked sound, nothing sustained
   and nothing synthesized**; the space between notes belongs to the nature
   bed. Each of the ten regions has a **hand-composed skeletal melody** (its
-  theme, `THEMES` in `music.js`); the khong (marimba) states it plainly, the
+  theme, `THEMES` in `music.ts`); the khong (marimba) states it plainly, the
   ranat lead (xylophone or balafon, its top kept dark — nothing piercing)
   weaves a division around it that always arrives on the structural notes,
   the kanun plucks patterns — and every third decade *carries the melody
@@ -280,7 +265,7 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
        use"); kanun in the low dark registers (pulled from the caves).
 - Dark mode ("forest at night") follows the system preference, toggleable with
   the pixel moon/sun button, persisted in localStorage. The header toggles are
-  pixel icons painted in code (`web/js/icons.js`), following the theme's ink.
+  pixel icons painted in code (`web/src/icons.ts`), following the theme's ink.
 - `<data-dir>/users/<name>.jsonl` — one append-only run log per user, one JSON
   object per finished run. **The single source of truth**: unlocked levels,
   stars, PBs, streaks and the graph are all derived from it, live from the server
@@ -324,8 +309,15 @@ now just sits as an archive.
 ## Install / deploy
 
 ```sh
-./install.sh        # systemd unit + start; idempotent, re-run after changes
+./install.sh        # type-check + bundle the UI, build the binary, systemd unit + start
 ```
+
+`install.sh` is idempotent — re-run it after any change. For a frontend-only
+edit the short loop is `cd web && deno task check && deno task build`; the Go
+server serves `web/` straight from the checkout, so no restart is needed.
+`./web/tests/run.sh` drives the real ฟัง–พิมพ์ state machine against a stub DOM
+(39 checks) — there is no chromium on this box, so that plus `deno task check`
+is the whole safety net.
 
 Registered in the dashboard's `~/dashboard/projects.json` (its nginx proxies
 `/thai-typing/` → `127.0.0.1:8768`, prefix stripped — hence relative URLs only in
@@ -354,10 +346,12 @@ Two things make it work standalone:
   pool is reachable (the two ANSI-only letters ฃ ฅ aren't in the pool).
 
 `docs/` is a **generated artifact**: the authored files (`index.html`,
-`app.css`, `game.js`, `kedmanee.js`) live there, but the shared word/sentence
-pools, segmenter, and fonts are copied in from `web/` by the build script so the
-source of truth stays single. Rebuild and commit after changing word lists or
-fonts:
+`app.css`, `game.js`, `kedmanee.js`) live there and stay plain JS, but the level
+generator and the fonts come from `web/` via the build script so the source of
+truth stays single. Since `web/src` is TypeScript, the shared module can't be
+copied any more — deno bundles `web/src/levels.ts` (pulling in the segmenter and
+the word/sentence pools) into a single plain-JS `docs/lib/levels.js`. Rebuild and
+commit after changing word lists or fonts:
 
 ```sh
 ./tools/build-pages.sh   # refreshes docs/lib/ and docs/fonts/ from web/

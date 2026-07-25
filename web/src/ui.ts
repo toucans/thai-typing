@@ -1,14 +1,28 @@
 // Shared UI helpers: view switching, regions, modal, confetti — plus Thai word
 // segmentation, which every mode needs.
-import { music } from './music.js';
-import { fx } from './fx.js';
-import { setHeroRegion } from './hero.js';
+import { music } from './music.ts';
+import { fx } from './fx.ts';
+import { setHeroRegion } from './hero.ts';
 
-export const $ = (sel) => document.querySelector(sel);
+// Every selector here is a fixed id or class in index.html, so a miss is a bug
+// in the markup, not a case to handle: throw rather than hand back a null every
+// call site would have to check. The element type is the caller's to name —
+// $<HTMLInputElement>('#typebox') — since only the caller knows what it asked for.
+export function $<T extends HTMLElement = HTMLElement>(sel: string): T {
+  const el = document.querySelector<T>(sel);
+  if (!el) throw new Error(`missing element ${sel}`);
+  return el;
+}
+
+export interface Region {
+  th: string;
+  en: string;
+  hue: number;
+}
 
 // The journey: 10 regions x 100 levels, a walk from the southern sea up to the
 // summit of Doi Inthanon. Only the hue changes — one hero SVG, ten moods.
-export const REGIONS = [
+export const REGIONS: Region[] = [
   { th: 'เกาะทะเลใต้', en: 'Southern Isles', hue: 172 },
   { th: 'ป่าชายเลน', en: 'Mangroves', hue: 152 },
   { th: 'ทุ่งนาเขียว', en: 'Rice Paddies', hue: 95 },
@@ -23,12 +37,13 @@ export const REGIONS = [
 export const REGION_SIZE = 100;
 export const TOTAL_LEVELS = REGIONS.length * REGION_SIZE;
 
-export function setRegion(idx) {
+export function setRegion(idx: number): void {
   idx = Math.max(0, Math.min(REGIONS.length - 1, idx));
   const r = REGIONS[idx];
+  if (!r) return;
   const hero = $('#hero');
   if (hero.dataset.region !== String(idx)) {
-    hero.dataset.region = idx;
+    hero.dataset.region = String(idx);
     setHeroRegion(idx, r.hue); // repaints the pixel landscape in the region's hue
     fx.heroRegion();
   }
@@ -36,15 +51,15 @@ export function setRegion(idx) {
   $('#region-en').textContent = r.en;
 }
 
-export function show(view) {
-  for (const s of document.querySelectorAll('.view')) s.hidden = true;
+export function show(view: string): void {
+  for (const s of document.querySelectorAll<HTMLElement>('.view')) s.hidden = true;
   const section = $(`#view-${view}`);
   section.hidden = false;
   // ฟัง–พิมพ์ trades the hero landscape for a bigger video player closer to
-  // the header (hero.js skips its animation while hidden — offsetParent is null)
+  // the header (hero.ts skips its animation while hidden — offsetParent is null)
   $('#hero').hidden = view === 'dictation';
   fx.viewIn(section);
-  for (const b of document.querySelectorAll('#nav button')) {
+  for (const b of document.querySelectorAll<HTMLElement>('#nav button')) {
     b.classList.toggle('active', b.dataset.view === view);
   }
   // the front page has its own theme; levels bring their own; elsewhere, quiet
@@ -54,27 +69,48 @@ export function show(view) {
 }
 
 // ---- Thai word segmentation -------------------------------------------------
-// Lives in segment.js (dependency-free so the standalone Pages build can copy
+// Lives in segment.ts (dependency-free so the standalone Pages build can bundle
 // it too); re-exported here for the modes that already import from ui.
-export { segmentThai, segmentThaiBreaks } from './segment.js';
+export { segmentThai, segmentThaiBreaks } from './segment.ts';
 
 // ---- modal -------------------------------------------------------------------
-export function modal(html) {
-  $('#modal-card').innerHTML = html;
+export function modal(html: string): HTMLElement {
+  const card = $('#modal-card');
+  card.innerHTML = html;
   $('#modal').hidden = false;
-  fx.modalIn($('#modal-card'));
-  return $('#modal-card');
+  fx.modalIn(card);
+  return card;
 }
-export function closeModal() { $('#modal').hidden = true; }
+export function closeModal(): void { $('#modal').hidden = true; }
+
+// The character an 'input' event inserted, or null for a deletion. The DOM
+// types that event as a plain Event; a real keystroke arrives as an InputEvent
+// carrying the character in `data`. Read it structurally rather than with
+// `instanceof InputEvent` — the stub DOM the dictation sims drive dispatches
+// plain objects, and there is no InputEvent in deno to be an instance of.
+export function inserted(e: Event): string | null {
+  return 'data' in e && typeof e.data === 'string' ? e.data : null;
+}
+
+// Wire a control inside a card modal() has just built: the markup is right
+// there in the same call, so a selector that misses is a typo, not a case to
+// handle at runtime.
+export function on(root: ParentNode, sel: string, fn: () => void): void {
+  const el = root.querySelector<HTMLElement>(sel);
+  if (!el) throw new Error(`missing ${sel} in modal card`);
+  el.onclick = fn;
+}
 
 // ---- confetti: falling pixel leaves and gold flecks for personal bests ---------
-export function confetti() {
-  const canvas = $('#confetti');
+export function confetti(): void {
+  const canvas = $<HTMLCanvasElement>('#confetti');
   const ctx = canvas.getContext('2d');
+  if (!ctx) return;
   canvas.width = innerWidth; canvas.height = innerHeight;
   const colors = ['#b8860b', '#e9d8a6', '#2d6a4f', '#40916c', '#95d5b2'];
+  const color = () => colors[Math.floor(Math.random() * colors.length)] ?? '#e9d8a6';
   const CELL = 4;
-  const snap = (v) => Math.round(v / CELL) * CELL;
+  const snap = (v: number) => Math.round(v / CELL) * CELL;
   const parts = Array.from({ length: 130 }, () => ({
     x: Math.random() * canvas.width,
     y: -20 - Math.random() * canvas.height * 0.5,
@@ -83,10 +119,10 @@ export function confetti() {
     rot: Math.random() * Math.PI,
     vr: (Math.random() - 0.5) * 0.2,
     big: Math.random() > 0.5, // leaves and smaller flecks
-    c: colors[Math.floor(Math.random() * colors.length)],
+    c: color(),
   }));
   const t0 = performance.now();
-  (function frame(t) {
+  (function frame(t: number) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     for (const p of parts) {
       p.x += p.vx + Math.sin(t / 300 + p.rot) * 0.6;

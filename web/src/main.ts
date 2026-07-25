@@ -1,24 +1,25 @@
 // Bootstrap and the three "browse" views: journey (level map), texts, stats.
-// The play views live in speed.js / dictation.js.
-import { loadRuns, stats, pbHistory, currentUser, login, createUser, logout } from './records.js';
-import { startLevel, startText, initSpeed, levelSpaces } from './speed.js';
-import { initDictation, initDictationInput } from './dictation.js';
-import { initReader, startArticle } from './reader.js';
-import { initGhosts, renderGhosts } from './ghosts.js';
-import { renderChart } from './chart.js';
-import { sound } from './audio.js';
-import { music } from './music.js';
-import { fx } from './fx.js';
-import { $, show, modal, closeModal, setRegion, segmentThaiBreaks, REGIONS, REGION_SIZE, TOTAL_LEVELS } from './ui.js';
-import { initMap, drawMap, redrawMap, showMongkhon } from './map.js';
-import { redrawHero } from './hero.js';
-import { paintIcons } from './icons.js';
-import { thaiNum, unlockedCount } from './data/mongkhon.js';
+// The play views live in speed.ts / dictation.ts.
+import { loadRuns, stats, pbHistory, currentUser, login, createUser, logout } from './records.ts';
+import { startLevel, startText, initSpeed, levelSpaces } from './speed.ts';
+import { initDictation, initDictationInput } from './dictation.ts';
+import { initReader, startArticle } from './reader.ts';
+import { renderChart } from './chart.ts';
+import { sound } from './audio.ts';
+import { music } from './music.ts';
+import { fx } from './fx.ts';
+import { $, show, modal, closeModal, on, setRegion, segmentThaiBreaks, REGIONS, REGION_SIZE, TOTAL_LEVELS } from './ui.ts';
+import { initMap, drawMap, redrawMap, showMongkhon } from './map.ts';
+import { redrawHero } from './hero.ts';
+import { paintIcons } from './icons.ts';
+import { thaiNum, unlockedCount } from './data/mongkhon.ts';
+import type { Stats } from './records.ts';
+import type { Article, NewsFeed, NewsItem, TextFile, TypingRun } from './types.ts';
 
-let selRegion = null; // region the user is browsing (defaults to where they are)
+let selRegion: number | null = null; // region the user is browsing (defaults to where they are)
 
 // ---- journey ------------------------------------------------------------------
-async function renderJourney() {
+async function renderJourney(): Promise<void> {
   const st = stats(await loadRuns());
   const next = Math.min(st.maxDone + 1, TOTAL_LEVELS);
   const curRegion = Math.floor((next - 1) / REGION_SIZE);
@@ -44,29 +45,29 @@ async function renderJourney() {
     const chip = document.createElement('button');
     chip.className = 'chip' + (i === selRegion ? ' sel' : '') + (locked ? ' locked' : '');
     chip.innerHTML = `${r.th} <small>${doneInRegion}/${REGION_SIZE}</small>`;
-    if (!locked) chip.onclick = () => { selRegion = i; renderJourney(); };
+    if (!locked) chip.onclick = () => { selRegion = i; void renderJourney(); };
     chips.appendChild(chip);
   });
 
-  drawMap({ region: selRegion, next, maxDone: st.maxDone, starsByLevel: st.starsByLevel });
+  drawMap({ region: selRegion ?? 0, next, maxDone: st.maxDone, starsByLevel: st.starsByLevel });
   fx.mapIn($('#mapwrap'));
 }
 
-function countDone(st, region) {
+function countDone(st: Stats, region: number): number {
   // unlocking is sequential, so everything up to maxDone is passed — with or
   // without stars
   return Math.max(0, Math.min(REGION_SIZE, st.maxDone - region * REGION_SIZE));
 }
 
 // ---- stats ----------------------------------------------------------------------
-async function renderStats() {
+async function renderStats(): Promise<void> {
   const runs = await loadRuns();
   const st = stats(runs);
   const hours = Math.floor(st.totalSecs / 3600);
   const mins = Math.round((st.totalSecs % 3600) / 60);
   const pbDate = st.pbAt
     ? new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short' }).format(new Date(st.pbAt)) : '';
-  const cards = [
+  const cards: [string | number, string][] = [
     [Math.round(st.pb) || '–', `สถิติสูงสุด (ตัวอักษร/นาที)${pbDate ? ' · ' + pbDate : ''}`],
     [Math.round(st.avg30) || '–', 'เฉลี่ย 30 วันหลัง'],
     [`${st.maxDone}`, `จาก ${TOTAL_LEVELS} ด่าน`],
@@ -79,26 +80,25 @@ async function renderStats() {
       `ข่าวที่พิมพ์จบ${st.newsPb ? ` · เร็วสุด ${Math.round(st.newsPb)} ตัวอักษร/นาที` : ''}`],
     [st.dictWords.toLocaleString('th-TH'), 'คำจากแบบฝึกฟัง–พิมพ์'],
     [st.dictOwed.size.toLocaleString('th-TH'), 'คำที่ยังสะกดไม่ได้ · ยกไปทบทวนรอบหน้า'],
-    [st.ghostsBanished.toLocaleString('th-TH'),
-      `ผีที่ไล่ไปแล้ว${st.ghostNight ? ` · ลึกสุดคืนที่ ${st.ghostNight}` : ''}`],
   ];
   $('#stat-cards').innerHTML = cards.map(([num, label]) =>
     `<div class="stat"><div class="stat-num">${num}</div><div class="stat-label">${label}</div></div>`).join('');
   renderChart($('#chart'), runs);
   const pbs = pbHistory(runs);
-  const btn = $('#pb-list-btn');
+  const btn = $<HTMLButtonElement>('#pb-list-btn');
   btn.disabled = !pbs.length;
   btn.onclick = () => showPbHistory(pbs);
 }
 
 // Every day the record moved, as a list you can actually read — the gold dots
 // on the chart, spelled out: when, at which level, and by how much.
-function showPbHistory(pbs) {
+function showPbHistory(pbs: TypingRun[]): void {
   const dfmt = new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
   const tfmt = new Intl.DateTimeFormat('th-TH', { hour: '2-digit', minute: '2-digit' });
   const rows = pbs.map((r, i) => {
     const d = new Date(r.t);
-    const gain = i ? `+${Math.round((r.cpm - pbs[i - 1].cpm) * 10) / 10}` : 'ครั้งแรก';
+    const prev = pbs[i - 1];
+    const gain = prev ? `+${Math.round((r.cpm - prev.cpm) * 10) / 10}` : 'ครั้งแรก';
     const where = r.level ? `ด่าน ${r.level}` : (r.name || 'เรื่องอ่าน');
     return `<div class="pb-row">
       <span class="pb-date">${dfmt.format(d)} · ${tfmt.format(d)}</span>
@@ -111,13 +111,21 @@ function showPbHistory(pbs) {
     <div class="modal-sub">ทุกครั้งที่ความเร็วสูงสุด (แม่นยำ ≥90%) ขยับขึ้น · ตัวอักษร/นาที</div>
     <div class="pb-rows">${rows}</div>
     <div class="play-actions"><button class="btn" id="m-close">ปิด</button></div>`);
-  card.querySelector('#m-close').onclick = closeModal;
+  on(card, '#m-close', closeModal);
 }
 
 // ---- how to practice ---------------------------------------------------------------
 // The one thing that matters most, said briefly, in Thai and English with a
 // language toggle: you improve fastest by typing where you don't make mistakes.
-const GUIDE = {
+interface GuideText {
+  lang: string;
+  title: string;
+  intro: string;
+  points: [string, string][];
+  close: string;
+}
+
+const GUIDE: Record<'th' | 'en', GuideText> = {
   th: {
     lang: 'EN',
     title: '💡 วิธีฝึกให้เก่งเร็วที่สุด',
@@ -148,7 +156,7 @@ const GUIDE = {
   },
 };
 
-function showGuide(lang = 'th') {
+function showGuide(lang: 'th' | 'en' = 'th'): void {
   const g = GUIDE[lang];
   const pts = g.points.map(([h, b]) =>
     `<div class="guide-pt"><b>${h}</b><p>${b}</p></div>`).join('');
@@ -160,14 +168,14 @@ function showGuide(lang = 'th') {
     <p class="guide-intro">${g.intro}</p>
     ${pts}
     <div class="play-actions"><button class="btn gold" id="m-close">${g.close}</button></div>`);
-  card.querySelector('#guide-lang').onclick = () => showGuide(lang === 'th' ? 'en' : 'th');
-  card.querySelector('#m-close').onclick = closeModal;
+  on(card, '#guide-lang', () => showGuide(lang === 'th' ? 'en' : 'th'));
+  on(card, '#m-close', closeModal);
 }
 
 // ---- free texts --------------------------------------------------------------------
-async function renderTexts() {
+async function renderTexts(): Promise<void> {
   const list = $('#texts-list');
-  let texts = [];
+  let texts: TextFile[] = [];
   try { texts = (await (await fetch('api/texts')).json()).texts; } catch { /* offline */ }
   if (!texts.length) {
     list.innerHTML = '<p class="hint">ยังไม่มีไฟล์ใน <code>texts/</code></p>';
@@ -194,9 +202,12 @@ async function renderTexts() {
 // button forces a re-fetch. Sources are kept apart — chips pick one สำนักข่าว and
 // the list shows only its stories, never a mixed feed. External feed text is
 // untrusted, so it is placed with textContent, never innerHTML.
-let newsCache = null, newsSource = null, newsPage = 'feed'; // 'feed' | 'done'
-async function renderNews(force) {
-  const list = $('#news-list'), status = $('#news-status'), btn = $('#news-refresh'), chips = $('#news-sources');
+let newsCache: NewsFeed | null = null;
+let newsSource: string | null = null;
+let newsPage: 'feed' | 'done' = 'feed';
+async function renderNews(force = false): Promise<void> {
+  const list = $('#news-list'), status = $('#news-status'), chips = $('#news-sources');
+  const btn = $<HTMLButtonElement>('#news-refresh');
   if (!newsCache || force) {
     list.innerHTML = '<p class="hint">กำลังดึงข่าว…</p>';
     status.textContent = ''; chips.innerHTML = '';
@@ -213,19 +224,20 @@ async function renderNews(force) {
   // the reading log is the view's second page: the same card grid, but showing
   // every article you've typed to the end. The ✓ button flips between the two.
   // Wired before the feed check — your history is yours even when feeds are down.
-  const newsRuns = runs.filter((r) => r.game === 'text' && (r.name || '').startsWith('ข่าว: '));
+  const newsRuns = runs.filter((r): r is TypingRun =>
+    r.game === 'text' && (r.name || '').startsWith('ข่าว: '));
   if (!newsRuns.length) newsPage = 'feed';
-  const doneBtn = $('#news-done-btn');
+  const doneBtn = $<HTMLButtonElement>('#news-done-btn');
   doneBtn.disabled = !newsRuns.length;
   doneBtn.textContent = newsPage === 'done' ? '← ข่าวล่าสุด' : '✓ ข่าวที่พิมพ์จบ';
-  doneBtn.onclick = () => { newsPage = newsPage === 'feed' ? 'done' : 'feed'; renderNews(); };
+  doneBtn.onclick = () => { newsPage = newsPage === 'feed' ? 'done' : 'feed'; void renderNews(); };
 
   // lifetime news stats, in the same stat-card language as the สถิติ page —
   // shown on both pages (the feed and the reading log)
   const statStrip = $('#news-stats');
   if (st.newsRead) {
     const pages = Math.max(1, Math.round(st.newsChars / 1800));
-    const cards = [
+    const cards: [string | number, string][] = [
       [st.newsRead.toLocaleString('th-TH'), 'ข่าวที่พิมพ์แล้ว'],
       [st.newsPb ? Math.round(st.newsPb) : '–', 'เร็วสุด (ตัวอักษร/นาที)'],
       [st.newsChars.toLocaleString('th-TH'), `ตัวอักษรจากข่าว · ≈ ${pages} หน้า`],
@@ -239,19 +251,23 @@ async function renderNews(force) {
 
   if (newsPage === 'done') return renderNewsDone(newsRuns, list, status, chips);
 
-  if (!newsCache || !newsCache.items || !newsCache.items.length) {
+  const feed = newsCache;
+  if (!feed || !feed.items || !feed.items.length) {
     chips.innerHTML = '';
     list.innerHTML = '<p class="hint">ดึงข่าวไม่สำเร็จ — ลองกด “ดึงข่าวล่าสุด” อีกครั้ง</p>';
     return;
   }
 
-  const count = (s) => newsCache.items.filter((i) => i.source === s).length;
-  const sources = newsCache.sources?.length
-    ? newsCache.sources : [...new Set(newsCache.items.map((i) => i.source))];
+  const items = feed.items;
+  const count = (s: string) => items.filter((i) => i.source === s).length;
+  const sources = feed.sources?.length
+    ? feed.sources : [...new Set(items.map((i) => i.source))];
   // default to the first source that actually returned stories
   if (!newsSource || !sources.includes(newsSource) || !count(newsSource)) {
-    newsSource = sources.find(count) || sources[0];
+    newsSource = sources.find(count) ?? sources[0] ?? null;
   }
+  if (!newsSource) return;
+  const source = newsSource;
 
   // source chips: one สำนักข่าว at a time; the small line shows how many stories
   // are available now and, once you've typed some, a ✓ tally from this source
@@ -260,19 +276,19 @@ async function renderNews(force) {
     const n = count(s);
     const typed = st.newsBySource[s] || 0;
     const chip = document.createElement('button');
-    chip.className = 'chip' + (s === newsSource ? ' sel' : '') + (n ? '' : ' locked');
+    chip.className = 'chip' + (s === source ? ' sel' : '') + (n ? '' : ' locked');
     chip.innerHTML = `${s} <small>${n}${typed ? ` · ✓${typed}` : ''}</small>`;
-    if (n) chip.onclick = () => { newsSource = s; renderNews(); };
+    if (n) chip.onclick = () => { newsSource = s; void renderNews(); };
     chips.appendChild(chip);
   }
 
-  const when = newsCache.fetchedAt ? relTime(newsCache.fetchedAt) : '';
-  status.innerHTML = `<span><b>${newsSource}</b> · ${count(newsSource)} เรื่อง</span>`
-    + (when ? `<span>${newsCache.stale ? '⚠ ' : ''}อัปเดตเมื่อ ${when}</span>` : '');
+  const when = feed.fetchedAt ? relTime(feed.fetchedAt) : '';
+  status.innerHTML = `<span><b>${source}</b> · ${count(source)} เรื่อง</span>`
+    + (when ? `<span>${feed.stale ? '⚠ ' : ''}อัปเดตเมื่อ ${when}</span>` : '');
 
   const tfmt = new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   list.innerHTML = '';
-  for (const a of newsCache.items.filter((i) => i.source === newsSource)) {
+  for (const a of items.filter((i) => i.source === source)) {
     const typed = st.newsTitles.has(a.title);
     const card = document.createElement('button');
     card.className = 'mediacard newscard' + (typed ? ' typed' : '');
@@ -282,7 +298,7 @@ async function renderNews(force) {
     const h = document.createElement('b'); h.textContent = a.title;         // untrusted: textContent
     const lead = document.createElement('small'); lead.textContent = a.lead; // untrusted: textContent
     card.append(meta, h, lead);
-    card.onclick = () => openArticle(a, card, meta);
+    card.onclick = () => void openArticle(a, card, meta);
     list.appendChild(card);
   }
 }
@@ -292,8 +308,17 @@ async function renderNews(force) {
 // headline, your best pace below, ×n when retyped. A story still in today's
 // feed stays clickable to type again; older ones are plain records. Titles are
 // feed text, so everything is placed with textContent — never innerHTML.
-function renderNewsDone(newsRuns, list, status, chips) {
-  const byTitle = new Map(); // runs are chronological: the last write wins on t
+interface DoneStory {
+  title: string;
+  src: string;
+  t: string;
+  cpm: number;
+  n: number;
+}
+
+function renderNewsDone(newsRuns: TypingRun[], list: HTMLElement, status: HTMLElement,
+  chips: HTMLElement): void {
+  const byTitle = new Map<string, DoneStory>(); // runs are chronological: the last write wins on t
   for (const r of newsRuns) {
     const title = (r.name || '').replace(/^ข่าว: /, '');
     const prev = byTitle.get(title);
@@ -322,7 +347,7 @@ function renderNewsDone(newsRuns, list, status, chips) {
       + (a.n > 1 ? ` · พิมพ์ ${a.n} ครั้ง` : '')
       + (live ? ' · แตะเพื่อพิมพ์อีกครั้ง' : '');
     card.append(meta, h, sub);
-    if (live) card.onclick = () => openArticle(live, card, meta);
+    if (live) card.onclick = () => void openArticle(live, card, meta);
     else card.disabled = true;
     list.appendChild(card);
   }
@@ -332,18 +357,18 @@ function renderNewsDone(newsRuns, list, status, chips) {
 // and reads it in the reader view. If the source can't give a real article
 // right now — server down, extraction refused — fall back to the old path:
 // the RSS lead through the wordstream. A story is never a dead card.
-async function openArticle(a, card, meta) {
+async function openArticle(a: NewsItem, card: HTMLButtonElement, meta: HTMLElement): Promise<void> {
   const was = meta.textContent;
   meta.textContent = 'กำลังเปิดข่าว…';
   card.disabled = true;
-  let art = null;
+  let art: Article | null = null;
   try {
     const res = await fetch(`api/article?src=${encodeURIComponent(a.source)}&link=${encodeURIComponent(a.link)}`);
     art = await res.json();
   } catch { /* offline / server error: fall back below */ }
   meta.textContent = was;
   card.disabled = false;
-  if (art && art.ok && art.paragraphs?.length) {
+  if (art?.ok && art.paragraphs?.length) {
     startArticle(art, a);
   } else {
     const body = a.lead && a.lead.length > a.title.length ? a.lead : a.title;
@@ -352,7 +377,7 @@ async function openArticle(a, card, meta) {
   }
 }
 
-function relTime(ms) {
+function relTime(ms: number): string {
   const s = Math.round((Date.now() - ms) / 1000);
   if (s < 60) return 'สักครู่ที่ผ่านมา';
   const m = Math.round(s / 60); if (m < 60) return `${m} นาทีที่แล้ว`;
@@ -361,24 +386,27 @@ function relTime(ms) {
 }
 
 // ---- boot ---------------------------------------------------------------------------
-const renderers = { journey: renderJourney, stats: renderStats, texts: renderTexts, news: renderNews, ghosts: renderGhosts, dictation: null };
+const renderers: Record<string, (() => Promise<void>) | undefined> = {
+  journey: renderJourney, stats: renderStats, texts: renderTexts, news: renderNews,
+};
 
-for (const b of document.querySelectorAll('#nav button')) {
+for (const b of document.querySelectorAll<HTMLElement>('#nav button')) {
   b.addEventListener('click', () => {
-    show(b.dataset.view);
-    const r = renderers[b.dataset.view];
-    if (r) r();
-    if (b.dataset.view === 'dictation') initDictation();
+    const view = b.dataset.view;
+    if (!view) return;
+    show(view);
+    void renderers[view]?.();
+    if (view === 'dictation') void initDictation();
   });
 }
 
 $('#guide-btn').addEventListener('click', () => showGuide());
-$('#news-refresh').addEventListener('click', () => renderNews(true));
+$('#news-refresh').addEventListener('click', () => void renderNews(true));
 
 // เส้นทาง levels run words together like real prose by default (matching
 // เรื่องอ่าน); this toggle brings the spaces between words back
 const spaceBtn = $('#space-toggle');
-const paintSpaceBtn = (on) => { spaceBtn.textContent = `เว้นวรรค: ${on ? 'เปิด' : 'ปิด'}`; };
+const paintSpaceBtn = (enabled: boolean) => { spaceBtn.textContent = `เว้นวรรค: ${enabled ? 'เปิด' : 'ปิด'}`; };
 paintSpaceBtn(levelSpaces.enabled);
 spaceBtn.addEventListener('click', () => paintSpaceBtn(levelSpaces.toggle()));
 
@@ -401,26 +429,26 @@ $('#theme-toggle').addEventListener('click', () => {
 });
 
 document.addEventListener('runs-changed', () => {
-  renderJourney();
+  void renderJourney();
   // a finished ข่าว run returns to this tab via the modal, which doesn't re-run
   // the renderer — refresh the (possibly hidden) news view so its stats are
   // current when revealed. No-op fetch: renderNews() without force reuses the
   // in-memory feed.
-  if (newsCache) renderNews();
+  if (newsCache) void renderNews();
 });
 
 // ---- login gate -----------------------------------------------------------------
 // The server owns all save data; localStorage remembers only who you are. Runs
-// are fetched once at boot and kept in memory (see records.js), so switching
+// are fetched once at boot and kept in memory (see records.ts), so switching
 // tabs is instant and never re-fetches; reload to pull another device's newer
 // progress.
-function showLogin() {
+function showLogin(): void {
   $('#login').hidden = false;
   $('#login-name').focus();
 }
 
-async function doAuth(fn) {
-  const name = $('#login-name').value.trim();
+async function doAuth(fn: (name: string) => Promise<string>): Promise<void> {
+  const name = $<HTMLInputElement>('#login-name').value.trim();
   if (!name) return;
   const err = $('#login-err');
   err.textContent = '';
@@ -429,12 +457,12 @@ async function doAuth(fn) {
     $('#login').hidden = true;
     startApp();
   } catch (e) {
-    err.textContent = e.message;
+    err.textContent = e instanceof Error ? e.message : 'เชื่อมต่อไม่ได้';
   }
 }
-$('#login-go').onclick = () => doAuth(login);
-$('#login-new').onclick = () => doAuth(createUser);
-$('#login-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') doAuth(login); });
+$('#login-go').onclick = () => void doAuth(login);
+$('#login-new').onclick = () => void doAuth(createUser);
+$('#login-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') void doAuth(login); });
 
 $('#user-btn').addEventListener('click', () => {
   if (!confirm(`ออกจากระบบ "${currentUser()}" ?`)) return;
@@ -442,18 +470,18 @@ $('#user-btn').addEventListener('click', () => {
   location.reload(); // clean slate; boot() lands on the login gate
 });
 
-function startApp() {
+function startApp(): void {
   const ub = $('#user-btn');
   ub.textContent = `⛩ ${currentUser()}`;
   ub.hidden = false;
-  renderJourney();
+  void renderJourney();
   music.playHome(); // the front page's own theme; starts on the first gesture
 }
 
-async function boot() {
+async function boot(): Promise<void> {
   if (!currentUser()) return showLogin();
   try { // a remembered name the server no longer knows sends you back to the gate
-    const res = await fetch(`api/runs?user=${encodeURIComponent(currentUser())}`);
+    const res = await fetch(`api/runs?user=${encodeURIComponent(currentUser() ?? '')}`);
     if (res.status === 400 || res.status === 404) { logout(); return showLogin(); }
   } catch { /* offline: keep the session, views fall back to the last good copy */ }
   startApp();
@@ -461,9 +489,8 @@ async function boot() {
 
 initSpeed();
 initReader();
-initGhosts();
 initDictationInput();
 initMap({ onPlay: startLevel });
 paintIcons();
 fx.init();
-boot();
+void boot();

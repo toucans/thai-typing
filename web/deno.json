@@ -1,0 +1,14 @@
+{
+  "_comment": "TypeScript config for the UI, same shape as ~/fa/web and ~/RAG/web. Deno is the whole toolchain -- `deno task check` type-checks, `deno task build` emits the app.js bundle (install.sh runs both). src/ is the source of truth; app.js (and maptest.js, for the map dev harness) is a build artifact, gitignored.",
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "lib": ["dom", "dom.iterable", "es2022"]
+  },
+  "tasks": {
+    "check": "deno check src/main.ts src/maptest.ts",
+    "build": "deno bundle -q --platform browser -o app.js src/main.ts && deno bundle -q --platform browser -o maptest.js src/maptest.ts"
+  }
+}

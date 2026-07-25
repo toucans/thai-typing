@@ -17,15 +17,21 @@
 // (tempo, density, which voices join) — ten regions, ten decades each, so all
 // hundred tracks are authored melodies, not dice. Tuning is near-7-TET with a
 // per-track bar-tuning table; kro rolls close every phrase.
-import { ac, EMBEDDED } from './audio.js';
-import { loadInstruments, strike, makeReverb, makePingPong } from './instruments.js';
+import { ac, EMBEDDED } from './audio.ts';
+import { loadInstruments, strike, makeReverb, makePingPong } from './instruments.ts';
+import type { Instruments, Sampler } from './instruments.ts';
+
+// One of the hundred decade tracks (0..99), or the front page's own piece.
+type TrackId = number | 'home';
 
 const STEP = 1200 / 7; // cents per 7-TET step
 const PENTA = [0, 1, 2, 4, 5]; // the pentatonic degrees within the 7 steps
 // per-region nature bed: real field recordings (see manifest credits), each a
 // seamless loop, layered where the landscape asks for it. The bed carries the
 // track — instruments sit inside it, not on top of it.
-const NATURE = [
+type NatureRecipe = [string, number][]; // [sample set, gain]
+
+const NATURE: NatureRecipe[] = [
   [['breeze', 0.30]],                     // เกาะทะเลใต้ — island morning air
   [['stream', 0.24], ['birds2', 0.14]],   // ป่าชายเลน — water through the roots
   [['breeze', 0.30]],                     // ทุ่งนาเขียว
@@ -37,7 +43,7 @@ const NATURE = [
   [['wind', 0.28]],                       // ดอยหมอก
   [['wind', 0.18], ['birds2', 0.12]],     // ยอดดอยอินทนนท์
 ];
-const HOME_NATURE = [['breeze', 0.30]]; // the journey begins on a bright morning
+const HOME_NATURE: NatureRecipe = [['breeze', 0.30]]; // the journey begins on a bright morning
 
 // The ten regional themes. skel = the skeletal melody in pentatonic degrees
 // (0 = tonic, 5 = octave), two structural notes per bar for 8 bars; chords =
@@ -45,7 +51,16 @@ const HOME_NATURE = [['breeze', 0.30]]; // the journey begins on a bright mornin
 // false = never.
 // Every voice is a short struck or plucked sound — nothing sustained,
 // nothing synthesized; the nature bed carries the space between notes.
-const THEMES = [
+interface Theme {
+  tempo: [number, number];   // bpm at decade 0 and decade 9
+  lead: 'xylo' | 'bala';
+  zith: number | false;      // the decade this voice joins; false = never
+  drums: number | false;
+  chords: number[];          // one root per bar
+  skel: number[];            // 16 structural notes, two per bar
+}
+
+const THEMES: Theme[] = [
   { // 0 เกาะทะเลใต้ — open water, rising and falling like swell
     tempo: [64, 78], lead: 'xylo', zith: 3, drums: 5,
     chords: [0, 3, 4, 0, 0, 3, 4, 0],
@@ -88,11 +103,47 @@ const THEMES = [
     skel: [5, 6, 7, 8, 9, 10, 9, 8, 9, 10, 11, 10, 9, 8, 7, 5] },
 ];
 
+// A bar of the plan, in one of three shapes: the front page's hand-written
+// melody, a realized bar of a region's theme, or the two rests that close a
+// section. `home` and `rest` are the discriminants the scheduler switches on.
+interface Melody {
+  slot: number;
+  penta: number;
+}
+
+interface HomeBar {
+  home: true;
+  chordDeg: number;
+  melody?: Melody[];
+  cadence?: boolean;
+  rest?: boolean;
+  grace?: boolean;
+  sectionStart?: boolean;
+}
+
+interface ThemeBar {
+  home?: false;
+  rest?: false;
+  b: number;      // 0..7 within the phrase
+  phase: number;  // 0 = plain statement, 1 = the fuller answer
+  sectionStart: boolean;
+  cadence: boolean;
+  grace: boolean;
+}
+
+interface RestBar {
+  home?: false;
+  rest: true;
+  sectionStart?: boolean;
+}
+
+type Bar = HomeBar | ThemeBar | RestBar;
+
 // The front page's theme — the one piece where the *lead line itself* is
 // written out by hand: a kro shimmer opens, a rising phrase answers itself,
 // and everything settles back onto the tonic.
-const N = (slot, penta) => ({ slot, penta });
-const HOME_BARS = [
+const N = (slot: number, penta: number): Melody => ({ slot, penta });
+const HOME_BARS: Omit<HomeBar, 'home'>[] = [
   { chordDeg: 0, cadence: true },                                    // kro on the tonic
   { chordDeg: 0, rest: true },
   { chordDeg: 0, melody: [N(0, 5), N(2, 7), N(4, 8), N(6, 7)] },     // theme
@@ -114,11 +165,20 @@ const HOME_BARS = [
   { chordDeg: 0, rest: true },
 ];
 
-let enabled = localStorage.getItem('tt.music') !== 'off';
-let playing = null;
-let wanted = null;
+// What the engine is playing right now: the track, its master gain (faded on
+// stop), the looping nature sources and the scheduler's timer.
+interface Playing {
+  trackId: TrackId;
+  master: GainNode;
+  srcs: AudioScheduledSourceNode[];
+  timers: number[];
+}
 
-function mulberry32(a) {
+let enabled = localStorage.getItem('tt.music') !== 'off';
+let playing: Playing | null = null;
+let wanted: TrackId | null = null;
+
+function mulberry32(a: number): () => number {
   return function () {
     a |= 0; a = (a + 0x6D2B79F5) | 0;
     let t = Math.imul(a ^ (a >>> 15), 1 | a);
@@ -129,21 +189,21 @@ function mulberry32(a) {
 
 // ---- public API ---------------------------------------------------------------
 export const music = {
-  get enabled() { return enabled; },
-  toggle() {
+  get enabled(): boolean { return enabled; },
+  toggle(): boolean {
     enabled = !enabled;
     localStorage.setItem('tt.music', enabled ? 'on' : 'off');
     if (!enabled) stopEngine();
     else if (wanted !== null) start(wanted);
     return enabled;
   },
-  playForLevel(level) {
+  playForLevel(level: number) {
     wanted = Math.floor((level - 1) / 10) % 100;
     if (enabled) start(wanted);
   },
-  playForName(name) {
+  playForName(name: string) {
     let h = 0;
-    for (const c of name) h = (h * 31 + c.codePointAt(0)) >>> 0;
+    for (const c of name) h = (h * 31 + (c.codePointAt(0) ?? 0)) >>> 0;
     wanted = h % 100;
     if (enabled) start(wanted);
   },
@@ -154,7 +214,7 @@ export const music = {
   stop() { wanted = null; stopEngine(); },
 };
 
-function start(trackId) {
+function start(trackId: TrackId) {
   if (EMBEDDED) return;   // dashboard preview tile: no music, no resume listeners
   if (playing && playing.trackId === trackId) return; // same decade: play on
   const ctx = ac();
@@ -173,7 +233,7 @@ function start(trackId) {
 }
 
 let armed = false;
-function armResume(ctx) {
+function armResume(ctx: AudioContext) {
   if (armed) return;
   armed = true;
   const kick = () => {
@@ -199,12 +259,13 @@ function stopEngine() {
 }
 
 // ---- the engine -----------------------------------------------------------------
-function engineStart(ctx, trackId, inst) {
+function engineStart(ctx: AudioContext, trackId: TrackId, inst: Instruments | null) {
   stopEngine();
   const home = trackId === 'home';
   const region = home ? 0 : Math.floor(trackId / 10) % 10;
   const decade = home ? 0 : trackId % 10;
   const theme = THEMES[region];
+  if (!theme) return;
   const rng = mulberry32(home ? 9 : trackId * 7919 + 29);
 
   // density and tempo grow through a region: early decades are sparse and
@@ -220,10 +281,10 @@ function engineStart(ctx, trackId, inst) {
 
   // which voices sit in tonight's ensemble — all of them short struck or
   // plucked sounds; the space between notes belongs to the nature bed
-  const lead = inst ? (home ? inst.xylo : inst[theme.lead]) : null;
-  const hasZith = inst && !home && theme.zith !== false && decade >= theme.zith;
-  const hasDrums = inst && !home && theme.drums !== false && decade >= theme.drums && dens >= 2;
-  const useChing = inst && (home ? false : dens >= 2);
+  const lead: Sampler | null = inst ? (home ? inst.xylo : inst[theme.lead]) : null;
+  const hasZith = !!inst && !home && theme.zith !== false && decade >= theme.zith;
+  const hasDrums = !!inst && !home && theme.drums !== false && decade >= theme.drums && dens >= 2;
+  const useChing = !!inst && (home ? false : dens >= 2);
   // every third decade the kanun carries the theme and the mallets answer —
   // the same melody, told by a different voice
   const zithLed = hasZith && decade % 3 === 2;
@@ -256,7 +317,7 @@ function engineStart(ctx, trackId, inst) {
 
   // a bus = one voice's level into dry + reverb (wetter for the airy voices);
   // lp darkens a voice that records brighter than its role wants
-  function bus(level, wet = 1, lp = 0) {
+  function bus(level: number, wet = 1, lp = 0): GainNode {
     const g = ctx.createGain();
     g.gain.value = level;
     let head = g;
@@ -276,18 +337,19 @@ function engineStart(ctx, trackId, inst) {
   const zithBus = bus(zithLed ? 0.7 : 0.5);
   const percBus = bus(1.0, 0.5);
 
-  const srcs = [];
-  natureLayer(ctx, home ? HOME_NATURE : NATURE[region], region, comp, srcs, inst);
+  const srcs: AudioScheduledSourceNode[] = [];
+  natureLayer(ctx, home ? HOME_NATURE : NATURE[region] ?? HOME_NATURE, region, comp, srcs, inst);
 
   // -- note helpers
-  const freqOf = (penta) => {
+  const freqOf = (penta: number) => {
     const oct = Math.floor(penta / 5);
     const deg = ((penta % 5) + 5) % 5;
-    return rootHz * Math.pow(2, (PENTA[deg] * STEP + oct * 1200 + barTuning[deg]) / 1200);
+    return rootHz * Math.pow(2, ((PENTA[deg] ?? 0) * STEP + oct * 1200 + (barTuning[deg] ?? 0)) / 1200);
   };
-  const clampP = (p) => Math.max(0, Math.min(13, p));
+  const clampP = (p: number) => Math.max(0, Math.min(13, p));
 
-  function ranat(t, penta, vel, { double: dbl = true, sends = true } = {}) {
+  function ranat(t: number, penta: number, vel: number,
+    { double: dbl = true, sends = true }: { double?: boolean; sends?: boolean } = {}) {
     let f = freqOf(penta);
     if (lead && f > lead.maxFreq * 1.25) f /= 2; // keep inside the sampled range
     while (f > 1250) f /= 2; // and keep the top dark — nothing piercing
@@ -304,7 +366,7 @@ function engineStart(ctx, trackId, inst) {
     }
   }
 
-  function kro(t, penta, dur) { // tremolo roll, the ranat's signature sustain
+  function kro(t: number, penta: number, dur: number) { // tremolo roll, the ranat's signature sustain
     const strikes = Math.floor(dur / 0.066);
     for (let i = 0; i < strikes; i++) {
       const ph = i / strikes;
@@ -315,34 +377,36 @@ function engineStart(ctx, trackId, inst) {
   }
 
   // the khong states a structural note, round and plain
-  function khong(t, penta, vel) {
+  function khong(t: number, penta: number, vel: number) {
     if (!inst) return;
     let f = freqOf(penta);
     while (f < 92) f *= 2;
     inst.khong.play(ctx, t + Math.max(0, (rng() - 0.5) * 0.008), f, vel, -0.2, [khongBus]);
   }
 
-  function zith(t, penta, vel) {
-    if (!hasZith) return;
+  function zith(t: number, penta: number, vel: number) {
+    if (!hasZith || !inst) return;
     let f = freqOf(penta);
     while (f > inst.zith.maxFreq * 1.06) f /= 2;
     inst.zith.play(ctx, t, f, vel, -0.32, [zithBus]);
   }
 
-  function bass(t, chordDeg) {
+  function bass(t: number, chordDeg: number) {
     if (inst) inst.bala.play(ctx, t, freqOf(chordDeg) / 2, 0.22, 0, [dry, revSend]);
     else synthPluck(ctx, t, freqOf(chordDeg) / 2, 0.25, [dry, revSend]);
   }
 
-  function drumHit(kind, t, gain) {
+  function drumHit(kind: 'thom' | 'tek' | 'ting' | 'mute', t: number, gain: number) {
+    if (!inst) return;
     const bufs = kind === 'thom' || kind === 'tek' ? inst.thon[kind]
       : inst.ram[kind === 'ting' ? (rng() < 0.5 ? 'ting' : 'ting2') : 'mute'];
+    if (!bufs?.length) return;
     const buf = bufs[Math.floor(rng() * bufs.length)];
     strike(ctx, buf, t, gain, [percBus], { rate: 0.96 + rng() * 0.08, pan: kind === 'thom' ? -0.15 : 0.3 });
   }
 
   // -- heterophonic division: walk between structural notes -----------------------
-  function fill(fromP, toP, slots) {
+  function fill(fromP: number, toP: number, slots: number[]) {
     return slots.map((s, i) => {
       const f = (i + 1) / (slots.length + 1);
       let p = Math.round(fromP + (toP - fromP) * f);
@@ -353,8 +417,8 @@ function engineStart(ctx, trackId, inst) {
   }
 
   // one bar of lead melody around targets T1 (slot 2) and T2 (slot 6)
-  function divide(prev, T1, T2, next) {
-    const ev = [];
+  function divide(prev: number, T1: number, T2: number, next: number) {
+    const ev: { slot: number; penta: number; vel: number }[] = [];
     if (dens >= 2 && rng() < 0.6) ev.push(...fill(prev, T1, dens >= 3 ? [0, 1] : [0]));
     if (dens >= 3 && rng() < 0.15) { // circle the note, land late — the khong holds it
       ev.push({ slot: 2, penta: clampP(T1 + 1), vel: 0.5 }, { slot: 3, penta: T1, vel: 0.55 });
@@ -369,12 +433,13 @@ function engineStart(ctx, trackId, inst) {
   }
 
   // -- the plan: A (plain) + A' (fuller) + two rest bars, forever ------------------
-  function* barPlan() {
+  function* barPlan(): Generator<Bar, never, void> {
     let section = 0;
     while (true) {
       if (home) {
-        const bars = HOME_BARS.map((b) => ({ ...b, home: true }));
-        bars[0].sectionStart = section > 0;
+        const bars: HomeBar[] = HOME_BARS.map((b) => ({ ...b, home: true }));
+        const opening = bars[0];
+        if (opening) opening.sectionStart = section > 0;
         yield* bars;
       } else {
         for (let phase = 0; phase < 2; phase++) {
@@ -393,7 +458,7 @@ function engineStart(ctx, trackId, inst) {
     }
   }
 
-  function playHomeBar(bar, t) {
+  function playHomeBar(bar: HomeBar, t: number) {
     if (!bar.rest) {
       bass(t, bar.chordDeg);
       khong(t + 6 * slot, bar.chordDeg - 5, 0.45); // soft root under the chap beat
@@ -402,8 +467,9 @@ function engineStart(ctx, trackId, inst) {
       kro(t, 5, barDur * 1.5);
     } else if (bar.melody) {
       if (bar.grace) {
+        const head = bar.melody[0]?.penta ?? 0;
         for (let i = 0; i < 3; i++) {
-          ranat(t - (3 - i) * slot * 0.25, bar.melody[0].penta + (3 - i), 0.3, { double: false });
+          ranat(t - (3 - i) * slot * 0.25, head + (3 - i), 0.3, { double: false });
         }
       }
       for (const n of bar.melody) {
@@ -413,11 +479,11 @@ function engineStart(ctx, trackId, inst) {
     }
   }
 
-  function playThemeBar(bar, t, prevT2) {
-    const T1 = theme.skel[bar.b * 2];
-    const T2 = theme.skel[bar.b * 2 + 1];
-    const next = theme.skel[(bar.b * 2 + 2) % 16];
-    const chordDeg = theme.chords[bar.b];
+  const playThemeBar = (bar: ThemeBar, t: number, prevT2: number): number => {
+    const T1 = theme.skel[bar.b * 2] ?? 0;
+    const T2 = theme.skel[bar.b * 2 + 1] ?? 0;
+    const next = theme.skel[(bar.b * 2 + 2) % 16] ?? 0;
+    const chordDeg = theme.chords[bar.b] ?? 0;
 
     bass(t, chordDeg);
     // the skeleton: always there, always calm, an octave below the lead
@@ -448,7 +514,7 @@ function engineStart(ctx, trackId, inst) {
         ranat(t + n.slot * slot, n.penta, n.vel);
       }
       if (hasZith) { // plucked pattern on chord tones
-        const pat = [[0, chordDeg + 5], [3, chordDeg + 8], [4, chordDeg + 7], [7, chordDeg + 10]];
+        const pat: [number, number][] = [[0, chordDeg + 5], [3, chordDeg + 8], [4, chordDeg + 7], [7, chordDeg + 10]];
         for (const [s, p] of pat) {
           if (rng() < 0.8) zith(t + s * slot, p, 0.4 + rng() * 0.15);
         }
@@ -463,12 +529,12 @@ function engineStart(ctx, trackId, inst) {
       if (rng() < 0.3) drumHit('mute', t + 7 * slot, 0.035);
     }
     return T2;
-  }
+  };
 
   // -- scheduling
   const plan = barPlan();
   let barStart = ctx.currentTime + 0.4;
-  let prevT2 = theme.skel[14]; // pretend we arrive from the end of the melody
+  let prevT2 = theme.skel[14] ?? 0; // pretend we arrive from the end of the melody
   const tick = setInterval(() => {
     while (barStart < ctx.currentTime + 1.4) {
       const bar = plan.next().value;
@@ -476,7 +542,7 @@ function engineStart(ctx, trackId, inst) {
       if (bar.sectionStart && inst) {
         strike(ctx, inst.gong, t, 0.05, [dry, revSend], { rate: 0.92 + rng() * 0.12 });
       }
-      if (useChing && !bar.rest) {
+      if (useChing && inst && !bar.rest) {
         strike(ctx, inst.ching, t + 2 * slot, 0.035, [dry], { rate: 0.98 + rng() * 0.04 });
         strike(ctx, inst.ching, t + 6 * slot, 0.05, [dry], { rate: 0.98 + rng() * 0.04, cut: 0.14 });
       }
@@ -499,8 +565,9 @@ function engineStart(ctx, trackId, inst) {
 }
 
 // fallback voice when the samples can't be fetched (offline cache miss)
-function synthPluck(ctx, t, freq, vel, dests) {
-  for (const [mult, v] of [[1, vel * 0.12], [2.76, vel * 0.03]]) {
+function synthPluck(ctx: AudioContext, t: number, freq: number, vel: number, dests: AudioNode[]) {
+  const partials: [number, number][] = [[1, vel * 0.12], [2.76, vel * 0.03]];
+  for (const [mult, v] of partials) {
     const o = ctx.createOscillator();
     const g = ctx.createGain();
     o.frequency.value = freq * mult;
@@ -513,8 +580,8 @@ function synthPluck(ctx, t, freq, vel, dests) {
 }
 
 // ---- the nature bed (unchanged voices, sitting under the ensemble) --------------
-let noiseBuf = null;
-function noise(ctx) {
+let noiseBuf: AudioBuffer | null = null;
+function noise(ctx: AudioContext): AudioBuffer {
   if (!noiseBuf) {
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0);
@@ -523,7 +590,8 @@ function noise(ctx) {
   return noiseBuf;
 }
 
-function lfo(ctx, rate, depth, param, srcs) {
+function lfo(ctx: AudioContext, rate: number, depth: number, param: AudioParam,
+  srcs: AudioScheduledSourceNode[]) {
   const o = ctx.createOscillator();
   const g = ctx.createGain();
   o.frequency.value = rate;
@@ -533,7 +601,8 @@ function lfo(ctx, rate, depth, param, srcs) {
   srcs.push(o);
 }
 
-function natureLayer(ctx, recipe, region, out, srcs, inst) {
+function natureLayer(ctx: AudioContext, recipe: NatureRecipe, region: number,
+  out: AudioNode, srcs: AudioScheduledSourceNode[], inst: Instruments | null) {
   if (inst && inst.nat) {
     // real field recordings, looped seamlessly (tails crossfaded into heads
     // at build time), layered per region; see the manifest for credits
@@ -553,7 +622,7 @@ function natureLayer(ctx, recipe, region, out, srcs, inst) {
     return;
   }
   // offline fallback (samples unreachable): one filtered-noise wash
-  const kind = ['waves', 'waves', 'wind', 'stream', 'wind', 'rain', 'stream', 'drips', 'wind', 'wind'][region];
+  const kind = ['waves', 'waves', 'wind', 'stream', 'wind', 'rain', 'stream', 'drips', 'wind', 'wind'][region] ?? 'wind';
   const src = ctx.createBufferSource();
   src.buffer = noise(ctx);
   src.loop = true;
@@ -565,11 +634,13 @@ function natureLayer(ctx, recipe, region, out, srcs, inst) {
     g.gain.value = kind === 'waves' ? 0.2 : 0.04;
     if (kind === 'waves') lfo(ctx, 0.07, 0.15, g.gain, srcs);
   } else {
+    const HZ: Record<string, number | undefined> = { rain: 1700, wind: 420, stream: 1500 };
+    const LEVEL: Record<string, number | undefined> = { rain: 0.055, wind: 0.14, stream: 0.12 };
     f.type = 'bandpass';
-    f.frequency.value = { rain: 1700, wind: 420, stream: 1500 }[kind];
+    f.frequency.value = HZ[kind] ?? 420;
     f.Q.value = 0.8;
-    g.gain.value = { rain: 0.055, wind: 0.14, stream: 0.12 }[kind];
-    lfo(ctx, 0.08, g.gain * 0.3, g.gain, srcs);
+    g.gain.value = LEVEL[kind] ?? 0.14;
+    lfo(ctx, 0.08, g.gain.value * 0.3, g.gain, srcs);
   }
   src.start();
   srcs.push(src);

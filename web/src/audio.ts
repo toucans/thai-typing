@@ -5,31 +5,43 @@
 // stay silent. A preview must not make sound — audio belongs to the real page.
 export const EMBEDDED = window.self !== window.top;
 
-let ctx = null;
-let master = null;
-let noiseBuf = null;
-let enabled = !EMBEDDED && localStorage.getItem('tt.sound') !== 'off';
-
-export function ac() { // shared context; music.js builds its own graph on it
-  if (!ctx) {
-    ctx = new AudioContext();
-    master = ctx.createGain();
-    master.gain.value = 0.5;
-    master.connect(ctx.destination);
-    noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 0.1, ctx.sampleRate);
-    const d = noiseBuf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-  }
-  if (!EMBEDDED && ctx.state === 'suspended') ctx.resume();
-  return ctx;
+// The context and the two nodes every voice here hangs off. Built on first use
+// (an AudioContext made before a user gesture starts suspended), then kept.
+interface Rig {
+  ctx: AudioContext;
+  master: GainNode;
+  noiseBuf: AudioBuffer;
 }
 
-function env(gainNode, t, peak, decay) {
+let rig: Rig | null = null;
+let enabled = !EMBEDDED && localStorage.getItem('tt.sound') !== 'off';
+
+function ensure(): Rig {
+  if (!rig) {
+    const ctx = new AudioContext();
+    const master = ctx.createGain();
+    master.gain.value = 0.5;
+    master.connect(ctx.destination);
+    const noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 0.1, ctx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    rig = { ctx, master, noiseBuf };
+  }
+  if (!EMBEDDED && rig.ctx.state === 'suspended') rig.ctx.resume();
+  return rig;
+}
+
+export function ac(): AudioContext { // shared context; music.ts builds its own graph on it
+  return ensure().ctx;
+}
+
+function env(gainNode: GainNode, t: number, peak: number, decay: number) {
   gainNode.gain.setValueAtTime(peak, t);
   gainNode.gain.exponentialRampToValueAtTime(0.0001, t + decay);
 }
 
-function blip(t, freq, peak, decay, type = 'sine') {
+function blip(t: number, freq: number, peak: number, decay: number, type: OscillatorType = 'sine') {
+  const { ctx, master } = ensure();
   const o = ctx.createOscillator();
   const g = ctx.createGain();
   o.type = type; o.frequency.value = freq;
@@ -38,7 +50,8 @@ function blip(t, freq, peak, decay, type = 'sine') {
   o.start(t); o.stop(t + decay + 0.05);
 }
 
-function noise(t, freq, q, peak, decay) {
+function noise(t: number, freq: number, q: number, peak: number, decay: number) {
+  const { ctx, master, noiseBuf } = ensure();
   const src = ctx.createBufferSource();
   src.buffer = noiseBuf;
   const f = ctx.createBiquadFilter();
@@ -50,8 +63,8 @@ function noise(t, freq, q, peak, decay) {
 }
 
 export const sound = {
-  get enabled() { return enabled; },
-  toggle() {
+  get enabled(): boolean { return enabled; },
+  toggle(): boolean {
     if (EMBEDDED) return false;
     enabled = !enabled;
     localStorage.setItem('tt.sound', enabled ? 'on' : 'off');
