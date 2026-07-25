@@ -39,6 +39,10 @@ const (
 	host        = "127.0.0.1"
 	port        = "8768"
 	maxRunBytes = 4096 // a run record is a small JSON object; bigger is a bug
+	// One cursor per media file in ฟัง–พิมพ์; a user with more subtitle files
+	// than this has a runaway client, not a library.
+	maxResumeEntries = 500
+	maxResumeCue     = 1 << 20
 )
 
 var mediaExts = map[string]bool{
@@ -53,6 +57,7 @@ var userRe = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9._-]{0,30}[a-z0-9])?$`)
 var (
 	webDir, mediaDir, textsDir, usersDir, newsDir string
 	runsLock                                      sync.Mutex
+	resumeLock                                    sync.Mutex
 )
 
 // The one outbound dependency in the app: real Thai news, fetched as RSS (the
@@ -114,6 +119,8 @@ func doGET(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, 200, map[string]any{"ok": true})
 	case path == "/api/runs":
 		getRuns(w, r)
+	case path == "/api/resume":
+		getResume(w, r)
 	case path == "/api/media":
 		sendJSON(w, 200, scanMedia())
 	case path == "/api/texts":
@@ -167,6 +174,80 @@ func getRuns(w http.ResponseWriter, r *http.Request) {
 	sendJSON(w, 200, map[string]any{"runs": runs})
 }
 
+// --- ฟัง–พิมพ์ resume cursors ----------------------------------------------
+//
+// Where each media file was left off, as <data>/users/<name>.resume.json:
+// {"ep01.mkv": 137}. Deliberately NOT in the run log — that log is append-only
+// finished runs, and "store events, derive state" only holds if nothing else
+// gets mixed in. A cursor is the opposite kind of thing: mutable, last-write-
+// wins, worthless as history. So it gets its own tiny file, rewritten in place,
+// which is also why losing it costs nothing but a re-listen.
+//
+// An episode outlives a sitting and a browser tab dies without warning, so the
+// client posts here on a timer while you type rather than only when a round
+// ends.
+
+func resumeFile(uf string) string {
+	return strings.TrimSuffix(uf, ".jsonl") + ".resume.json"
+}
+
+func readResume(uf string) map[string]float64 {
+	marks := map[string]float64{}
+	data, err := os.ReadFile(resumeFile(uf))
+	if err != nil {
+		return marks
+	}
+	if json.Unmarshal(data, &marks) != nil {
+		return map[string]float64{} // corrupt: start over rather than refuse to serve
+	}
+	return marks
+}
+
+func getResume(w http.ResponseWriter, r *http.Request) {
+	uf := userFile(r.URL.Query().Get("user"))
+	if uf == "" || !fileExists(uf) {
+		sendJSON(w, 400, map[string]any{"error": "bad user"})
+		return
+	}
+	resumeLock.Lock()
+	marks := readResume(uf)
+	resumeLock.Unlock()
+	sendJSON(w, 200, map[string]any{"resume": marks})
+}
+
+func postResume(w http.ResponseWriter, uf string, body map[string]any) {
+	media := str(body["media"])
+	cue, ok := body["cue"].(float64)
+	if media == "" || len(media) > 200 || !ok || cue < 0 || cue > maxResumeCue {
+		sendJSON(w, 400, map[string]any{"error": "bad resume"})
+		return
+	}
+	resumeLock.Lock()
+	defer resumeLock.Unlock()
+	marks := readResume(uf)
+	if cue == 0 { // finished it: there is nothing to come back to
+		delete(marks, media)
+	} else if _, known := marks[media]; known || len(marks) < maxResumeEntries {
+		marks[media] = cue
+	}
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false) // media names are literal UTF-8, like everything else
+	if enc.Encode(marks) != nil {
+		sendJSON(w, 500, map[string]any{"error": "write failed"})
+		return
+	}
+	// write-and-rename: a torn cursor file would lose someone's place
+	dest := resumeFile(uf)
+	tmp := dest + ".tmp"
+	if os.WriteFile(tmp, buf.Bytes(), 0o644) != nil || os.Rename(tmp, dest) != nil {
+		os.Remove(tmp)
+		sendJSON(w, 500, map[string]any{"error": "write failed"})
+		return
+	}
+	sendJSON(w, 200, map[string]any{"ok": true})
+}
+
 func doPOST(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	body := readBody(r)
@@ -205,7 +286,7 @@ func doPOST(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if path != "/api/runs" {
+	if path != "/api/runs" && path != "/api/resume" {
 		sendJSON(w, 404, map[string]any{"error": "not found"})
 		return
 	}
@@ -213,6 +294,10 @@ func doPOST(w http.ResponseWriter, r *http.Request) {
 	delete(body, "user")
 	if uf == "" || !fileExists(uf) {
 		sendJSON(w, 400, map[string]any{"error": "bad user"})
+		return
+	}
+	if path == "/api/resume" {
+		postResume(w, uf, body)
 		return
 	}
 	if !truthy(body["t"]) || !truthy(body["game"]) {

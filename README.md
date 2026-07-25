@@ -63,12 +63,22 @@ keyboard. **ฟังแล้วพิมพ์** hides the text and is the *sp
 around the asymmetry described below.
 
 **A file is resumable, because an episode is longer than a sitting.** Typing a
-24-minute episode takes several evenings, so where you stopped is kept in two
-places and the furthest one wins: `localStorage` is written on every cue (closing
-the tab mid-cue is safe, but it is per-device) and `lastCue` in the run log
-carries it across devices and outlives a cleared browser. จบรอบนี้ saves the run
-*and* the place, and says which cue you'll come back to; only reaching the end of
-the cues clears the mark, so a finished file starts fresh.
+24-minute episode takes several evenings, and a tab dies without warning, so the
+cue you're on is **posted to the server on a timer while you type** (every ~20s
+when it has moved, plus a `keepalive` flush on `pagehide`) — not only when a
+round ends. `localStorage` gets every cue as well: exact, free, and still there
+when the server isn't. Resume takes the furthest point either store knows, so
+neither can lose ground, and a failed post is retried on the next tick rather
+than dropped. จบรอบนี้ saves the run *and* the place and says which cue you'll
+come back to; only reaching the end of the cues clears the mark, so a finished
+file starts fresh.
+
+The cursor is **not** in the run log. That log is append-only finished runs, and
+"store events, derive state" only holds if nothing else is mixed in — a cursor is
+the opposite kind of thing (mutable, last-write-wins, worthless as history), so
+it gets its own small file, `<data-dir>/users/<name>.resume.json`, rewritten in
+place via `api/resume`. Losing it costs one re-listen, which is why it can be a
+plain overwrite with none of the log's guarantees.
 
 ### Why ฟังแล้วพิมพ์ works the way it does
 
@@ -206,8 +216,9 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
   serves the static app, lists `media/` + `texts/`, streams media with Range
   support, pulls the news feeds (`/api/news`) and extracts full articles +
   images for the ข่าว reader (`/api/article`, `/api/news-image` — see the ข่าว
-  section for the extraction cascade and SSRF allowlist), and appends finished
-  runs to `<data-dir>/users/<name>.jsonl` (data dir set with `-data`; see below).
+  section for the extraction cascade and SSRF allowlist), appends finished
+  runs to `<data-dir>/users/<name>.jsonl` (data dir set with `-data`; see below),
+  and keeps the ฟัง–พิมพ์ resume cursors in `<name>.resume.json` (`/api/resume`).
 - `web/` — **strict TypeScript** ES modules in `web/src`, no framework and no
   npm: deno is the whole toolchain (`web/deno.json` — same shape as `~/fa` and
   `~/RAG`). `deno task check` type-checks with `strict` +
@@ -317,12 +328,14 @@ The whole backend recipe, transferable to any small project:
 2. **Storage is an append-only `.jsonl` per user.** Appends are atomic enough
    under one process + a lock; no schema migrations, `cat`-able, greppable,
    backed up by copying a file.
-3. **Store events, derive state.** Only finished runs are written; stars,
-   unlocks, PBs, streaks are computed from the log on read. There is no second
-   copy of state to drift out of sync.
+3. **Store events, derive state.** Only finished runs are written to the log;
+   stars, unlocks, PBs, streaks are computed from it on read. There is no second
+   copy of state to drift out of sync. The one thing that is genuinely mutable
+   cursor state — where you are in a ฟัง–พิมพ์ file — is kept *out* of the log in
+   its own overwritable file rather than being smuggled in as fake events.
 4. **The server is the only source of truth.** Clients keep no persistent save
    data (localStorage holds the username, device prefs like theme, and a
-   convenience copy of the ฟัง–พิมพ์ resume point that the run log also carries) and
+   convenience copy of the ฟัง–พิมพ์ cursor the server also has) and
    re-fetch on focus — that's the entire multi-device sync story: no cache
    invalidation, no conflict resolution, because nothing conflicts.
 

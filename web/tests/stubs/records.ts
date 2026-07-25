@@ -6,3 +6,4 @@ export let history: any[] = [];
 export async function saveRun(r: any): Promise<void> { saved.push(r); }
 export async function loadRuns(): Promise<any[]> { return history; }
 export function setHistory(h: any[]): void { history = h; }
+export function currentUser(): string { return 'tester'; }

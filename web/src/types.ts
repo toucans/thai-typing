@@ -44,10 +44,6 @@ export interface DictationRun {
   secs: number;
   chars: number;
   read?: boolean; // ดูแล้วพิมพ์: copy-typing, so no spelling state is logged
-  // Where you stopped, when you stopped short of the end — an episode is longer
-  // than a sitting, so the place has to survive the sitting. Absent means the
-  // media was finished (or the run predates this field).
-  lastCue?: number;
   misses?: DictationMiss[];
   mastered?: string[];
   ignored?: string[]; // ไม่ต้องจำ: out of the loop for good

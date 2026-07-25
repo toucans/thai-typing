@@ -35,7 +35,7 @@
 //     leaves the schedule, and — unlike ไม่ต้องจำ — is asked again as normal,
 //     because you do want to keep meeting it.
 import { sound } from './audio.ts';
-import { saveRun, loadRuns } from './records.ts';
+import { currentUser, saveRun, loadRuns } from './records.ts';
 import { $, show, modal, closeModal, hasThai, inserted, on, segmentThai } from './ui.ts';
 import { diffHTML } from './spell.ts';
 import type { DictationMiss, DictationRun, MediaPair, NewRun } from './types.ts';
@@ -149,20 +149,68 @@ function cueTokens(text: string): Token[] {
   });
 }
 
-// Where each media was left off. Two stores on purpose, and the furthest point
-// wins: localStorage is written on every cue, so closing the tab mid-episode is
-// safe, but it is per-device and per-browser; the run log carries the mark
-// across devices and outlives a cleared browser, which for a 24-minute episode
-// typed over several evenings is the case that matters.
+// ---- where you left off ---------------------------------------------------
+// An episode outlives a sitting, and a tab dies without warning, so the cue you
+// are on is posted to the server on a timer while you type — api/resume keeps a
+// small mutable cursor file per user, apart from the append-only run log (see
+// main.go). localStorage gets every cue as well: it costs nothing, it is exact,
+// and it still works with the server unreachable. Resume takes the furthest
+// point either store knows, so neither can lose ground.
+const RESUME_POST_MS = 20_000;
+
+let resumePending: { media: string; cue: number } | null = null;
+let resumeTimer = 0;
+let resumeSentAt = 0;
+
+// Send whatever is queued now. Called on the timer, when a round ends, and on
+// pagehide — where `keepalive` is what lets the request outlive the page.
+async function flushResume(keepalive = false): Promise<void> {
+  const p = resumePending;
+  if (!p) return;
+  resumePending = null;
+  resumeSentAt = Date.now();
+  try {
+    const res = await fetch('api/resume', {
+      method: 'POST',
+      keepalive,
+      body: JSON.stringify({ user: currentUser(), media: p.media, cue: p.cue }),
+    });
+    if (!res.ok) throw new Error();
+  } catch {
+    // offline or refused: keep it for the next tick unless a newer cue arrived
+    if (!resumePending) resumePending = p;
+  }
+}
+
+function queueResume(media: string, cue: number): void {
+  resumePending = { media, cue };
+  if (resumeTimer) return;
+  const wait = Math.max(0, RESUME_POST_MS - (Date.now() - resumeSentAt));
+  resumeTimer = setTimeout(() => { resumeTimer = 0; void flushResume(); }, wait);
+}
+
+// The cue you are on, remembered in both stores.
+function markCue(media: string, cue: number): void {
+  localStorage.setItem(`tt.dict.${media}`, String(cue));
+  queueResume(media, cue);
+}
+
+// Finished the file: there is nothing to come back to.
+function clearResume(media: string): void {
+  localStorage.removeItem(`tt.dict.${media}`);
+  resumePending = { media, cue: 0 };
+  void flushResume();
+}
+
 async function resumeMarks(): Promise<Map<string, number>> {
   const marks = new Map<string, number>();
   try {
-    for (const r of await loadRuns()) {
-      // runs are chronological, so the newest one for a media wins; a run that
-      // finished the media carries no lastCue, which resets the mark to 0
-      if (r.game === 'dictation') marks.set(r.name, r.lastCue ?? 0);
+    const res = await fetch(`api/resume?user=${encodeURIComponent(currentUser() ?? '')}`);
+    if (!res.ok) return marks;
+    for (const [media, cue] of Object.entries((await res.json()).resume ?? {})) {
+      if (typeof cue === 'number') marks.set(media, cue);
     }
-  } catch { /* offline: localStorage alone still knows this device's place */ }
+  } catch { /* offline: this device's own localStorage still knows its place */ }
   return marks;
 }
 
@@ -334,7 +382,7 @@ function loadCue(D: Session): void {
   beginWord(D);
   if (!D.flushRounds) {
     D.cueAt = ci;
-    localStorage.setItem(`tt.dict.${D.pair.name}`, String(ci));
+    markCue(D.pair.name, ci);
   }
   playCue(D, 1);
   // a cue of nothing but names and punctuation has nothing to type: play it,
@@ -656,11 +704,13 @@ async function finishSession(D: Session, complete: boolean): Promise<void> {
     secs: Math.round(secs),
     chars: D.tokensTyped || 0,
     ...(D.read ? { read: true } : { misses: D.misses, mastered, ignored: [...new Set(D.ignored)] }),
-    ...(complete ? {} : { lastCue: D.cueAt }),
   };
   await saveRun(run);
   sound.level();
-  if (complete) localStorage.removeItem(`tt.dict.${D.pair.name}`);
+  // ending a round is the moment the place matters most: send it now rather
+  // than waiting out the timer
+  if (complete) clearResume(D.pair.name);
+  else await flushResume();
   const drilled = mastered.length
     ? `<div class="modal-sub">ทบทวนจนสะกดได้เอง ${mastered.length} คำ</div>` : '';
   // say where you will pick up, so stopping mid-episode is plainly safe
@@ -713,6 +763,9 @@ function readModeInput(D: Session, typed: string): void {
 
 // ---- input --------------------------------------------------------------------------
 export function initDictationInput(): void {
+  // a closing tab still gets its last cue out of the door
+  addEventListener('pagehide', () => { void flushResume(true); });
+
   // mode chips on the setup screen; the choice applies to the next session
   const modes = $('#dict-modes');
   const paintModes = () => {
