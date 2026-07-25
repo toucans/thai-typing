@@ -11,6 +11,5 @@ web/assets/lexar/
 # built Go binary
 thai-typing-go
 
-# the UI bundles: deno builds these from web/src/*.ts (see install.sh)
+# the UI bundle: deno builds web/app.js from web/src/*.ts (see install.sh)
 web/app.js
-web/maptest.js

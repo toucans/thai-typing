@@ -4,10 +4,11 @@
 //
 // Runs are heterogeneous by design — a speed run carries cpm/level, a dictation
 // run carries misses/mastered — so `game` is the discriminant and `Run` is the
-// union. The Go server passes runs through
-// verbatim and validates no schema (see getRuns in main.go); that is deliberate,
-// and this union is the client-side reading of the same data, not a contract
-// imposed on the file.
+// union. The Go server passes runs through verbatim and validates no schema
+// (see getRuns in main.go); that is deliberate, and this union is the client
+// side's reading of the same data, not a contract imposed on the file. The log
+// is append-only, so it also holds shapes no longer written — retired games'
+// runs still sum into the lifetime totals, and are described by nothing here.
 
 // เส้นทาง levels, เรื่องอ่าน stories and ข่าว articles: one engine (speed.ts),
 // two tags. `level`/`pb` are speed only; `src` (สำนักข่าว) is stamped on ข่าว.
@@ -48,24 +49,7 @@ export interface DictationRun {
   ignored?: string[]; // ไม่ต้องจำ: out of the loop for good
 }
 
-// พิมพ์ไล่ผี, the night hunt, was removed on 2026-07-25. Nothing writes this
-// shape any more, but the run log is append-only and old ghost runs are still
-// in it — they keep counting toward the lifetime totals, so the union still
-// has to describe them.
-export interface GhostRun {
-  game: 'ghosts';
-  t: string;
-  night: number;
-  cleared: boolean;
-  cpm: number;
-  acc: number;
-  chars: number;
-  errors: number;
-  secs: number;
-  ghosts: number;
-}
-
-export type Run = TypingRun | DictationRun | GhostRun;
+export type Run = TypingRun | DictationRun;
 
 // Distributive Omit: a plain Omit<Run, 't'> would collapse the union down to
 // its shared keys, losing the per-game fields.

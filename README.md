@@ -25,8 +25,6 @@ sutta's 10 stanzas map one-to-one onto the 10 regions; each shrine opens the
 first time its level is passed (derived from `runs.jsonl`, nothing stored),
 the results card presents the blessing, ☸ in the journey bar opens the
 collection, and ข้อ ๓๘ จิตเกษม waits at level 1000 beside the summit chedi.
-`web/maptest.html` is a dev harness for tuning the scenes
-(`?r=6&done=655`, `&dark`, `&modal=mk`).
 
 The gamification is deliberately self-referential — you compete with yourself only:
 
