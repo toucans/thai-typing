@@ -92,7 +92,14 @@ interface Session {
   nudged: boolean;
   drill: DrillItem[];
   drillNow: DrillItem | null;
-  wordsSeen: number;
+  burst: number; // drills asked back to back since the last fresh cue
+  // The drill schedule's clock: words of *new* material typed. Repetitions
+  // deliberately do not advance it. When they did, a batch of owed words fed its
+  // own gaps — nine words carried in from last session are nine repetitions, so
+  // the gap of five was satisfied by the batch itself and every word came back
+  // moments after it was missed, with nothing in between to forget it over. A
+  // gap only spaces anything if it is measured in material you have not seen.
+  newSeen: number;
   misses: DictationMiss[];
   mastered: string[];
   ignored: string[];
@@ -108,11 +115,17 @@ interface Session {
 let D: Session | null = null; // current session
 let readMode = localStorage.getItem('tt.dictMode') === 'read';
 
-// Gaps (in words typed) before a missed word comes back, and how many clean
-// recalls retire it. Expanding rather than fixed: each success should be a
-// little harder to produce than the last.
+// Gaps before a missed word comes back, counted in words of *new* material —
+// see `newSeen`. Expanding rather than fixed: each success should be a little
+// harder to produce than the last.
 const DRILL_GAPS = [5, 15, 40];
 const DRILL_GIVEUP = 4;   // failures before it stops interrupting this session
+// Drills only ever interrupt between cues, so everything that came due during a
+// cue arrives at the same boundary — five in a row reads as a wall of reviews
+// rather than a review. Cap the run and let the rest wait for the next boundary;
+// they stay due, so nothing is lost. The opening ทบทวนคำเก่า round and the
+// end-of-media flush are exempt (both arm at due 0): those are rounds by design.
+const DRILL_BURST = 3;
 const DUE_CARRIED_MAX = 12; // old words folded into one session's opening round
 const MISS_LOG_MAX = 200;   // cap on what one run appends to the jsonl
 
@@ -353,7 +366,7 @@ async function start(pair: MediaPair, resumeCue: number): Promise<void> {
     queue: cues.map((_, i) => i).slice(Math.min(resumeCue, cues.length - 1)),
     qpos: 0, cueAt: resumeCue, tokens: [], wordIdx: 0,
     phase: 'guess', attempts: 0, nudged: false,
-    drill: [], drillNow: null, wordsSeen: 0,
+    drill: [], drillNow: null, burst: 0, newSeen: 0,
     misses: [], mastered: [], ignored: [], ignoreSet: new Set(), flushRounds: 0,
     cuesDone: 0, wordsTotal: 0, wordsWrong: 0, tokensTyped: 0,
     t0: performance.now(),
@@ -387,8 +400,8 @@ function currentCueIndex(D: Session): number {
 // The one place that decides what comes next: a due drill outranks a fresh cue,
 // and when the cues run out anything still unmastered gets one last pass.
 function loadNext(D: Session): void {
-  const due = D.drill.find((d) => D.wordsSeen >= d.due);
-  if (due) return startDrill(D, due);
+  const due = D.drill.find((d) => D.newSeen >= d.due);
+  if (due && (!due.due || D.burst < DRILL_BURST)) return startDrill(D, due);
   if (D.qpos >= D.queue.length) {
     // The cues are done but words are still owed. Re-arm everything left, once
     // per remaining repetition — going round again (rather than repeating one
@@ -426,6 +439,7 @@ function beginWord(D: Session): void {
 
 function loadCue(D: Session): void {
   D.drillNow = null;
+  D.burst = 0;
   const ci = currentCueIndex(D);
   D.tokens = cueTokens(D.cues[ci]?.text ?? '');
   D.wordIdx = 0;
@@ -446,6 +460,7 @@ function loadCue(D: Session): void {
 // would be a different (and easier) task than the one being trained.
 function startDrill(D: Session, item: DrillItem): void {
   D.drillNow = item;
+  D.burst++;
   const ci = item.cue;
   D.tokens = cueTokens(D.cues[ci]?.text ?? '');
   D.wordIdx = D.tokens.findIndex((t) => t.target === item.w);
@@ -570,7 +585,7 @@ function recordMiss(D: Session, target: string): void {
   }
   // schedule it: first return after the shortest gap
   if (!D.drill.some((d) => d.w === target)) {
-    D.drill.push({ w: target, cue: currentCueIndex(D), due: D.wordsSeen + (DRILL_GAPS[0] ?? 5), reps: 0, fails: 0 });
+    D.drill.push({ w: target, cue: currentCueIndex(D), due: D.newSeen + (DRILL_GAPS[0] ?? 5), reps: 0, fails: 0 });
   }
 }
 
@@ -599,7 +614,6 @@ function ignoreWord(D: Session): void {
   // let it be copied through.
   if (D.drillNow) {
     D.drillNow = null;
-    D.wordsSeen++;
     return loadNext(D);
   }
   advanceWord(D); // it is context from here on, not something to type
@@ -634,7 +648,7 @@ function typoWord(D: Session): void {
   for (const d of D.drill.filter((d) => d.w === target)) dropDrill(D, d);
   D.tokensTyped += target.length;
   sound.word();
-  advanceWord(D);
+  finishNewWord(D);
 }
 
 // Study: the answer is on screen and the box is inert. It sits above the typing
@@ -704,7 +718,6 @@ function noteKeyOrder(typed: string, target: string): void {
 // A word is done for now. `clean` means it was right on the first guess, which
 // is what advances a drill item toward being retired.
 function passWord(D: Session, clean: boolean): void {
-  D.wordsSeen++;
   const item = D.drillNow;
   if (item) {
     if (clean) {
@@ -713,17 +726,25 @@ function passWord(D: Session, clean: boolean): void {
         D.mastered.push(item.w);
         dropDrill(D, item);
       } else {
-        item.due = D.wordsSeen + (DRILL_GAPS[item.reps] ?? 5);
+        item.due = D.newSeen + (DRILL_GAPS[item.reps] ?? 5);
       }
     } else if (item.fails >= DRILL_GIVEUP) {
       dropDrill(D, item); // stop interrupting; it stays owed for next session
     } else {
-      item.due = D.wordsSeen + (DRILL_GAPS[0] ?? 5);
+      item.due = D.newSeen + (DRILL_GAPS[0] ?? 5);
     }
     D.drillNow = null;
     setTimeout(() => { if (D) loadNext(D); }, 450);
     return;
   }
+  finishNewWord(D);
+}
+
+// A word of fresh material is behind you: the drill clock ticks, and the cue
+// moves on. Ignored words deliberately do not come through here — a word you
+// have said you will not learn is not material you are spacing anything over.
+function finishNewWord(D: Session): void {
+  D.newSeen++;
   advanceWord(D);
 }
 
