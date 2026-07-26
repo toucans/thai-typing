@@ -375,9 +375,8 @@ async function start(pair: MediaPair, resumeCue: number): Promise<void> {
       + ' · <span class="kbd">Shift+Enter</span> พิมพ์ผิด'
       + ' · <span class="kbd">Ctrl+Enter</span> ไม่ต้องจำคำนี้');
   show('dictation');
-  if (session.drill.length) {
-    modalNote('🍂 ทบทวนคำเก่า', `มี ${session.drill.length} คำจากรอบก่อนที่ยังสะกดไม่ได้ — เก็บให้จบก่อน`);
-  }
+  // no modal for the carried-over words: there is nothing to decide, and the
+  // drill header already says ทบทวนคำเก่า while they run
   loadNext(session);
 }
 

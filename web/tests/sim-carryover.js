@@ -82,8 +82,8 @@ for (let i = 0; i < 6; i++) await new Promise((r) => queueMicrotask(r));
 flush();
 
 check('session opens on carried-over words', cue().startsWith('ทบทวนคำเก่า'), `cue=${cue()}`);
-check('the opening round is announced',
-  __modals.some((m) => m.includes('ทบทวนคำเก่า')), JSON.stringify(__modals));
+check('the opening round is not announced by a modal',
+  !__modals.some((m) => m.includes('ทบทวนคำเก่า')), JSON.stringify(__modals));
 
 // answer every drill cleanly on the first guess; type the real cue words too
 const CUE_WORDS = [['ผู้ใหญ่','ใช้','ประโยชน์','จาก','ศาสตร์'], ['เขา','มั่น','ใจ','มาก']];
