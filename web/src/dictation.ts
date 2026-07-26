@@ -395,7 +395,6 @@ function loadNext(D: Session): void {
     // word back to back) keeps some space between a word's repetitions, which
     // is the whole point of the schedule.
     if (D.drill.length && D.flushRounds < DRILL_GAPS.length) {
-      if (!D.flushRounds) modalNote('🍂 รอบเก็บตก', `เหลืออีก ${D.drill.length} คำที่ยังไม่แน่น`);
       D.flushRounds++;
       for (const d of D.drill) d.due = 0;
       return loadNext(D);
@@ -751,12 +750,6 @@ function flashBox(): void {
   box.classList.remove('flash-red');
   void box.offsetWidth; // restart the animation
   box.classList.add('flash-red');
-}
-
-function modalNote(title: string, text: string): void {
-  const card = modal(`<h2>${title}</h2><div class="modal-sub">${text}</div>
-    <div class="play-actions"><button class="btn gold" id="m-go">ลุยต่อ</button></div>`);
-  on(card, '#m-go', () => { closeModal(); $('#dict-typebox').focus(); });
 }
 
 // `complete` separates the two ways a round ends: the cues ran out (start the
