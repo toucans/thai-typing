@@ -62,6 +62,8 @@ records.setHistory([{
   misses: [{ w: 'ใช้', g: '', tags: ['saraAi'], cue: 0 },
            { w: 'ประโยชน์', g: 'ประโยด', tags: ['silent'], cue: 0 }],
   mastered: [],
+  // ประโยชน์ was two thirds of the way home when that round ended
+  progress: [{ w: 'ประโยชน์', reps: 2 }],
 }]);
 
 const { initDictation, initDictationInput } = await import('./dictation.ts');
@@ -89,6 +91,7 @@ check('the opening round is not announced by a modal',
 const CUE_WORDS = [['ผู้ใหญ่','ใช้','ประโยชน์','จาก','ศาสตร์'], ['เขา','มั่น','ใจ','มาก']];
 const DRILL_ANSWERS = { 'ใช้': 'ใช้', 'ประโยชน์': 'ประโยชน์' };
 const seen = [];
+const labels = [];
 let guard = 0;
 while (guard++ < 120 && !records.saved.length) {
   const c = cue();
@@ -98,6 +101,7 @@ while (guard++ < 120 && !records.saved.length) {
     const word = Object.keys(DRILL_ANSWERS).find((w) => !shown.includes(w));
     if (!word) { console.log('could not identify drill word:', shown); break; }
     seen.push(word);
+    labels.push(`${word} ${c.replace('ทบทวนคำเก่า · ', '')}`);
     type(DRILL_ANSWERS[word]);
   } else {
     const n = +c.match(/ท่อนที่ (\d+)/)[1];
@@ -109,10 +113,21 @@ while (guard++ < 120 && !records.saved.length) {
 console.log("guard:", guard, "seen:", JSON.stringify(seen));
 const run = records.saved[0];
 check('session ended', !!run);
-check('carried words were drilled', seen.length >= 6, `seen=${JSON.stringify(seen)}`);
-check('a word retires after 3 clean recalls',
+check('every carried word is drilled', new Set(seen).size === 2, JSON.stringify(seen));
+check('a word with nothing banked retires after 3 clean recalls',
+  seen.filter((w) => w === 'ใช้').length === 3, JSON.stringify(seen));
+check('both words retire',
   (run.mastered || []).includes('ใช้') && (run.mastered || []).includes('ประโยชน์'),
   JSON.stringify(run.mastered));
+// ---- banked recalls survive the end of a round -------------------------------
+check('a word resumes where it got to, rather than restarting at 1/3',
+  labels[0] === 'ประโยชน์ 3/3' || labels.includes('ประโยชน์ 3/3'), JSON.stringify(labels));
+check('a word with nothing banked still starts at 1/3',
+  labels.includes('ใช้ 1/3'), JSON.stringify(labels));
+check('the resumed word retires on that one recall',
+  seen.filter((w) => w === 'ประโยชน์').length === 1,
+  `asked ${seen.filter((w) => w === 'ประโยชน์').length} times`);
+
 check('a clean session logs no new misses', (run.misses || []).length === 0, JSON.stringify(run.misses));
 check('drills do not pollute accuracy', run.words === 9 && run.acc === 1, `words=${run.words} acc=${run.acc}`);
 console.log('drill order:', JSON.stringify(seen));

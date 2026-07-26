@@ -138,6 +138,11 @@ and the loop is built out of exactly those:
    the rest wait for the next. Anything still owed when the session ends carries
    to the next one through the run log, and opens it as a ทบทวนคำเก่า round —
    that round and the end-of-media flush are the two deliberate batches.
+   A stumble costs **one** step rather than all three, and the recalls a word
+   has banked are written to the run log (`progress`), so a word met over
+   several sessions resumes where it got to. Both of those exist because
+   without them a hard word could never retire: it restarted at 1/3 every
+   session, and one slip anywhere in the three sent it back to the start.
 4. **Not on every word.** `Ctrl+Enter` (or the ไม่ต้องจำคำนี้ button on the study
    screen) marks a word as not worth the loop. Transliterated names are the case
    that matters: อายาโนโคจิ has an arbitrary Thai spelling that generalises to no
@@ -405,7 +410,7 @@ now just sits as an archive.
 `install.sh` is idempotent — re-run it after any change. For a frontend-only
 edit the short loop is `cd web && deno task check && deno task build`; the Go
 server serves `web/` straight from the checkout, so no restart is needed.
-`./web/tests/run.sh` is the whole safety net (122 checks) — there is no chromium
+`./web/tests/run.sh` is the whole safety net (129 checks) — there is no chromium
 on this box, so it stands in for a browser: `smoke.js` builds the bundle, boots
 it against a stub DOM and types a story through เรื่องอ่าน end to end, then the
 `sim-*.js` simulations drive the real ฟัง–พิมพ์ state machine.

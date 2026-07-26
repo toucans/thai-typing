@@ -65,6 +65,8 @@ const OWED = CUES.slice(0, 2).flat().slice(0, 9);
 records.setHistory([{
   game: 'dictation', name: 'ep01', t: '2026-07-24T10:00:00Z', words: 30, acc: 0.7,
   misses: OWED.map((w, i) => ({ w, cue: i < 5 ? 0 : 1 })), mastered: [],
+  // one of them was one clean recall from retiring when that round ended
+  progress: [{ w: OWED[0], reps: 2 }],
 }]);
 
 const { initDictation, initDictationInput } = await import('./dictation.ts');
@@ -100,7 +102,7 @@ function asked() {
   // a drill names its cue through the context words; a fresh cue names it in the
   // header, which is the only thing on screen when the blank is the first word
   const ci = drill && ctx ? Number(ctx[1]) : Number(/ท่อนที่ (\d+)/.exec(cue())?.[1] ?? 0) - 1;
-  return { w: CUES[ci]?.[at], drill };
+  return { w: CUES[ci]?.[at], drill, label: cue() };
 }
 
 // One fresh word is missed outright, to watch a first return. One of the carried
@@ -112,11 +114,13 @@ const MISS_AGAIN = OWED[0];
 let missedAgain = false;
 let missed = false;
 const log = [];
+const steps = [];
 let guard = 0;
 while (guard++ < 500 && !records.saved.length) {
   const a = asked();
   if (!a?.w) { flush(); await new Promise((r) => queueMicrotask(r)); continue; }
   log.push(a);
+  if (a.drill && a.w === MISS_AGAIN) steps.push(a.label.replace('ทบทวนคำเก่า · ', ''));
   if ((a.w === MISS && !missed) || (a.drill && a.w === MISS_AGAIN && !missedAgain)) {
     if (a.w === MISS) missed = true; else missedAgain = true;
     type('ก99า');          // wrong, same length -> auto-submits and reveals
@@ -171,5 +175,14 @@ for (const e of body) {
 }
 check('no more than 3 reviews land between two cues', longest <= 3, `saw a run of ${longest}`);
 
+// ---- a stumble costs one step, not everything --------------------------------
+// It used to zero the count, so a word you kept meeting could never retire: one
+// slip anywhere in the three recalls sent it back to the start, and the next
+// session started it there again anyway.
+check('a banked word resumes at 3/3 rather than restarting', steps[0] === '3/3', JSON.stringify(steps));
+check('a stumble drops one step, not all of them', steps[1] === '2/3', JSON.stringify(steps));
+check('and it climbs back from there', steps[2] === '3/3', JSON.stringify(steps));
+
 console.log(`--- ${log.length} words asked, longest review run ${longest}, closest repeat ${worst} new words`);
+console.log(fails ? `\n${fails} FAILURES` : '\nall pass');
 Deno.exit(fails ? 1 : 0);

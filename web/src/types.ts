@@ -47,6 +47,10 @@ export interface DictationRun {
   misses?: DictationMiss[];
   mastered?: string[];
   ignored?: string[]; // ไม่ต้องจำ: out of the loop for good
+  // Clean recalls a still-owed word had banked when the round ended. Without it
+  // a word you had two thirds of the way home came back at 1/3 the next time,
+  // so a word you kept meeting over several sessions could never retire.
+  progress?: { w: string; reps: number }[];
 }
 
 export type Run = TypingRun | DictationRun;

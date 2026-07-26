@@ -335,22 +335,28 @@ async function mediaHistory(mediaName: string): Promise<{ due: DrillItem[]; igno
   const ignored = new Set<string>();
   let runs;
   try { runs = await loadRuns(); } catch { return { due: [], ignored }; }
-  const state = new Map<string, { due: boolean; cue: number }>();
+  const state = new Map<string, { due: boolean; cue: number; reps: number }>();
   const mine = runs
     .filter((r): r is DictationRun => r.game === 'dictation' && r.name === mediaName)
     .sort((a, b) => (a.t || '').localeCompare(b.t || ''));
   for (const r of mine) {
-    for (const m of r.misses || []) state.set(m.w, { due: true, cue: m.cue ?? 0 });
+    // a fresh miss puts the word back to owing everything
+    for (const m of r.misses || []) state.set(m.w, { due: true, cue: m.cue ?? 0, reps: 0 });
     for (const w of r.mastered || []) {
       const st = state.get(w);
       if (st) st.due = false;
+    }
+    // written when the round ended, so it is the last word on where each one got to
+    for (const p of r.progress || []) {
+      const st = state.get(p.w);
+      if (st) st.reps = Math.min(p.reps, DRILL_GAPS.length - 1);
     }
     for (const w of r.ignored || []) ignored.add(w);
   }
   const due = [...state.entries()]
     .filter(([w, v]) => v.due && !ignored.has(w))
     .slice(0, DUE_CARRIED_MAX)
-    .map(([w, v]) => ({ w, cue: v.cue, due: 0, reps: 0, fails: 0, carried: true }));
+    .map(([w, v]) => ({ w, cue: v.cue, due: 0, reps: v.reps, fails: 0, carried: true }));
   return { due, ignored };
 }
 
@@ -563,7 +569,10 @@ function submitGuess(D: Session, typed: string): void {
     if (D.drillNow) {
       D.drillNow.fails++;
       D.drillNow.preMissReps = D.drillNow.reps;
-      D.drillNow.reps = 0; // a miss resets the schedule
+      // A stumble costs one step, not the lot. Zeroing it meant a word you kept
+      // meeting could never retire: every session it restarted at 1/3, and one
+      // slip anywhere in the three recalls sent it back to the beginning again.
+      D.drillNow.reps = Math.max(0, D.drillNow.reps - 1);
     } else {
       D.wordsTotal++;
       D.wordsWrong++;
@@ -788,7 +797,11 @@ async function saveSession(D: Session, complete: boolean, leaving = false): Prom
     words: D.wordsTotal, acc: Math.round(acc * 1000) / 1000,
     secs: Math.round(secs),
     chars: D.tokensTyped || 0,
-    ...(D.read ? { read: true } : { misses: D.misses, mastered, ignored: [...new Set(D.ignored)] }),
+    ...(D.read ? { read: true } : {
+      misses: D.misses, mastered, ignored: [...new Set(D.ignored)],
+      // what the words still owed had banked, so they resume rather than restart
+      progress: D.drill.filter((d) => d.reps > 0).map((d) => ({ w: d.w, reps: d.reps })),
+    }),
   };
   await saveRun(run, leaving);
   // ending a round is the moment the place matters most: send it now rather
