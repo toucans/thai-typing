@@ -297,12 +297,17 @@ export async function initDictation(): Promise<void> {
       +(localStorage.getItem(`tt.dict.${pair.name}`) || 0),
       marks.get(pair.name) ?? 0,
     );
+    // Segmenting an episode takes the server about half a minute, once. Saying
+    // so beats letting the first play use the fallback splitter silently — the
+    // cut points are what you get scored on.
+    const pending = pair.seg === 'pending'
+      ? ' · <small>กำลังตัดคำอย่างละเอียด… รีเฟรชอีกครั้งภายหลัง</small>' : '';
     const card = document.createElement('button');
     card.className = 'mediacard';
     card.innerHTML = `<b>${pair.name}</b>
       <small>${resume ? `เล่นต่อจากท่อนที่ ${resume + 1}` : 'เริ่มใหม่'}</small><br>
       <span class="seg-preview">ดูตัวอย่างการตัดคำ</span>
-      ${resume ? ' · <span class="seg-preview seg-restart">เริ่มใหม่ตั้งแต่ต้น</span>' : ''}`;
+      ${resume ? ' · <span class="seg-preview seg-restart">เริ่มใหม่ตั้งแต่ต้น</span>' : ''}${pending}`;
     const preview = card.querySelector<HTMLElement>('.seg-preview');
     if (preview) preview.onclick = (e) => { e.stopPropagation(); void previewSegmentation(pair); };
     const restart = card.querySelector<HTMLElement>('.seg-restart');
@@ -316,9 +321,12 @@ async function previewSegmentation(pair: MediaPair): Promise<void> {
   const cues = parseSRT(await (await fetch(pair.subs)).text());
   const rows = cues.slice(0, 12).map((c) =>
     `<div style="text-align:start;margin:.3em 0">${cueTokens(c.text).map((t) => t.display).join(' · ')}</div>`).join('');
+  const by = pair.seg === 'ready' ? 'ตัดโดย deepcut บนเซิร์ฟเวอร์'
+    : pair.seg === 'pending' ? 'เซิร์ฟเวอร์กำลังตัดคำอยู่ — นี่คือผลจากตัวตัดของเบราว์เซอร์'
+    : 'ตัดโดยเบราว์เซอร์';
   const card = modal(`
     <h2>การตัดคำ · ${pair.name}</h2>
-    <p class="hint" style="text-align:start">ถ้าจุดไหนตัดผิด แก้ในไฟล์ .srt โดยคั่นคำด้วย
+    <p class="hint" style="text-align:start">${by} · ถ้าจุดไหนตัดผิด แก้ในไฟล์ .srt โดยคั่นคำด้วย
       <code>|</code> ในท่อนนั้น (ท่อนที่มี | จะไม่ใช้ตัวตัดอัตโนมัติ)</p>
     ${rows}
     <div class="play-actions"><button class="btn" id="m-close">ปิด</button></div>`);
@@ -975,4 +983,9 @@ export function initDictationInput(): void {
   });
 
   $('#dict-replay').addEventListener('click', () => { if (D) { playCue(D, 1); box.focus(); } });
+
+  // Leaving mid-episode was only reachable by switching views in the nav, which
+  // is not where you look for it. Same call the nav makes: the round is written
+  // and the resume cursor kept, so this is the safe way out, not an abandon.
+  $('#dict-exit').addEventListener('click', () => { leaveDictation(); });
 }

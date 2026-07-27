@@ -26,6 +26,7 @@ import (
 	"html"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -55,9 +56,9 @@ var mediaExts = map[string]bool{
 var userRe = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9._-]{0,30}[a-z0-9])?$`)
 
 var (
-	webDir, mediaDir, textsDir, usersDir, newsDir string
-	runsLock                                      sync.Mutex
-	resumeLock                                    sync.Mutex
+	rootDir, webDir, mediaDir, textsDir, usersDir, newsDir, segDir string
+	runsLock                                                       sync.Mutex
+	resumeLock                                                     sync.Mutex
 )
 
 // The one outbound dependency in the app: real Thai news, fetched as RSS (the
@@ -81,16 +82,21 @@ func main() {
 	flag.Parse()
 
 	exe, _ := os.Executable()
-	root := filepath.Dir(exe)
-	webDir = filepath.Join(root, "web")
-	mediaDir = filepath.Join(root, "media")
-	textsDir = filepath.Join(root, "texts")
+	rootDir = filepath.Dir(exe)
+	webDir = filepath.Join(rootDir, "web")
+	mediaDir = filepath.Join(rootDir, "media")
+	textsDir = filepath.Join(rootDir, "texts")
 	dd := *dataDir
 	if dd == "" {
-		dd = filepath.Join(root, "data")
+		dd = filepath.Join(rootDir, "data")
 	}
 	usersDir = filepath.Join(dd, "users")
 	newsDir = filepath.Join(dd, "news") // last-good news fetch, cached to disk
+	segDir = filepath.Join(dd, "seg")   // deepcut-segmented subtitles (segment.go)
+
+	// Regenerable from media/ at any time, but slow enough (~25s an episode)
+	// that it is worth starting before anyone asks rather than on first play.
+	go segmentAll()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handle)
@@ -123,6 +129,8 @@ func doGET(w http.ResponseWriter, r *http.Request) {
 		getResume(w, r)
 	case path == "/api/media":
 		sendJSON(w, 200, scanMedia())
+	case path == "/api/subs": // one episode's subtitles, segmented if ready (segment.go)
+		getSubs(w, r)
 	case path == "/api/texts":
 		sendJSON(w, 200, scanTexts())
 	case path == "/api/news":
@@ -322,31 +330,56 @@ func doPOST(w http.ResponseWriter, r *http.Request) {
 
 // --- media / texts listing -------------------------------------------------
 
-func scanMedia() map[string]any {
-	pairs := []map[string]any{}
+// One episode: a subtitle file and the audio/video it belongs to.
+type mediaPair struct {
+	stem  string // shared filename without extension -- the episode's name
+	media string // path relative to mediaDir
+	srt   string // absolute path to the .srt
+}
+
+func mediaPairs() []mediaPair {
+	var pairs []mediaPair
 	entries, err := os.ReadDir(mediaDir) // ReadDir returns entries sorted by name
-	if err == nil {
-		var files []string
-		for _, e := range entries {
-			files = append(files, e.Name())
+	if err != nil {
+		return pairs
+	}
+	var files []string
+	for _, e := range entries {
+		files = append(files, e.Name())
+	}
+	for _, fn := range files {
+		if strings.ToLower(filepath.Ext(fn)) != ".srt" {
+			continue
 		}
-		for _, fn := range files {
-			if strings.ToLower(filepath.Ext(fn)) != ".srt" {
-				continue
-			}
-			stem := strings.TrimSuffix(fn, filepath.Ext(fn))
-			for _, cand := range files {
-				if strings.TrimSuffix(cand, filepath.Ext(cand)) == stem &&
-					mediaExts[strings.ToLower(filepath.Ext(cand))] {
-					pairs = append(pairs, map[string]any{
-						"name": stem, "media": "media/" + cand, "subs": "media/" + fn,
-					})
-					break
-				}
+		stem := strings.TrimSuffix(fn, filepath.Ext(fn))
+		for _, cand := range files {
+			if strings.TrimSuffix(cand, filepath.Ext(cand)) == stem &&
+				mediaExts[strings.ToLower(filepath.Ext(cand))] {
+				pairs = append(pairs, mediaPair{
+					stem: stem, media: cand, srt: filepath.Join(mediaDir, fn),
+				})
+				break
 			}
 		}
 	}
-	return map[string]any{"pairs": pairs}
+	return pairs
+}
+
+func scanMedia() map[string]any {
+	out := []map[string]any{}
+	for _, p := range mediaPairs() {
+		// Subtitles come through the API rather than as a static file: that is
+		// where the deepcut-segmented copy is served from when one exists
+		// (segment.go). Fetching it is also what schedules the segmenting, so
+		// opening the episode list is enough to get the work started.
+		out = append(out, map[string]any{
+			"name": p.stem, "media": "media/" + p.media,
+			"subs": "api/subs?name=" + url.QueryEscape(p.stem),
+			"seg":  segStatus(p.stem, p.srt),
+		})
+		ensureSeg(p.stem, p.srt)
+	}
+	return map[string]any{"pairs": out}
 }
 
 func scanTexts() map[string]any {

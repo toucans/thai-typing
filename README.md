@@ -239,12 +239,45 @@ like dictation and the journey).
 
 ## Thai word segmentation
 
-No preprocessing pipeline: browsers ship ICU dictionary-based Thai segmentation
-via `Intl.Segmenter` (`web/src/segment.ts`, dependency-free so the standalone
-Pages build can bundle it in — see *Public standalone* below). Where the
-dictionary cuts wrong, put `|` between words in that subtitle cue (or text) —
-explicit markers always win. The dictation setup screen has a per-file
-"ดูตัวอย่างการตัดคำ" preview to vet cuts before playing.
+The baseline is the browser's own: browsers ship ICU dictionary-based Thai
+segmentation via `Intl.Segmenter` (`web/src/segment.ts`, dependency-free so the
+standalone Pages build can bundle it in — see *Public standalone* below). It
+runs everywhere text is typed: the wordstream, `texts/`, the ข่าว reader.
+
+Where the dictionary cuts wrong, put `|` between words in that subtitle cue (or
+text) — explicit markers always win, everywhere, over anything below. The
+dictation setup screen has a per-file "ดูตัวอย่างการตัดคำ" preview to vet cuts
+before playing.
+
+**ฟัง–พิมพ์ episodes get a better splitter, server-side.** ICU's Thai dictionary
+is small and cannot be extended from a browser, so words it has never heard of
+came apart: มิหนำซ้ำ typed as มิ + หนำซ้ำ, and every character name in an episode
+in pieces. Episodes are a fixed, small set of files, so they are segmented once,
+up front, instead:
+
+- `tools/segment-srt.py` runs **deepcut** (char-level CNN, ~96 F1) over each cue,
+  then rejoins adjacent tokens that spell one word in `tools/thai-words.txt`
+  (PyThaiNLP's 62k list, CC0, vendored). The second pass is not optional:
+  deepcut is trained on BEST, which segments to the smallest meaningful unit and
+  hands back โรง|เรียน and นัก|เรียน. Measured on the episode in `media/`, the
+  rejoin pass fixes ~200 of those while keeping deepcut's wins on โฮริคิตะ, พอยต์,
+  เหรอ and มิหนำซ้ำ.
+- The output is just a copy of the `.srt` with `|` markers, so nothing new had to
+  be taught to the client — it already prefers explicit markers.
+- `segment.go` serves it: `/api/subs?name=<episode>` returns the segmented copy
+  when it is ready and the raw `.srt` when it is not, kicking off the run
+  (~25s an episode, once, cached in `<data>/seg/`) in the background either way.
+  Editing a `.srt` invalidates its cache.
+
+deepcut is opt-in and lives outside the repo, because it pulls TensorFlow and
+the venv is ~2.4 GB — the biggest thing this project would own by a wide margin:
+
+    tools/setup-deepcut.sh          # once; creates .venv-deepcut/
+    sudo systemctl restart thai-typing
+
+Without it the episode list shows `seg: "off"` and the browser splits the cues
+as it always did. Deleting `.venv-deepcut` later costs nothing: already-cached
+episodes keep their markers.
 
 **You type the Thai, and read the rest.** Real text — a dropped `.txt`, a news
 lead, a subtitle cue — carries things that are not Thai words: quotes, parens, a
@@ -265,13 +298,15 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
 
 ## Architecture
 
-- `main.go` + `article.go` — Go stdlib only, one binary on `127.0.0.1:8768`:
-  serves the static app, lists `media/` + `texts/`, streams media with Range
-  support, pulls the news feeds (`/api/news`) and extracts full articles +
-  images for the ข่าว reader (`/api/article`, `/api/news-image` — see the ข่าว
-  section for the extraction cascade and SSRF allowlist), appends finished
-  runs to `<data-dir>/users/<name>.jsonl` (data dir set with `-data`; see below),
-  and keeps the ฟัง–พิมพ์ resume cursors in `<name>.resume.json` (`/api/resume`).
+- `main.go` + `article.go` + `segment.go` — Go stdlib only, one binary on
+  `127.0.0.1:8768`: serves the static app, lists `media/` + `texts/`, streams
+  media with Range support, pulls the news feeds (`/api/news`) and extracts full
+  articles + images for the ข่าว reader (`/api/article`, `/api/news-image` — see
+  the ข่าว section for the extraction cascade and SSRF allowlist), serves
+  episode subtitles word-split by deepcut (`/api/subs` — see *Thai word
+  segmentation*), appends finished runs to `<data-dir>/users/<name>.jsonl` (data
+  dir set with `-data`; see below), and keeps the ฟัง–พิมพ์ resume cursors in
+  `<name>.resume.json` (`/api/resume`).
 - `web/` — **strict TypeScript** ES modules in `web/src`, no framework and no
   npm: deno is the whole toolchain (`web/deno.json` — same shape as `~/fa` and
   `~/RAG`). `deno task check` type-checks with `strict` +

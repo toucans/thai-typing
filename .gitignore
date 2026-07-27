@@ -13,3 +13,7 @@ thai-typing-go
 
 # the UI bundle: deno builds web/app.js from web/src/*.ts (see install.sh)
 web/app.js
+
+# the deepcut word splitter's venv: ~2.4 GB of TensorFlow, opt-in, rebuilt by
+# tools/setup-deepcut.sh (segment.go falls back to the browser without it)
+/.venv-deepcut/

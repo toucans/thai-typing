@@ -68,6 +68,10 @@ export interface MediaPair {
   name: string;
   media: string;
   subs: string;
+  // How this episode's words were split (segment.go): 'ready' = the server's
+  // deepcut pass, 'pending' = it is running now and the browser's own splitter
+  // stands in, 'off' = no .venv-deepcut, so the browser always does it.
+  seg?: 'ready' | 'pending' | 'off';
 }
 
 export interface TextFile {
