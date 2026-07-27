@@ -879,17 +879,28 @@ async function finishSession(D: Session, complete: boolean): Promise<void> {
   on(card, '#m-close', () => { closeModal(); exitSession(); });
 }
 
+// Did anything happen? Glancing at ฟัง–พิมพ์ and going elsewhere is not a round
+// and must write nothing — but the test for that cannot be wordsTotal, which
+// counts first guesses at *new* material only. A sitting can legitimately have
+// none of that and still be the most valuable kind there is: open an episode,
+// clear the ทบทวนคำเก่า round waiting in it, get called away. Judged by
+// wordsTotal that sitting scored zero, so its run was dropped — and with it
+// every recall it had just banked, which the next session then asked for all
+// over again. Anything answered (a drill counts) or decided is a round.
+function played(D: Session): boolean {
+  return D.wordsTotal > 0 || D.tokensTyped > 0 || D.ignored.length > 0;
+}
+
 // Leaving the view, or the page, ends the round: the words you missed and the
 // ones you retired are what the next session opens on, so they must not depend
-// on remembering to press something. Nothing is written if you typed nothing —
-// glancing at ฟัง–พิมพ์ and going elsewhere is not a round.
+// on remembering to press something.
 export function leaveDictation(pageGoing = false): void {
   const session = D;
   D = null;
   void flushResume(pageGoing); // the cursor goes either way
   if (!session) return;
   $<HTMLVideoElement>('#dict-media').pause();
-  if (session.wordsTotal) void saveSession(session, false, pageGoing);
+  if (played(session)) void saveSession(session, false, pageGoing);
   if (!pageGoing) exitSession();
 }
 

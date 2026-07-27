@@ -99,6 +99,15 @@ Runs are events and replay in order, so a session split across two writes
 carries over identically to one written in a single go. Typing nothing and
 leaving writes nothing: glancing at a file is not a round.
 
+"Typing nothing" has to mean *answering* nothing, not *scoring* nothing. It used
+to be tested with the accuracy count, which only counts first guesses at new
+material — so a sitting that was nothing but the ทบทวนคำเก่า round (open an
+episode, clear the words owed from last time, get called away) scored zero by
+that measure, wrote no run at all, and handed back every recall it had just
+banked, to be asked for again on the way back in. That is the sitting the
+carry-over mechanism exists for, so it is now the answers, not the score, that
+decide a round happened.
+
 The cursor is **not** in the run log. That log is append-only finished runs, and
 "store events, derive state" only holds if nothing else is mixed in — a cursor is
 the opposite kind of thing (mutable, last-write-wins, worthless as history), so
@@ -456,7 +465,7 @@ now just sits as an archive.
 `install.sh` is idempotent — re-run it after any change. For a frontend-only
 edit the short loop is `cd web && deno task check && deno task build`; the Go
 server serves `web/` straight from the checkout, so no restart is needed.
-`./web/tests/run.sh` is the whole safety net (129 checks) — there is no chromium
+`./web/tests/run.sh` is the whole safety net (141 checks) — there is no chromium
 on this box, so it stands in for a browser: `smoke.js` builds the bundle, boots
 it against a stub DOM and types a story through เรื่องอ่าน end to end, then the
 `sim-*.js` simulations drive the real ฟัง–พิมพ์ state machine.

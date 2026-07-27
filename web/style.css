@@ -409,6 +409,14 @@ h2.blessing-name { margin: .2rem 0 .4rem; }
   text-decoration-thickness: 1px; }
 .dict-ghost { min-height: 1.6rem; text-align: center; font-size: 1.6rem; color: var(--gold);
   letter-spacing: .04em; margin-bottom: .3rem; }
+/* The answer only exists on the study screen, so holding 1.9rem open for it the
+   rest of the time left a strange trench between the cue and the typing bar.
+   It was reserved to stop the bar jumping when a word is missed — but the diff
+   above it is display:none until that same moment, so the bar moved anyway and
+   the reserve bought nothing. The hint line below keeps its height: that one is
+   there through most of a word's loop, and it is where the bar's own position
+   between guessing and recalling comes from. */
+.dict-ghost:empty { display: none; }
 /* The aligned miss diff: your attempt over the answer, one grapheme cluster per
    column (a gap on either side is held open by a ·), so the eye lands on the one
    cluster that went wrong instead of on "that word is red". Monospaced columns
