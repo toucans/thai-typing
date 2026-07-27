@@ -34,7 +34,14 @@
 //     study screen) says it was the fingers: the word scores as spelled right,
 //     leaves the schedule, and — unlike ไม่ต้องจำ — is asked again as normal,
 //     because you do want to keep meeting it.
-//  6. and the same goes for the marks landing out of order. ต + า + ่ and
+//  6. but you can look at the line. Shift+Tab (or ดูทั้งท่อน) reveals the whole
+//     cue — words you have not typed yet in their own colour, so it is never
+//     ambiguous which ones came out of your fingers and which off the screen.
+//     It is a look, not a mode: the next cue starts covered again. Note that a
+//     peek does give away the word you are on, and a word typed off the screen
+//     still scores as spelled right — the button trusts you to use it for the
+//     line, not the answer.
+//  7. and the same goes for the marks landing out of order. ต + า + ่ and
 //     ต + ่ + ่ + า both render as ต่าง and neither is a spelling mistake, so
 //     answers are compared through canonThai (see spell.ts) rather than code
 //     point by code point. Without it the word is rejected with nothing visible
@@ -89,7 +96,7 @@ interface Session {
   wordIdx: number;
   phase: 'guess' | 'study' | 'recall';
   attempts: number;
-  nudged: boolean;
+  peek: boolean; // the whole cue is showing (see togglePeek); cleared each cue
   drill: DrillItem[];
   drillNow: DrillItem | null;
   burst: number; // drills asked back to back since the last fresh cue
@@ -379,7 +386,7 @@ async function start(pair: MediaPair, resumeCue: number): Promise<void> {
     pair, cues, media, read: readMode,
     queue: cues.map((_, i) => i).slice(Math.min(resumeCue, cues.length - 1)),
     qpos: 0, cueAt: resumeCue, tokens: [], wordIdx: 0,
-    phase: 'guess', attempts: 0, nudged: false,
+    phase: 'guess', attempts: 0, peek: false,
     drill: [], drillNow: null, burst: 0, newSeen: 0,
     misses: [], mastered: [], ignored: [], ignoreSet: new Set(), flushRounds: 0,
     cuesDone: 0, wordsTotal: 0, wordsWrong: 0, tokensTyped: 0,
@@ -397,8 +404,10 @@ async function start(pair: MediaPair, resumeCue: number): Promise<void> {
   $('#dict-setup').hidden = true;
   $('#dict-session').hidden = false;
   $<HTMLInputElement>('#dict-typebox').placeholder = readMode ? 'พิมพ์ตามคำที่เห็น…' : 'ฟังแล้วพิมพ์…';
-  $('#dict-keys').innerHTML = `<span class="kbd">Tab</span> ฟังซ้ำ · <span class="kbd">Shift+Tab</span> ช้าลง`
-    + (readMode ? '' : ' · <span class="kbd">Enter</span> ส่งคำตอบ · <span class="kbd">Esc</span> ยอมแพ้คำนี้'
+  $('#dict-peek').hidden = readMode; // the whole cue is already up in ดูแล้วพิมพ์
+  $('#dict-keys').innerHTML = '<span class="kbd">Tab</span> ฟังซ้ำ'
+    + (readMode ? '' : ' · <span class="kbd">Shift+Tab</span> ดูทั้งท่อน'
+      + ' · <span class="kbd">Enter</span> ส่งคำตอบ · <span class="kbd">Esc</span> ยอมแพ้คำนี้'
       + ' · <span class="kbd">Shift+Enter</span> พิมพ์ผิด'
       + ' · <span class="kbd">Ctrl+Enter</span> ไม่ต้องจำคำนี้');
   show('dictation');
@@ -435,7 +444,6 @@ function loadNext(D: Session): void {
 function resetWordState(D: Session): void {
   D.phase = 'guess';
   D.attempts = 0;
-  D.nudged = false;
   const box = $<HTMLInputElement>('#dict-typebox');
   box.value = '';
   box.readOnly = false;
@@ -451,9 +459,34 @@ function beginWord(D: Session): void {
   renderWords(D);
 }
 
+// ---- looking at the line ------------------------------------------------------
+// Listen mode covers everything you have not typed, which is right for the word
+// you are on and wrong for the rest of the sentence: a cue heard as a stream of
+// syllables gives no clue where its words end, and the answer to "was that one
+// word or two" is not something more listening produces. So the whole cue can be
+// put on screen, revealed words in their own colour, and taken down again.
+// Per cue rather than per session — a look you have to ask for again is a look,
+// while one that stays on is just ดูแล้วพิมพ์ with extra steps.
+
+// The flag, and the button that shows its state. Redrawing is left to the
+// caller: the two places that turn peeking off are about to redraw anyway.
+function setPeek(D: Session, on: boolean): void {
+  D.peek = on;
+  const btn = $('#dict-peek');
+  btn.classList.toggle('on', on);
+  btn.textContent = on ? '👁 ซ่อนท่อน' : '👁 ดูทั้งท่อน';
+}
+
+function togglePeek(D: Session): void {
+  if (D.read) return; // the whole cue is already up
+  setPeek(D, !D.peek);
+  renderWords(D);
+}
+
 function loadCue(D: Session): void {
   D.drillNow = null;
   D.burst = 0;
+  setPeek(D, false);
   const ci = currentCueIndex(D);
   D.tokens = cueTokens(D.cues[ci]?.text ?? '');
   D.wordIdx = 0;
@@ -475,6 +508,7 @@ function loadCue(D: Session): void {
 function startDrill(D: Session, item: DrillItem): void {
   D.drillNow = item;
   D.burst++;
+  setPeek(D, false);
   const ci = item.cue;
   D.tokens = cueTokens(D.cues[ci]?.text ?? '');
   D.wordIdx = D.tokens.findIndex((t) => t.target === item.w);
@@ -520,14 +554,20 @@ function renderWords(D: Session): void {
       sp.className = 'skipped';
     } else if (D.drillNow) {
       // the drill blanks its one word and shows the rest as context
-      sp.textContent = i === D.wordIdx ? '▁▁' : tok.display;
-      sp.className = i === D.wordIdx ? 'slot' : 'next';
+      const hide = i === D.wordIdx && !D.peek;
+      sp.textContent = hide ? '▁▁' : tok.display;
+      sp.className = hide ? 'slot' : i === D.wordIdx ? 'peek now' : 'next';
     } else if (i < D.wordIdx) {
       sp.textContent = tok.display;
       sp.className = tok.firstTryWrong ? 'err' : 'ok';
     } else if (i === D.wordIdx) {
-      sp.textContent = D.read ? tok.display : '▁▁';
-      sp.className = D.read ? 'now' : 'slot';
+      // peeking gives the current word its colour too, so what is on screen off
+      // your own fingers and what is on screen off the file never look alike
+      sp.textContent = D.read || D.peek ? tok.display : '▁▁';
+      sp.className = D.read ? 'now' : D.peek ? 'peek now' : 'slot';
+    } else if (D.peek) {
+      sp.textContent = tok.display;
+      sp.className = 'peek';
     } else {
       // read mode shows the whole cue to copy; listen mode hides what's ahead —
       // retrieval, not copying
@@ -933,7 +973,8 @@ export function initDictationInput(): void {
     if (!D) return;
     if (e.key === 'Tab') {
       e.preventDefault();
-      playCue(D, e.shiftKey ? 0.7 : 1);
+      if (e.shiftKey) togglePeek(D);
+      else playCue(D, 1);
       return;
     }
     if (D.read) return;
@@ -972,17 +1013,16 @@ export function initDictationInput(): void {
       }
       // Esc used to hand over the answer for free. Now it commits what you have:
       // an attempt you got wrong is worth more than an answer you never tried
-      // for. An empty box gets one nudge before it counts as a blank.
-      if (!box.value && !D.nudged) {
-        D.nudged = true;
-        $('#dict-phase').textContent = 'เดาก่อน — พิมพ์เท่าที่คิดว่าใช่ แล้วกด Esc อีกครั้ง';
-        return;
-      }
+      // for. An empty box counts as a blank straight away — the second press
+      // that used to be needed only ever cost a keystroke, since anyone reaching
+      // for Esc on a word they cannot hear has already decided to give it up.
       submitGuess(D, box.value);
     }
   });
 
   $('#dict-replay').addEventListener('click', () => { if (D) { playCue(D, 1); box.focus(); } });
+
+  $('#dict-peek').addEventListener('click', () => { if (D) { togglePeek(D); box.focus(); } });
 
   // Leaving mid-episode was only reachable by switching views in the nav, which
   // is not where you look for it. Same call the nav makes: the round is written

@@ -89,11 +89,16 @@
       <div id="media-list" class="cardlist"></div>
     </div>
     <div id="dict-session" hidden>
-      <video id="dict-media" playsinline></video>
+      <!-- the way out rides in the video's own top-left corner, where a back
+           button belongs — not down among the buttons that act on the cue -->
+      <div class="dict-stage">
+        <video id="dict-media" playsinline></video>
+        <button class="btn ghost sm" id="dict-exit">◀ กลับไปเลือกตอน</button>
+      </div>
       <div class="dict-head">
         <span id="dict-cue-no"></span>
         <span class="dict-keys" id="dict-keys">
-          <span class="kbd">Tab</span> ฟังซ้ำ · <span class="kbd">Shift+Tab</span> ช้าลง · <span class="kbd">Esc</span> เฉลยคำ
+          <span class="kbd">Tab</span> ฟังซ้ำ · <span class="kbd">Shift+Tab</span> ดูทั้งท่อน · <span class="kbd">Esc</span> เฉลยคำ
         </span>
       </div>
       <div class="dict-words card" id="dict-words"></div>
@@ -106,7 +111,9 @@
       <input id="dict-typebox" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ฟังแล้วพิมพ์…">
       <div class="play-actions">
         <button class="btn" id="dict-replay">▶ ฟังซ้ำ</button>
-        <button class="btn ghost" id="dict-exit">◀ กลับไปเลือกตอน</button>
+        <!-- a look at the whole cue: the words you haven't typed come up in
+             their own colour, and the next cue starts covered again -->
+        <button class="btn ghost" id="dict-peek">👁 ดูทั้งท่อน</button>
       </div>
     </div>
   </section>

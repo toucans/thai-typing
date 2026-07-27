@@ -65,7 +65,8 @@ const type = (s) => { box.value = s; fire('input', { data: s.slice(-1) }); flush
 // a guess shorter than the answer never reaches the auto-submit length, so it
 // has to be committed with Enter — that is what Enter is for
 const submit = (s) => { box.value = s; fire('input', { data: s.slice(-1) }); key('Enter'); };
-const key = (k) => { fire('keydown', { key: k, shiftKey: false, preventDefault(){} }); flush(); };
+const key = (k, mods = {}) => { fire('keydown', { key: k, shiftKey: false, ...mods, preventDefault(){} }); flush(); };
+const peek = () => key('Tab', { shiftKey: true }); // ดูทั้งท่อน
 const state = () => ({
   cue: el('dict-cue-no').textContent,
   slot: el('dict-words').innerHTML,
@@ -94,18 +95,23 @@ flush();
 console.log('--- cue 1 loaded:', state().cue);
 check('answer hidden at the start', state().ghost === '', `ghost=${state().ghost}`);
 
+// ดูทั้งท่อน: Shift+Tab puts the whole cue up, and puts it away again
+check('cue starts covered', state().slot.includes('▁▁') && !state().slot.includes('ศาสตร์'), state().slot);
+peek();
+check('peek reveals the whole line',
+  ['ผู้ใหญ่', 'ใช้', 'ประโยชน์', 'จาก', 'ศาสตร์'].every((w) => state().slot.includes(w))
+  && !state().slot.includes('▁▁'), state().slot);
+peek();
+check('peek toggles back off', state().slot.includes('▁▁') && !state().slot.includes('ศาสตร์'), state().slot);
+
 // word 1: ผู้ใหญ่ — get it right first try
 type('ผู้ใหญ่');
 check('correct guess advances without revealing', state().ghost === '', `ghost=${state().ghost}`);
 
-// word 2: ใช้ — press Esc on an empty box: should nudge, not reveal
+// word 2: ใช้ — one Esc commits the blank guess and reveals; there is no second
+// press to make (the nudge it used to give is gone)
 key('Escape');
-check('Esc on empty box nudges instead of revealing', state().ghost === '' && state().phase.includes('เดาก่อน'),
-  `ghost=${state().ghost} phase=${state().phase}`);
-
-// second Esc commits the blank and reveals
-key('Escape');
-check('second Esc reveals the answer', state().ghost === 'ใช้', `ghost=${state().ghost}`);
+check('one Esc commits the blank and reveals', state().ghost === 'ใช้', `ghost=${state().ghost}`);
 check('study phase asks for Enter', state().phase.includes('Enter'), state().phase);
 
 // Enter -> recall: the answer must be GONE
@@ -130,12 +136,16 @@ check('diff names the answer', el('dict-diff').innerHTML.includes('ช'));
 check('wrong guess shows the answer', state().ghost === 'ประโยชน์', state().ghost);
 key('Enter'); type('ประโยชน์');
 
-// finish the cue
+// finish the cue, with the line left showing: a peek must not survive the cue
+// it was asked for, or it quietly turns the session into ดูแล้วพิมพ์
 type('จาก');
+peek();
 type('ศาสตร์');
 flush(); flush();
 
 console.log('--- after cue 1:', state().cue);
+check('the next cue starts covered again',
+  state().slot.includes('▁▁') && !state().slot.includes('มาก'), state().slot);
 
 // cue 2
 type('เขา'); type('มั่น'); type('ใจ'); type('มาก');
@@ -148,10 +158,8 @@ const drilled = [];
 while (guard++ < 40 && !records.saved.length) {
   const cue = state().cue;
   if (cue.startsWith('ทบทวน')) {
-    // read the blanked word out of the rendered cue: answer it correctly
-    const target = state().slot.includes('▁▁') ? null : null;
-    // recover the target by revealing (Esc twice) then recalling it
-    key('Escape'); key('Escape');
+    // recover the blanked word by revealing it (one Esc), then recall it
+    key('Escape');
     const answer = state().ghost;
     drilled.push(answer);
     key('Enter'); type(answer);

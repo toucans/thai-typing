@@ -119,7 +119,7 @@ and the loop is built out of exactly those:
 
 1. **Always guess first.** `Esc` used to hand over the answer. It now commits
    whatever is in the box and scores it — an attempt you got wrong is worth more
-   than an answer you never tried for. An empty box gets one nudge first.
+   than an answer you never tried for, and an empty box is a blank you own.
    `Enter` commits a guess shorter than the answer (the auto-submit only fires
    when you reach the answer's length, which is no help when you don't know it).
 2. **Never copy the answer.** The old flow revealed the spelling and let you
@@ -163,7 +163,18 @@ and the loop is built out of exactly those:
    banned — you do want to keep meeting a word you know, so the next cue holding
    it asks for it as normal. A slip *inside* a drill advances that word's
    schedule rather than resetting it.
-6. **Nor for marks landing out of order.** Nothing on a Linux Thai keyboard
+6. **But you can look at the line.** Hiding everything you have not typed is
+   right for the word you are on and wrong for the rest of the sentence: heard
+   as a stream of syllables a cue gives no clue where its words end, and "was
+   that one word or two" is not a question more listening answers. `Shift+Tab`
+   (or the ดูทั้งท่อน button) puts the whole cue up, the untyped words in their
+   own colour and dotted-underlined, so what is on screen off your fingers and
+   what is off the file are never confusable. It is a look, not a mode — the
+   next cue starts covered again, since a peek that stays on is ดูแล้วพิมพ์ with
+   extra steps. It does hand over the word you are on, and a word typed off the
+   screen still scores as spelled right: the button is trusted rather than
+   priced, and `Shift+Tab` is where ช้าลง used to be.
+7. **Nor for marks landing out of order.** Nothing on a Linux Thai keyboard
    enforces the order a syllable's characters are *stored* in, and ่ and า are
    adjacent keys (j and k), so `ต + า + ่` comes out of the fingers about as
    readily as `ต + ่ + า` — as does `ต + ่ + ่ + า` from a key that repeats.

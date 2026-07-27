@@ -86,6 +86,11 @@
   --gold-soft: #eeddab;
   --red: #b23a3f;
   --red-soft: #f3dcda;
+  /* words on screen because you asked to see them, not because you typed them.
+     Green/red/gold are all spoken for (right, wrong, your turn), so a revealed
+     word needs the one cool note in an otherwise warm palette to say "this one
+     came off the file". */
+  --peek: #4f7a94;
   --display: 'Srisakdi', 'Noto Serif Thai', Georgia, serif;
 }
 
@@ -105,6 +110,7 @@ html[data-theme="dark"] {
   --gold-soft: #4a3d17;
   --red: #e08080;
   --red-soft: #4a2624;
+  --peek: #7fb0cc;
 }
 
 * { box-sizing: border-box; }
@@ -243,6 +249,9 @@ code { background: var(--green-100); padding: .05em .35em; border-radius: 5px; f
 .btn.gold:hover { box-shadow: 0 4px 16px rgb(184 134 11 / .5); background: linear-gradient(165deg, var(--gold-hi), var(--gold-lo)); }
 .btn.ghost { background: none; color: var(--green-900); border: 1px solid var(--green-500); }
 .btn.ghost:hover { background: var(--green-100); }
+/* a ghost button that is currently doing something (ดูทั้งท่อน while the cue is up) */
+.btn.ghost.on { color: var(--peek); border-color: var(--peek);
+  background: color-mix(in srgb, var(--peek) 12%, transparent); }
 
 footer {
   max-width: 900px; margin: 0 auto; padding: 0 1.2rem 2rem;
@@ -362,6 +371,16 @@ h2.blessing-name { margin: .2rem 0 .4rem; }
 .play-actions { margin-top: 1rem; display: flex; gap: .6rem; justify-content: center; }
 
 /* ---- dictation ---- */
+/* Leaving the episode: the video's own top-left corner, which is where a way
+   out is looked for, and clear of the buttons that act on the cue so it can't
+   be hit by reflex. It sits on the picture rather than above it — the frame is
+   inert (no controls), and a card-tinted chip stays legible over any of it. */
+.dict-stage { position: relative; }
+#dict-exit {
+  position: absolute; top: .55rem; inset-inline-start: .55rem; z-index: 1;
+  background: color-mix(in srgb, var(--card) 85%, transparent);
+  backdrop-filter: blur(3px);
+}
 #dict-media { display: block; width: 100%; max-height: 480px; border-radius: 16px;
   background: var(--green-950); margin-bottom: .7rem; }
 #dict-media.audio-only { height: 56px; }
@@ -381,6 +400,10 @@ h2.blessing-name { margin: .2rem 0 .4rem; }
    like the wordstream's, upcoming words dimmed so the eye stays on it */
 .dict-words .now { background: var(--gold-soft); }
 .dict-words .next { opacity: .55; }
+/* ดูทั้งท่อน: revealed, not typed. Coloured apart from every other state and
+   underlined as well, so it still reads as "given to you" without the colour. */
+.dict-words .peek { color: var(--peek); text-decoration: underline dotted;
+  text-decoration-thickness: 1px; text-underline-offset: .25em; }
 /* ไม่ต้องจำ: there for context, stepped over rather than typed */
 .dict-words .skipped { color: var(--ink-soft); opacity: .5; text-decoration: line-through;
   text-decoration-thickness: 1px; }
