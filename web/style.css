@@ -371,18 +371,15 @@ h2.blessing-name { margin: .2rem 0 .4rem; }
 .play-actions { margin-top: 1rem; display: flex; gap: .6rem; justify-content: center; }
 
 /* ---- dictation ---- */
-/* Leaving the episode: the video's own top-left corner, which is where a way
-   out is looked for, and clear of the buttons that act on the cue so it can't
-   be hit by reflex. It sits on the picture rather than above it — the frame is
-   inert (no controls), and a card-tinted chip stays legible over any of it. */
-.dict-stage { position: relative; }
-#dict-exit {
-  position: absolute; top: .55rem; inset-inline-start: .55rem; z-index: 1;
-  background: color-mix(in srgb, var(--card) 85%, transparent);
-  backdrop-filter: blur(3px);
-}
-#dict-media { display: block; width: 100%; max-height: 480px; border-radius: 16px;
-  background: var(--green-950); margin-bottom: .7rem; }
+/* Leaving the episode: a column of its own to the left of the video, aligned
+   with its top edge — where a way out is looked for, and well clear of the
+   buttons that act on the current cue, so it can't be hit by reflex. */
+.dict-stage { display: flex; align-items: flex-start; gap: .7rem; margin-bottom: .7rem; }
+#dict-exit { flex: none; }
+/* width for when the stage stops being a flex row (narrow screens, below) —
+   as a flex item its basis is 0 and the row hands it everything left over */
+#dict-media { display: block; flex: 1; min-width: 0; width: 100%; max-height: 480px;
+  border-radius: 16px; background: var(--green-950); }
 #dict-media.audio-only { height: 56px; }
 .dict-head { display: flex; justify-content: space-between; align-items: baseline;
   color: var(--ink-soft); font-size: .9rem; margin-bottom: .5rem; flex-wrap: wrap; gap: .4rem; }
@@ -614,6 +611,9 @@ html[data-theme="dark"] .modal-stars .star.on { color: var(--gold); }
 
 @media (max-width: 640px) {
   header { flex-wrap: wrap; }
+  /* no room for a column beside the video: the way out goes back on top of it */
+  .dict-stage { display: block; }
+  .dict-stage #dict-exit { margin-bottom: .5rem; }
   .hero-title #region-name { font-size: 1.6rem; }
   .wordstream { font-size: 1.4rem; }
   .reader-body { font-size: 1.15rem; }
