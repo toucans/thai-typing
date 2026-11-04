@@ -419,7 +419,7 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
   on every view. It is your entire history. Per the box's data convention it
   lives **outside the repo at `~/keep/thai-typing/`** (the server is pointed there
   with `-data`; defaults to `<repo>/data` for a bare local run) so it's backed up
-  as part of `~/keep` — see debian-config → Backups.
+  as part of `~/keep` — see machines nuc/README.md → Backups.
 
 ## Accounts & the backend, the monk-like way
 
