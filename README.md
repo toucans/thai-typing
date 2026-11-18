@@ -3,7 +3,7 @@
 A self-hosted Thai typing trainer, inspired by 10fastfingers: one game for raw
 speed, one for spelling by ear. Runs on the NUC behind the dashboard front door at
 `http://10.7.0.1/thai-typing/`. Build conventions: johan's global
-`~/.claude/CLAUDE.md`.
+`~/machines/principles.md`.
 
 ## The games
 
@@ -89,7 +89,8 @@ offline. Opening a story fetches the full article (`article.go`, reader in
 
 - Extraction is stdlib only: JSON-LD first, then one body-container marker per
   host. All four sources yield full text (as of 2026-07). A failed body falls back
-  to the RSS lead, marked `partial`.
+  to the RSS lead, marked `partial`; a source that rots just falls back to leads
+  until its marker is re-tuned. Don't build a fragile scraper to save one (johan).
 - Images are downloaded once and served same-origin, never hotlinked.
 - **Every outbound fetch is allowlisted to the feeds' hosts** (plus
   `static.thairath.co.th`), https-only, checked on every redirect: the client names
