@@ -2,8 +2,8 @@
 
 A self-hosted Thai typing trainer, inspired by 10fastfingers: one game for raw
 speed, one for spelling by ear. Runs on the NUC, reached through the dashboard
-front door at `http://10.7.0.1/thai-typing/`. Build conventions live in
-`~/.claude/CLAUDE.md` (johan's global principles) — this repo just applies them.
+front door at `http://10.7.0.1/thai-typing/`. Build conventions: johan's global
+`~/.claude/CLAUDE.md`; this repo just applies them.
 
 ## The games
 
@@ -11,7 +11,7 @@ front door at `http://10.7.0.1/thai-typing/`. Build conventions live in
 north: ten regions of 100 levels, from the Southern Isles to the summit of Doi
 Inthanon. Levels are *generated, not stored*: a seeded PRNG samples a
 frequency-ordered pool of ~980 words (`web/src/data/words.ts`), the window widening
-as levels rise — so the data is one plain-text list, every level is deterministic
+as levels rise. So the data is one plain-text list, every level is deterministic
 and replayable, and nothing needs authoring. Every 10th level is a bonus round of
 proverbs (`sentences.ts`).
 
@@ -21,39 +21,38 @@ sprites + seeded scatter, upscaled crisp by CSS — no image assets), with the
 region's 100 levels as stepping stones on a winding path, a little traveler
 standing on the next level, and **shrines that unlock the มงคลชีวิต ๓๘
 ประการ** — the Mangala Sutta's 38 blessings (`web/src/data/mongkhon.ts`). The
-sutta's 10 stanzas map one-to-one onto the 10 regions; each shrine opens the
-first time its level is passed (derived from `runs.jsonl`, nothing stored),
-the results card presents the blessing, ☸ in the journey bar opens the
-collection, and ข้อ ๓๘ จิตเกษม waits at level 1000 beside the summit chedi.
+sutta's 10 stanzas map one-to-one onto the 10 regions. Each shrine opens the
+first time its level is passed (derived from `runs.jsonl`, nothing stored); the
+results card presents the blessing, ☸ in the journey bar opens the collection,
+and ข้อ ๓๘ จิตเกษม waits at level 1000 beside the summit chedi.
 
-The gamification is deliberately self-referential — you compete with yourself only:
+You compete only with yourself:
 
-- **Finishing a level unlocks the next** — stars are quality medals on top, they never gate progress
-- **1 star** = finish with ≥80% accuracy — accuracy is per keystroke, and Thai's
-  stacked vowels/tone marks make that unforgiving (a typical solid run is ~85%)
+- **Finishing a level unlocks the next**; stars are quality medals on top and never gate progress.
+- **1 star** = finish with ≥80% accuracy. Accuracy is per keystroke, and Thai's
+  stacked vowels/tone marks make that unforgiving (a typical solid run is ~85%).
 - **2 stars** = ≥88% accuracy at no less than the median speed of your own last
-  10 runs — clean *and* at full speed; each tier is roughly three times rarer
-  than the one below
-- **3 stars** = ≥93% accuracy, 5% above that median — always challenging,
-  never impossible
-- stars are re-derived from each run's raw numbers on read (rules in
-  `records.ts starsFor()`), so refining the rules regrades the whole journey
+  10 runs: clean *and* at full speed. Each tier is roughly three times rarer
+  than the one below.
+- **3 stars** = ≥93% accuracy, 5% above that median: always challenging,
+  never impossible.
+- Stars are re-derived from each run's raw numbers on read (rules in
+  `records.ts starsFor()`), so refining the rules regrades the whole journey.
 - **Speed PB** = fastest run at ≥90% accuracy, ever; celebrated with a chime and
-  falling leaves, and recorded permanently for the graph
-- **Accuracy PB** = your cleanest run ever (≥85%) — the mirror reward, celebrated
-  the same way, so slowing down to type accurately is a record too, not just a
-  concession. Rewarding the leading indicator (accuracy), not only the lagging
-  one (speed), is what keeps the medals pulling the *same* way as the วิธีฝึก guide
-- plus a daily streak, a page-count odometer, and short (~1 min) levels so there is
-  always time for "just one more"
-- **💡 วิธีฝึก** on the journey bar opens a short guide to the one thing that
-  matters most — you improve fastest by typing where you *don't* make mistakes.
-  Because accuracy here is per keystroke (~10 pts harsher than the usual 95–98%
-  typing-pedagogy figure), the guide targets this game's own clean line, **the
-  90s**; accuracy builds speed, not the other way round. Bilingual (ไทย/EN toggle).
-  The level-end card echoes it: finish below ~85% (a solid run) and it tells you to
-  slow down until the mistakes stop, and always offers a way back to
-  the map
+  falling leaves, and recorded permanently for the graph.
+- **Accuracy PB** = your cleanest run ever (≥85%), celebrated the same way, so
+  slowing down to type accurately is a record too, not a concession. Rewarding the
+  leading indicator (accuracy) as well as the lagging one (speed) keeps the medals
+  pulling the *same* way as the วิธีฝึก guide.
+- Plus a daily streak, a page-count odometer, and short (~1 min) levels so there is
+  always time for "just one more".
+- **💡 วิธีฝึก** on the journey bar opens a short bilingual (ไทย/EN toggle) guide to
+  the one thing that matters most: you improve fastest by typing where you *don't*
+  make mistakes. Accuracy here is per keystroke (~10 pts harsher than the usual
+  95–98% typing-pedagogy figure), so the guide targets this game's own clean line,
+  **the 90s**; accuracy builds speed, not the other way round. The level-end card
+  echoes it: finish below ~85% (a solid run) and it says to slow down until the
+  mistakes stop, and it always offers a way back to the map.
 
 **ฟัง–พิมพ์ (dictation)** — drop a video/audio file plus a same-named `.srt` into
 `media/` (gitignored). The app plays one subtitle cue and you type it word by
@@ -65,55 +64,53 @@ around the asymmetry described below.
 **A cue is played past its timestamp, because subtitle timings are display
 windows, not speech boundaries.** A cue goes up a little before the line is
 spoken and comes down when the reader has had time enough, and a sentence split
-over two cues is cut where it reads best, not on the pause between the words — so
+over two cues is cut where it reads best, not on the pause between the words, so
 the last word is often still in the air when `end` arrives. Playing exactly
-`[start, end]` therefore cut words off the very thing you are asked to type: 43%
-of the cues in the episode in `media/` carry more text than their window has room
-for at the file's own speaking rate, by a median of 0.85s. No `.srt` matches the
-speech perfectly and none ever will, so the player stops being literal about
-`end` (`playWindows` in `dictation.ts`): every cue gets 0.6s of grace, a cue whose
-text needs longer than its window gives — measured against the median speaking
-rate of *that file*, so a slow documentary and a fast dub each calibrate
-themselves — gets that shortfall instead, up to 1.6s. The tail is allowed to run
-into the *next* cue only when that cue butts onto this one (a third of them do):
-those two are one sentence split for display, so the spilled words are this cue's
-own. Where there's a real gap the speech ended inside it, and the tail stops 0.2s
-in — a trailing syllable, not the next line's answer. Playback also opens 0.15s
-early so the first syllable keeps its onset.
+`[start, end]` cut words off the very thing you type: 43% of the cues in the
+episode in `media/` carry more text than their window has room for at the file's
+own speaking rate, by a median of 0.85s. So the player isn't literal about `end`
+(`playWindows` in `dictation.ts`):
+
+- Every cue gets 0.6s of grace; a cue whose text needs longer than its window gives
+  gets that shortfall instead, up to 1.6s. Need is measured against the median
+  speaking rate of *that file*, so a slow documentary and a fast dub each calibrate
+  themselves.
+- The tail may run into the *next* cue only when that cue butts onto this one (a
+  third of them do): those two are one sentence split for display, so the spilled
+  words are this cue's own. Where there's a real gap the speech ended inside it,
+  and the tail stops 0.2s in: a trailing syllable, not the next line's answer.
+- Playback opens 0.15s early so the first syllable keeps its onset.
 
 **A file is resumable, because an episode is longer than a sitting.** Typing a
 24-minute episode takes several evenings, and a tab dies without warning, so the
 cue you're on is **posted to the server on a timer while you type** (every ~20s
-when it has moved, plus a `keepalive` flush on `pagehide`) — not only when a
-round ends. `localStorage` gets every cue as well: exact, free, and still there
-when the server isn't. Resume takes the furthest point either store knows, so
-neither can lose ground, and a failed post is retried on the next tick rather
-than dropped. Only reaching the end of the cues clears the mark, so a finished
-file starts fresh.
+when it has moved, plus a `keepalive` flush on `pagehide`), not only when a round
+ends. `localStorage` gets every cue as well: exact, free, and still there when the
+server isn't. Resume takes the furthest point either store knows, so neither can
+lose ground; a failed post is retried on the next tick. Only reaching the end of
+the cues clears the mark, so a finished file starts fresh.
 
 **Leaving is how a round ends.** There is no จบรอบนี้ button: switching to
-another view or closing the tab writes the run — the misses, the words drilled
-to mastery, the ไม่ต้องจำ list and the score — because those are what the *next*
-session opens on, and they shouldn't depend on remembering to press something.
-Runs are events and replay in order, so a session split across two writes
-carries over identically to one written in a single go. Typing nothing and
-leaving writes nothing: glancing at a file is not a round.
+another view or closing the tab writes the run (misses, words drilled to mastery,
+the ไม่ต้องจำ list and the score), because those are what the *next* session opens
+on and shouldn't depend on remembering to press something. Runs are events and
+replay in order, so a session split across two writes carries over identically to
+one written in a single go. Typing nothing and leaving writes nothing: glancing at
+a file is not a round.
 
-"Typing nothing" has to mean *answering* nothing, not *scoring* nothing. It used
-to be tested with the accuracy count, which only counts first guesses at new
-material — so a sitting that was nothing but the ทบทวนคำเก่า round (open an
-episode, clear the words owed from last time, get called away) scored zero by
-that measure, wrote no run at all, and handed back every recall it had just
-banked, to be asked for again on the way back in. That is the sitting the
-carry-over mechanism exists for, so it is now the answers, not the score, that
-decide a round happened.
+"Typing nothing" means *answering* nothing, not *scoring* nothing. The accuracy
+count only counts first guesses at new material, so a sitting of nothing but the
+ทบทวนคำเก่า round (open an episode, clear the words owed, get called away) scored
+zero, wrote no run, and handed back every recall it had just banked, to be asked
+for again on return. That is the sitting the carry-over mechanism exists for, so
+the answers, not the score, decide a round happened.
 
-The cursor is **not** in the run log. That log is append-only finished runs, and
-"store events, derive state" only holds if nothing else is mixed in — a cursor is
-the opposite kind of thing (mutable, last-write-wins, worthless as history), so
-it gets its own small file, `<data-dir>/users/<name>.resume.json`, rewritten in
-place via `api/resume`. Losing it costs one re-listen, which is why it can be a
-plain overwrite with none of the log's guarantees.
+The cursor is **not** in the run log. The log is append-only finished runs, and
+"store events, derive state" only holds if nothing else is mixed in; a cursor is
+mutable, last-write-wins and worthless as history. It gets its own small file,
+`<data-dir>/users/<name>.resume.json`, rewritten in place via `api/resume`. Losing
+it costs one re-listen, which is why a plain overwrite with none of the log's
+guarantees is enough.
 
 ### Why ฟังแล้วพิมพ์ works the way it does
 
@@ -121,93 +118,89 @@ Thai is asymmetric. Script→sound is nearly deterministic once you know consona
 classes and syllable structure; sound→script is many-to-one and irreducibly so
 (/s/ is ซ ศ ษ ส, final /t/ has a dozen spellings, and the consonant you pick
 changes which tone mark you need). So reading a great deal buys *recognition*-
-quality word forms — precise enough to tell a word from its neighbours on the
-page, too vague to write it down — and no amount of further reading closes that
+quality word forms, precise enough to tell a word from its neighbours on the
+page, too vague to write it down, and no amount of further reading closes that
 gap on its own. Closing it needs sound→script practice with three properties,
 and the loop is built out of exactly those:
 
-1. **Always guess first.** `Esc` used to hand over the answer. It now commits
-   whatever is in the box and scores it — an attempt you got wrong is worth more
-   than an answer you never tried for, and an empty box is a blank you own.
+1. **Always guess first.** `Esc` commits whatever is in the box and scores it
+   instead of handing over the answer: an attempt you got wrong is worth more than
+   an answer you never tried for, and an empty box is a blank you own.
    `Enter` commits a guess shorter than the answer (the auto-submit only fires
    when you reach the answer's length, which is no help when you don't know it).
-2. **Never copy the answer.** The old flow revealed the spelling and let you
-   transcribe it — a visual-motor task that barely touches memory, given to
-   precisely the words that needed the most. Now a miss goes **study → cover →
-   recall**: an aligned per-cluster diff of your attempt against the answer, the
-   answer alone, then both disappear and you retype it from memory. The answer
-   is deliberately shown *above* the typing bar and never inside it.
+2. **Never copy the answer.** Transcribing a revealed spelling is a visual-motor
+   task that barely touches memory, given to precisely the words that needed the
+   most. So a miss goes **study → cover → recall**: an aligned per-cluster diff of
+   your attempt against the answer, the answer alone, then both disappear and you
+   retype it from memory. The answer is deliberately shown *above* the typing bar
+   and never inside it.
 3. **Come back to it.** A missed word is rescheduled at expanding gaps (5, 15,
-   40 words) and needs three clean unaided recalls to retire. The gaps count
-   **words of new material only** — repetitions do not advance the clock, or a
-   batch of owed words feeds its own gaps and every one of them comes back
-   moments after it was missed, with nothing in between to forget it over. And
-   because a drill only ever interrupts *between* cues, everything falling due
-   inside one cue arrives at the same boundary, so at most three land there and
-   the rest wait for the next. Anything still owed when the session ends carries
-   to the next one through the run log, and opens it as a ทบทวนคำเก่า round —
-   that round and the end-of-media flush are the two deliberate batches.
-   A stumble costs **one** step rather than all three, and the recalls a word
-   has banked are written to the run log (`progress`), so a word met over
-   several sessions resumes where it got to. Both of those exist because
-   without them a hard word could never retire: it restarted at 1/3 every
-   session, and one slip anywhere in the three sent it back to the start.
+   40 words) and needs three clean unaided recalls to retire.
+   - The gaps count **words of new material only**: repetitions do not advance the
+     clock, or a batch of owed words feeds its own gaps and every one of them comes
+     back moments after it was missed, with nothing in between to forget it over.
+   - A drill only interrupts *between* cues, so everything falling due inside one
+     cue arrives at the same boundary: at most three land there, the rest wait for
+     the next.
+   - Anything still owed when the session ends carries to the next one through the
+     run log, and opens it as a ทบทวนคำเก่า round. That round and the end-of-media
+     flush are the two deliberate batches.
+   - A stumble costs **one** step rather than all three, and the recalls a word
+     has banked are written to the run log (`progress`), so a word met over
+     several sessions resumes where it got to. Without both, a hard word could never
+     retire: it restarted at 1/3 every session, and one slip anywhere in the three
+     sent it back to the start.
 4. **Not on every word.** `Ctrl+Enter` (or the ไม่ต้องจำคำนี้ button on the study
-   screen) marks a word as not worth the loop. Transliterated names are the case
-   that matters: อายาโนโคจิ has an arbitrary Thai spelling that generalises to no
-   other word, so neither recalling it nor copying it buys anything — and in a
-   show where it is a main character's name, that is most of the session. An
-   ignored word leaves the schedule, the carry-over list and the accuracy count
-   (rolling back the miss if it was already scored) and from then on is **stepped
-   over exactly like punctuation** — shown greyed out so the cue still reads as a
-   sentence, never typed. The choice is permanent per file, recorded as `ignored`
-   in the run log.
+   screen) marks a word as not worth the loop. The case that matters is
+   transliterated names: อายาโนโคจิ has an arbitrary Thai spelling that
+   generalises to no other word, so neither recalling nor copying it buys
+   anything, and in a show where it is a main character's name that is most of the
+   session. An ignored word leaves the schedule, the carry-over list and the
+   accuracy count (rolling back the miss if it was already scored) and is from then
+   on **stepped over exactly like punctuation**: shown greyed out so the cue still
+   reads as a sentence, never typed. The choice is permanent per file, recorded as
+   `ignored` in the run log.
 5. **Not for a slipped finger.** `guess === target` cannot tell "I can't spell
-   this" from "my hand moved 2mm", and charging the same price for both is
-   expensive: one typo otherwise buys a study screen, a cover-and-recall, three
-   spaced drills and an accuracy hit. `Shift+Enter` (or the พิมพ์ผิด button, next
-   to ไม่ต้องจำ on the study screen) says it was the fingers. The word then scores
-   as spelled right first time, its miss is struck from the run log so it isn't
-   owed next session, and its drill is dropped. Unlike ไม่ต้องจำ it is **not**
-   banned — you do want to keep meeting a word you know, so the next cue holding
-   it asks for it as normal. A slip *inside* a drill advances that word's
+   this" from "my hand moved 2mm", and one typo otherwise buys a study screen, a
+   cover-and-recall, three spaced drills and an accuracy hit. `Shift+Enter` (or the
+   พิมพ์ผิด button, next to ไม่ต้องจำ on the study screen) says it was the fingers:
+   the word scores as spelled right first time, its miss is struck from the run log
+   so it isn't owed next session, and its drill is dropped. Unlike ไม่ต้องจำ it is
+   **not** banned (you do want to keep meeting a word you know), so the next cue
+   holding it asks for it as normal. A slip *inside* a drill advances that word's
    schedule rather than resetting it.
-6. **But you can look at the line.** Hiding everything you have not typed is
-   right for the word you are on and wrong for the rest of the sentence: heard
-   as a stream of syllables a cue gives no clue where its words end, and "was
-   that one word or two" is not a question more listening answers. `Shift+Tab`
-   (or the ดูทั้งท่อน button) puts the whole cue up, the untyped words in their
-   own colour and dotted-underlined, so what is on screen off your fingers and
-   what is off the file are never confusable. It is a look, not a mode — the
-   next cue starts covered again, since a peek that stays on is ดูแล้วพิมพ์ with
-   extra steps. It does hand over the word you are on, and a word typed off the
-   screen still scores as spelled right: the button is trusted rather than
-   priced, and `Shift+Tab` is where ช้าลง used to be.
+6. **But you can look at the line.** Hiding everything untyped is right for the
+   word you are on and wrong for the rest of the sentence: heard as a stream of
+   syllables a cue gives no clue where its words end, and "was that one word or
+   two" is not a question more listening answers. `Shift+Tab` (or the ดูทั้งท่อน
+   button) puts the whole cue up, the untyped words in their own colour and
+   dotted-underlined, so what is off your fingers and what is off the file are never
+   confusable. It is a look, not a mode: the next cue starts covered again, since a
+   peek that stays on is ดูแล้วพิมพ์ with extra steps. It does hand over the word you
+   are on, and a word typed off the screen still scores as spelled right: the button
+   is trusted rather than priced.
 7. **Nor for marks landing out of order.** Nothing on a Linux Thai keyboard
    enforces the order a syllable's characters are *stored* in, and ่ and า are
-   adjacent keys (j and k), so `ต + า + ่` comes out of the fingers about as
-   readily as `ต + ่ + า` — as does `ต + ่ + ่ + า` from a key that repeats.
-   All three render as **ต่าง**, and compared code point by code point the last
-   two are simply wrong: the word is rejected with *nothing on screen to show
-   why*, and retyping it — carefully, the same way — cannot get past. So answers
-   go through `canonThai` first, which sorts each syllable's marks back into
-   standard order and drops a mark repeated on the same base. The word counts as
-   spelled right, with a line naming the standard key order so the habit has
-   something to correct itself against. A wrong tone mark is of course still a
-   wrong tone mark.
+   adjacent keys (j and k), so `ต + า + ่` comes out of the fingers about as readily
+   as `ต + ่ + า`, as does `ต + ่ + ่ + า` from a key that repeats. All three render
+   as **ต่าง**, but compared code point by code point the last two are wrong: the
+   word is rejected with *nothing on screen to show why*, and retyping it the same
+   way cannot get past. So answers go through `canonThai` first, which sorts each
+   syllable's marks back into standard order and drops a mark repeated on the same
+   base. The word counts as spelled right, with a line naming the standard key order
+   so the habit has something to correct itself against. A wrong tone mark is still
+   a wrong tone mark.
 
 Accuracy is still scored on first guesses only, and drill repetitions are
-excluded from it — otherwise the number would reward giving up early. สถิติ
-shows how many words are still owed, which is the one number the carry-over
-mechanism needs to be legible.
+excluded, or the number would reward giving up early. สถิติ shows how many words
+are still owed, the one number the carry-over mechanism needs to be legible.
 
 `src/spell.ts` holds the two pieces of Thai text handling the game leans on:
-`canonThai` (above — canonical mark order, so what looks the same compares the
-same), and an alignment of a wrong attempt against the answer by grapheme
-cluster, so a missing tone mark doesn't shift the rest of the word and paint the
-whole tail red. That diff is now shown on a **failed recall** too, not just on a
-first guess — withholding it is fine while the two differ visibly, and useless
-the moment they don't.
+`canonThai` (canonical mark order, so what looks the same compares the same), and
+an alignment of a wrong attempt against the answer by grapheme cluster, so a
+missing tone mark doesn't shift the rest of the word and paint the whole tail red.
+The diff is shown on a **failed recall** too, not just a first guess: withholding
+it is fine while the two differ visibly, and useless the moment they don't.
 
 **เรื่องอ่าน (texts)** — drop any Thai `.txt` into `texts/` (first line = title)
 and type through it. This is the "stories" path: source stories anywhere, in plain
@@ -218,62 +211,61 @@ from outside. The Go server pulls four Thai news feeds as **RSS** (Thairath,
 Khaosod, Prachatai, Matichon — `newsFeeds` in `main.go`), the single outbound
 dependency; the list view shows each source's headlines + leads with a real
 **source · time** byline. This is a deliberate, contained dent in the app's
-self-containment: everything else — levels, the map, the music — is
-*generated from a seed*, which is exactly why it can read as synthetic; news is
-real, current, and un-generatable, and the realness comes precisely from
-reaching outside. The dent is kept small the monk-like way: the feed list is a
-one-line edit, **four feeds** so one dying isn't fatal, and every fetch is
-**cached to `<data-dir>/news/cache.json`**, so a down feed or an offline box
-still serves the last good pull, flagged `stale`.
+self-containment: everything else (levels, the map, the music) is *generated from
+a seed*, which is why it can read as synthetic; news is real, current and
+un-generatable, and the realness comes from reaching outside. The dent is kept
+small the monk-like way: the feed list is a one-line edit, there are **four
+feeds** so one dying isn't fatal, and every fetch is **cached to
+`<data-dir>/news/cache.json`**, so a down feed or an offline box still serves the
+last good pull, flagged `stale`.
 
 Opening a story reads the **whole real article** in a reader view
-(`web/src/reader.ts`): source · date byline, the headline in Srisakdi under a
-gold rule, the hero photo, the full body in Sarabun — and you type it through
-*in place*, word by word down the column, with the same scoring, results card
-and run record as every other text (`finishSession` in `speed.ts`). You type
-the Thai; tokens with none of it — English names, numbers, percentages — are
-shown dimmed and stepped over automatically, and never counted in the score. The server
-side (`article.go`, `GET /api/article`) fetches the article on first open and
-extracts it **standard-first**: headline/date/image from **JSON-LD**
-(schema.org `NewsArticle`) with `og:` meta and the RSS item as fallbacks, the
-body from each site's article container (one marker string per host — the
-entire per-source knowledge), split on block boundaries and junk-filtered with
-`regexp`/`strings` only — no HTML-tree dependency needed, so the server stays
-**pure stdlib**. Source tiers as verified 2026-07: **ไทยรัฐ, ข่าวสด, มติชน,
-ประชาไท all yield full text** (ไทยรัฐ also carries a JSON-LD `articleBody` as a
-second full-text path); any story whose body can't be extracted degrades to the
-RSS lead, labeled `partial` in the reader — never a dead card, and a source
-that rots away just falls back to leads until its marker is re-tuned.
+(`web/src/reader.ts`): source · date byline, the headline in Srisakdi under a gold
+rule, the hero photo, the full body in Sarabun. You type it through *in place*,
+word by word down the column, with the same scoring, results card and run record
+as every other text (`finishSession` in `speed.ts`). You type the Thai; tokens
+with none of it (English names, numbers, percentages) are shown dimmed, stepped
+over automatically and never scored.
+
+Server side (`article.go`, `GET /api/article`) fetches the article on first open
+and extracts it **standard-first**: headline/date/image from **JSON-LD** (schema.org
+`NewsArticle`) with `og:` meta and the RSS item as fallbacks; body from each site's
+article container (one marker string per host: the entire per-source knowledge),
+split on block boundaries and junk-filtered with `regexp`/`strings` only. No
+HTML-tree dependency, so the server stays **pure stdlib**. Source tiers as verified
+2026-07: **ไทยรัฐ, ข่าวสด, มติชน, ประชาไท all yield full text** (ไทยรัฐ also carries
+a JSON-LD `articleBody` as a second full-text path). A story whose body can't be
+extracted degrades to the RSS lead, labeled `partial` in the reader: never a dead
+card, and a source that rots away just falls back to leads until its marker is
+re-tuned.
 
 Extractions are cached to `<data-dir>/news/articles/<hash>.json` (a full
-extraction is immutable — cached forever; a partial one is retried on each
-open). The hero image is **never hotlinked**: the server downloads it once to
-`<data-dir>/news/img/` and serves it same-origin via `/api/news-image` — no
-external requests from the browser, and the photo survives the source deleting
-it. Every outbound fetch (article and image) is **allowlisted to the feeds'
-own hosts** (plus ไทยรัฐ's `static.` CDN host), https-only, enforced on every
-redirect hop — the client names the URL, so an unguarded fetch would be an
-SSRF hole into the LAN. Untrusted article text is placed with `textContent`,
-never `innerHTML`. Stays off the Pages standalone build (backend-dependent,
-like dictation and the journey).
+extraction is immutable, cached forever; a partial one is retried on each open).
+The hero image is **never hotlinked**: the server downloads it once to
+`<data-dir>/news/img/` and serves it same-origin via `/api/news-image`, so the
+browser makes no external requests and the photo survives the source deleting it.
+Every outbound fetch (article and image) is **allowlisted to the feeds' own hosts**
+(plus ไทยรัฐ's `static.` CDN host), https-only, enforced on every redirect hop: the
+client names the URL, so an unguarded fetch would be an SSRF hole into the LAN.
+Untrusted article text is placed with `textContent`, never `innerHTML`. Stays off
+the Pages standalone build (backend-dependent, like dictation and the journey).
 
 ## Thai word segmentation
 
-The baseline is the browser's own: browsers ship ICU dictionary-based Thai
-segmentation via `Intl.Segmenter` (`web/src/segment.ts`, dependency-free so the
-standalone Pages build can bundle it in — see *Public standalone* below). It
-runs everywhere text is typed: the wordstream, `texts/`, the ข่าว reader.
+The baseline is the browser's own: ICU dictionary-based Thai segmentation via
+`Intl.Segmenter` (`web/src/segment.ts`, dependency-free so the standalone Pages
+build can bundle it in — see *Public standalone* below). It runs everywhere text is
+typed: the wordstream, `texts/`, the ข่าว reader.
 
 Where the dictionary cuts wrong, put `|` between words in that subtitle cue (or
-text) — explicit markers always win, everywhere, over anything below. The
-dictation setup screen has a per-file "ดูตัวอย่างการตัดคำ" preview to vet cuts
-before playing.
+text); explicit markers always win, everywhere, over anything below. The dictation
+setup screen has a per-file "ดูตัวอย่างการตัดคำ" preview to vet cuts before playing.
 
 **ฟัง–พิมพ์ episodes get a better splitter, server-side.** ICU's Thai dictionary
 is small and cannot be extended from a browser, so words it has never heard of
 came apart: มิหนำซ้ำ typed as มิ + หนำซ้ำ, and every character name in an episode
 in pieces. Episodes are a fixed, small set of files, so they are segmented once,
-up front, instead:
+up front:
 
 - `tools/segment-srt.py` runs **deepcut** (char-level CNN, ~96 F1) over each cue,
   then rejoins adjacent tokens that spell one word in `tools/thai-words.txt`
@@ -282,34 +274,33 @@ up front, instead:
   hands back โรง|เรียน and นัก|เรียน. Measured on the episode in `media/`, the
   rejoin pass fixes ~200 of those while keeping deepcut's wins on โฮริคิตะ, พอยต์,
   เหรอ and มิหนำซ้ำ.
-- The output is just a copy of the `.srt` with `|` markers, so nothing new had to
-  be taught to the client — it already prefers explicit markers.
+- The output is a copy of the `.srt` with `|` markers, so the client needed nothing
+  new: it already prefers explicit markers.
 - `segment.go` serves it: `/api/subs?name=<episode>` returns the segmented copy
   when it is ready and the raw `.srt` when it is not, kicking off the run
   (~25s an episode, once, cached in `<data>/seg/`) in the background either way.
   Editing a `.srt` invalidates its cache.
 
 deepcut is opt-in and lives outside the repo, because it pulls TensorFlow and
-the venv is ~2.4 GB — the biggest thing this project would own by a wide margin:
+the venv is ~2.4 GB, the biggest thing this project would own by a wide margin:
 
     tools/setup-deepcut.sh          # once; creates .venv-deepcut/
     sudo systemctl restart thai-typing
 
 Without it the episode list shows `seg: "off"` and the browser splits the cues
-as it always did. Deleting `.venv-deepcut` later costs nothing: already-cached
-episodes keep their markers.
+itself. Deleting `.venv-deepcut` later costs nothing: already-cached episodes keep
+their markers.
 
-**You type the Thai, and read the rest.** Real text — a dropped `.txt`, a news
-lead, a subtitle cue — carries things that are not Thai words: quotes, parens, a
-year, `65%`, an English acronym, an em dash. None of them teaches Thai, and
-demanding them turns a stray em dash into an unpassable wall that also drains
-your accuracy while you try to get past it. So a token with **no Thai character
-in it is context**: shown dimmed so the line still reads, stepped over
-automatically, and never scored — in the wordstream, the ข่าว reader and
-ฟัง–พิมพ์ alike. One predicate, `hasThai` in `web/src/segment.ts`, answers it for
-all three. In ฟัง–พิมพ์ that also keeps `2568` and `MOU` out of the drill queue
-and the carry-over list, where they would otherwise be scheduled as spellings to
-learn.
+**You type the Thai, and read the rest.** Real text (a dropped `.txt`, a news
+lead, a subtitle cue) carries things that are not Thai words: quotes, parens, a
+year, `65%`, an English acronym, an em dash. None teaches Thai, and demanding them
+turns a stray em dash into an unpassable wall that also drains your accuracy. So a
+token with **no Thai character in it is context**: shown dimmed so the line still
+reads, stepped over automatically, and never scored, in the wordstream, the ข่าว
+reader and ฟัง–พิมพ์ alike. One predicate, `hasThai` in `web/src/segment.ts`,
+answers it for all three. In ฟัง–พิมพ์ it also keeps `2568` and `MOU` out of the
+drill queue and the carry-over list, where they would otherwise be scheduled as
+spellings to learn.
 
 ## Speed metric
 
@@ -331,7 +322,7 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
   npm: deno is the whole toolchain (`web/deno.json` — same shape as `~/fa` and
   `~/RAG`). `deno task check` type-checks with `strict` +
   `noUncheckedIndexedAccess`; `deno task build` bundles `src/main.ts` into
-  `web/app.js`, which is what `index.html` loads. **There is a build step now:**
+  `web/app.js`, which is what `index.html` loads. **There is a build step:**
   `app.js` is a gitignored artifact, so editing a `.ts` changes nothing in the
   browser until `deno task build` runs (`./install.sh` runs both).
   Key clicks and chimes are synthesized with WebAudio — no sound assets.
@@ -366,20 +357,19 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
   theme, `THEMES` in `music.ts`); the khong (marimba) states it plainly, the
   ranat lead (xylophone or balafon, its top kept dark — nothing piercing)
   weaves a division around it that always arrives on the structural notes,
-  the kanun plucks patterns — and every third decade *carries the melody
-  itself* while the mallets answer — and the soft thon-rammana drums join
-  in later decades. One track per 10
-  levels: the ten decades of a region are ten realizations of that region's
-  theme — tempo, density and instrumentation grow as you walk — so all
-  hundred tracks are authored melodies, not dice. No free Thai-instrument
-  recordings exist (checked 2026-07), so every voice is a real recording
-  (mostly VCSL, CC0; `web/assets/ranat/`, rebuilt by `tools/build-assets.py`)
-  cast *by role*, and made Thai by performance: near-7-TET tuning with a
-  per-track ±8¢ bar-tuning table, octave doubling with mallet flams, kro
-  tremolo rolls at cadences, ching-chap timekeeping and a soft gong at
-  sections. Toggle with the pixel note button. The front page has the one piece whose *lead line* is
-  written out by hand (`HOME_BARS`), starting on the first click or keypress
-  (browsers require a gesture before audio).
+  the kanun plucks patterns (every third decade *carries the melody
+  itself* while the mallets answer), and the soft thon-rammana drums join
+  in later decades. One track per 10 levels: the ten decades of a region are
+  ten realizations of that region's theme — tempo, density and instrumentation
+  grow as you walk — so all hundred tracks are authored melodies, not dice. No
+  free Thai-instrument recordings exist (checked 2026-07), so every voice is a
+  real recording (mostly VCSL, CC0; `web/assets/ranat/`, rebuilt by
+  `tools/build-assets.py`) cast *by role*, and made Thai by performance:
+  near-7-TET tuning with a per-track ±8¢ bar-tuning table, octave doubling with
+  mallet flams, kro tremolo rolls at cadences, ching-chap timekeeping and a soft
+  gong at sections. Toggle with the pixel note button. The front page has the one
+  piece whose *lead line* is written out by hand (`HOME_BARS`), starting on the
+  first click or keypress (browsers require a gesture before audio).
   - **The nature collection**: every region's bed is a real field recording,
     cut to a seamless loop by `build-assets.py` (tail crossfaded into head)
     and credited in the manifest — a rippling brook, a waterfall, two
@@ -398,12 +388,12 @@ is ill-defined. Roughly CPM ÷ 5 if you want a WPM-like number.
        level (the "constant tone"), and synthesized nature reads as noise —
        weather has to be recorded. The only synthesis left is the offline
        fallback voice.
-    2. *Short sounds only.* Sustained voices annoy over a typing session:
-       recorder, kaval, duduk and bowed psaltery were all tried and retired.
+    2. *Short sounds only.* Sustained voices annoy over a typing session
+       (recorder, kaval, duduk and bowed psaltery were tried and retired).
        Struck and plucked only; the nature bed owns the sustain.
     3. *Nothing high-pitched or repetitive-bright.* The glockenspiel was
-       rejected as "annoying high-pitched percussion"; the ranat's top now
-       folds down below ~1.25 kHz. The soft ching is the one high voice that
+       rejected as "annoying high-pitched percussion"; the ranat's top folds
+       down below ~1.25 kHz. The soft ching is the one high voice that
        survived. Keep instruments dark; brightness belongs to the birds.
     4. *Nature forward.* The bed carries the track and the instruments sit
        inside it. Reference tracks for the target feel: region 2 breeze and
@@ -437,24 +427,23 @@ The whole backend recipe, transferable to any small project:
    under one process + a lock; no schema migrations, `cat`-able, greppable,
    backed up by copying a file.
 3. **Store events, derive state.** Only finished runs are written to the log;
-   stars, unlocks, PBs, streaks are computed from it on read. There is no second
-   copy of state to drift out of sync. The one thing that is genuinely mutable
-   cursor state — where you are in a ฟัง–พิมพ์ file — is kept *out* of the log in
-   its own overwritable file rather than being smuggled in as fake events.
+   stars, unlocks, PBs, streaks are computed from it on read, so there is no
+   second copy of state to drift. The one genuinely mutable thing, the ฟัง–พิมพ์
+   cursor, is kept *out* of the log in its own overwritable file rather than
+   smuggled in as fake events.
 4. **The server is the only source of truth.** Clients keep no persistent save
    data (localStorage holds the username, device prefs like theme, and a
    convenience copy of the ฟัง–พิมพ์ cursor the server also has) and
-   re-fetch on focus — that's the entire multi-device sync story: no cache
+   re-fetch on focus. That is the entire multi-device sync story: no cache
    invalidation, no conflict resolution, because nothing conflicts.
 
 This holds as long as writes are append-only events from a handful of trusted
-clients. The moment a project needs concurrent mutable state or untrusted
-users (e.g. a future multiplayer backend), that's a different shape — real
-auth and a real database — not more layers on this one.
+clients. Concurrent mutable state or untrusted users (e.g. a future multiplayer
+backend) is a different shape — real auth and a real database — not more layers
+on this one.
 
-Legacy note: pre-account history lived in `data/runs.jsonl`; it was copied
-into `data/users/johan.jsonl` when accounts arrived (2026-07) and the old file
-now just sits as an archive.
+Pre-account history lived in `data/runs.jsonl`; it was copied into
+`data/users/johan.jsonl` (2026-07) and the old file is an archive.
 
 ## Install / deploy
 
@@ -465,10 +454,10 @@ now just sits as an archive.
 `install.sh` is idempotent — re-run it after any change. For a frontend-only
 edit the short loop is `cd web && deno task check && deno task build`; the Go
 server serves `web/` straight from the checkout, so no restart is needed.
-`./web/tests/run.sh` is the whole safety net (141 checks) — there is no chromium
-on this box, so it stands in for a browser: `smoke.js` builds the bundle, boots
-it against a stub DOM and types a story through เรื่องอ่าน end to end, then the
-`sim-*.js` simulations drive the real ฟัง–พิมพ์ state machine.
+`./web/tests/run.sh` is the whole safety net (141 checks) and stands in for a
+browser, since there is no chromium on this box: `smoke.js` builds the bundle,
+boots it against a stub DOM and types a story through เรื่องอ่าน end to end, then
+the `sim-*.js` simulations drive the real ฟัง–พิมพ์ state machine.
 
 Registered in the dashboard's `~/dashboard/projects.json` (its nginx proxies
 `/thai-typing/` → `127.0.0.1:8768`, prefix stripped — hence relative URLs only in
@@ -483,7 +472,7 @@ served at `main:/docs` (Settings → Pages → *Deploy from a branch* → `main`
 journey, stats, dictation — stays behind the VPN on the NUC; none of its
 `api/*` endpoints are reachable from Pages, and the box's server still binds to
 `127.0.0.1` only. Pages hosts static files with no path to the box, so
-publishing it exposes nothing.
+publishing exposes nothing.
 
 Two things make it work standalone:
 
@@ -492,17 +481,16 @@ Two things make it work standalone:
   progress saved beyond a local best score in `localStorage`.
 - **Any keyboard types Thai.** `docs/kedmanee.js` maps the *physical* key
   (`KeyboardEvent.code`, layout-independent) through the standard Kedmanee Thai
-  layout, so a Danish keyboard with no Thai layout installed plays fine — and an
+  layout, so a Danish keyboard with no Thai layout installed plays fine, and an
   on-screen keyboard lights the next key to press. Every character in the word
   pool is reachable (the two ANSI-only letters ฃ ฅ aren't in the pool).
 
 `docs/` is a **generated artifact**: the authored files (`index.html`,
 `app.css`, `game.js`, `kedmanee.js`) live there and stay plain JS, but the level
 generator and the fonts come from `web/` via the build script so the source of
-truth stays single. Since `web/src` is TypeScript, the shared module can't be
-copied any more — deno bundles `web/src/levels.ts` (pulling in the segmenter and
-the word/sentence pools) into a single plain-JS `docs/lib/levels.js`. Rebuild and
-commit after changing word lists or fonts:
+truth stays single. Since `web/src` is TypeScript, deno bundles `web/src/levels.ts`
+(pulling in the segmenter and the word/sentence pools) into a single plain-JS
+`docs/lib/levels.js`. Rebuild and commit after changing word lists or fonts:
 
 ```sh
 ./tools/build-pages.sh   # refreshes docs/lib/ and docs/fonts/ from web/
