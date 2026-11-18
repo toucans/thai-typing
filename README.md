@@ -68,7 +68,7 @@ over two cues is cut where it reads best, not on the pause between the words, so
 the last word is often still in the air when `end` arrives. Playing exactly
 `[start, end]` cut words off the very thing you type: 43% of the cues in the
 episode in `media/` carry more text than their window has room for at the file's
-own speaking rate, by a median of 0.85s. So the player isn't literal about `end`
+own speaking rate, by a median of 0.85s. No `.srt` matches the speech perfectly and none ever will, so the player isn't literal about `end`
 (`playWindows` in `dictation.ts`):
 
 - Every cue gets 0.6s of grace; a cue whose text needs longer than its window gives
